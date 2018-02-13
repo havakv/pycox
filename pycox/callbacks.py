@@ -245,7 +245,7 @@ class MonitorMetricsBase(Callback):
         if monitor_funcs.__class__ is dict:
             self.monitor_names = list(monitor_funcs.keys())
             self.monitor_funcs = monitor_funcs.values()
-        elif monitor.__class__ == list:
+        elif monitor_funcs.__class__ == list:
             self.monitor_names = list(range(len(monitor_funcs)))
             self.monitor_funcs = monitor_funcs
         else:

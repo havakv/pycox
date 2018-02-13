@@ -50,7 +50,7 @@ class FitNet(object):
         self.callbacks.give_model(self)
         self.callbacks.on_fit_start()
 
-        for epoch in range(epochs):
+        for _ in range(epochs):
             for Xtr, ytr in dataloader:
                 if self.cuda:
                     Xtr, ytr = Xtr.cuda(), ytr.cuda()

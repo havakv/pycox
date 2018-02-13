@@ -197,7 +197,7 @@ class CoxNNT(object):
         self.callbacks.give_model(self)
 
         self.callbacks.on_fit_start()
-        for epoch in range(epochs):
+        for _ in range(epochs):
             for case, control in dataloader:
                 if self.cuda:
                     case, control = case.cuda(), control.cuda()
