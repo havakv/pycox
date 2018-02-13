@@ -303,7 +303,7 @@ class CoxNNT(object):
             warnings.warn('Might need to set optim again!')
 
 
-class CoxNN(CoxNNT):
+class CoxPH(CoxNNT):
     '''This class implements fitting Cox's proportional hazard model:
     h(t|x) = h_0(t)*exp(g(x)), where g(x) is a neural net specified with pytorch.
     Parameters:
@@ -738,7 +738,7 @@ class CoxNN(CoxNNT):
         print(self.g)
 
 
-class CoxNNTime(CoxNN):
+class CoxTime(CoxPH):
     '''Same as CoxNN, but we include time as a covariate.
 
     Possibly merge this class into CoxNN!!!!!!!
@@ -828,7 +828,7 @@ class CoxNNTime(CoxNN):
         '''
         cols = list(self.x_columns) + [self.duration_col]
         x = df[cols].as_matrix().astype('float32')
-        return super(CoxNN, self).predict_g(x, batch_size, return_numpy, eval_)
+        return super(CoxPH, self).predict_g(x, batch_size, return_numpy, eval_)
 
     def compute_baseline_hazard(self, df=None, max_duration=np.inf, batch_size=512):
         '''Computes the breslow estimates of the baseline hazards of dataframe df.
@@ -930,7 +930,7 @@ class CoxNNTime(CoxNN):
         raise NotImplementedError()
 
 
-class CoxLinear(CoxNN):
+class CoxPHLinear(CoxPH):
     '''This class implements Cox's proportional hazard model:
     h(t|x) = h_0(t)*exp(g(x)), where g(x) = beta^T x.
 
@@ -996,7 +996,7 @@ class CoxLinear(CoxNN):
                            num_workers, n_control, verbose, strata, callbacks)
 
 
-class CoxMLP(CoxNN):
+class CoxPHMLP(CoxPH):
     '''This class implements Cox's proportional hazard model:
     h(t|x) = h_0(t)*exp(g(x)), where g(x) = is an one-hidden-layer MLP with elu activation.
 
@@ -1074,7 +1074,7 @@ class FuncTorch(nn.Module):
         return self.func(x)
 
 
-class CoxFunc(CoxNN):
+class CoxFunc(CoxPH):
     '''Class for doing same as CoxNN on an arbitrary funciton g.
     h(x, t) = h_0(t) * exp(g(x))
 
