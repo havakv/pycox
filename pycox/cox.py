@@ -852,9 +852,9 @@ class CoxPHLinear(CoxPH):
     def _make_g_model(self, input_size):
         return nn.Sequential(nn.Linear(input_size, 1, bias=False))
 
-    def fit(self, df, duration_col, event_col=None, batch_size=64, epochs=500,
-            num_workers=0, n_control=1, verbose=1, strata=None, early_stopping=True,
-            callbacks=None):
+    def fit(self, df, duration_col, event_col=None, n_control=1, batch_size=64, epochs=500,
+            n_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
+            early_stopping=True):
         '''Fit the Cox Propertional Hazard model to a dataset. Tied survival times
         are handled using Efron's tie-method.
 
@@ -867,17 +867,18 @@ class CoxPHLinear(CoxPH):
                 lifetimes.
             event_col: The column in dataframe that contains the subjects' death
                 observation. If left as None, assume all individuals are non-censored.
+            n_control: Number of control samples.
             batch_size: Batch size.
             epochs: Number of epochs.
-            num_workers: Number of workers for preparing data.
-            n_control: Number of control samples.
+            n_workers: Number of workers for preparing data.
             strata: Specify a list of columns to use in stratification. This is useful if a
                 catagorical covariate does not obey the proportional hazard assumption. This
                 is used similar to the `strata` expression in R.
                 See http://courses.washington.edu/b515/l17.pdf.
+            callbacks: List of callbacks.
+            compute_hazards: If we should compute hazards when training has finished.
             early_stopping: Use prespesifed early stopping callback to stop when loss hasn't
                 imporved for last 5 epochs.
-            callbacks: List of callbacks.
 
         # Returns:
         #     self, with additional properties: hazards_
@@ -886,8 +887,8 @@ class CoxPHLinear(CoxPH):
             callbacks = []
         if early_stopping:
             callbacks.append(EarlyStoppingTrainLoss())
-        return super().fit(df, duration_col, event_col, batch_size, epochs,
-                           num_workers, n_control, verbose, strata, callbacks)
+        return super().fit(df, duration_col, event_col, n_control, batch_size, epochs,
+                           n_workers, verbose, strata, callbacks, compute_hazards)
 
 
 class CoxPHMLP(CoxPH):
