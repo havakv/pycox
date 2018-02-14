@@ -6,7 +6,7 @@ import torch
 from torch.autograd import Variable
 import torch.optim as optim
 from torch.utils.data import Dataset
-from .cox import NumpyTensorDataset, DataLoaderBatch, _identity
+from .cox import NumpyTensorDataset, DataLoaderBatch
 from .callbacks import CallbacksList, TrainingLogger
 
 
@@ -37,8 +37,7 @@ class FitNet(object):
     @staticmethod
     def make_dataset(Xtr, ytr, batch_size, num_workers):
         trainset = PrepareData(Xtr, ytr)
-        dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
-                                     collate_fn=_identity)
+        dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
         return dataloader
 
     def fit(self, Xtr, ytr, batch_size=64, epochs=1, num_workers=0, callbacks=None, verbose=1):

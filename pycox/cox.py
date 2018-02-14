@@ -3,133 +3,27 @@ File contains an implementation of cox regression with arbirary neural network a
 '''
 import warnings
 import numpy as np
-import scipy
+# import scipy
 import pandas as pd
 
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-import torch.nn.functional as F
+# import torch.nn.functional as F
 import torch.optim as optim
-import torch.utils.data as data
+# import torch.utils.data as data
 
-from kds.pytorch_help import DataLoaderBatch
+# from kds.pytorch_help import DataLoaderBatch
 
-from sklearn.metrics import roc_auc_score
-from lifelines.utils import concordance_index
-from lifelines import KaplanMeierFitter
+# from sklearn.metrics import roc_auc_score
+# from lifelines.utils import concordance_index
+# from lifelines import KaplanMeierFitter
 
 from .callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
+from .dataloader import DataLoaderBatch, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
+from .metrics import concordance_index, brier_score, integrated_brier_score
 
 
-def sample_alive_from_dates(dates, gr_alive, n_control=1):
-    '''Sample index from living at time given in dates.
-    dates: np.array of times (or pd.Series).
-    gr_alive: dict with gr_alive[time] = <array with index of alive in X matrix>.
-    n_control: number of samples.
-
-    !!!! This is now with replacement!!!!!
-
-    '''
-    lengths = np.array([gr_alive[x].shape[0] for x in dates])  # Can be moved outside
-    idx = (np.random.uniform(size=(n_control, dates.size)) * lengths).astype('int')
-    samp = np.empty((dates.size, n_control), dtype=int)
-    samp.fill(np.nan)
-
-    for it, time in enumerate(dates):
-        samp[it, :] = gr_alive[time][idx[:, it]]
-    return samp
-
-
-class CoxPrepare(data.Dataset):
-    '''Torch Dataset for preparing Cox case controll.
-
-    Parameters:
-    Xtr: np.array float32, with all training data.
-    time_fail: pd.Series with index corresponding to failures in Xtr
-        and values giving time of death (as int).
-    gr_alive: dict with
-            key: time of death
-            val: index (Xtr) of alive at time 'key'.
-    n_control: number of control samples.
-    '''
-    def __init__(self, Xtr, time_fail, gr_alive, n_control=1):
-        self.Xtr = Xtr
-        self.time_fail = time_fail
-        self.gr_alive = gr_alive
-        self.n_control = n_control
-
-    def get_case_control(self, index):
-        if not hasattr(index, '__iter__'):
-            index = [index]
-        fails = self.time_fail.iloc[index]
-
-        x_case = self.Xtr[fails.index]
-        control_idx = sample_alive_from_dates(fails.values, self.gr_alive, self.n_control)
-        x_control = [self.Xtr[idx] for idx in control_idx.transpose()]
-        return x_case, np.stack(x_control)
-
-    def __getitem__(self, index):
-        x_case, x_control = self.get_case_control(index)
-        return torch.from_numpy(x_case), torch.from_numpy(x_control)
-
-    def __len__(self):
-        return self.time_fail.size
-
-
-class CoxPrepareWithTime(CoxPrepare):
-    '''Same as CoxPrepare, but time included as a covariate.
-
-    Parameters:
-    Xtr: np.array float32, with all training data.
-    time_fail: pd.Series with index corresponding to failures in Xtr
-        and values giving time of death (as int).
-    gr_alive: dict with
-            key: time of death
-            val: index (Xtr) of alive at time 'key'.
-    n_control: number of control samples.
-    '''
-    def _make_x_with_time(self, x, times, r, c):
-        x_new = np.empty((r, c+1), dtype='float32')
-        x_new[:, :c] = x
-        x_new[:, c] = times
-        return x_new
-
-    def get_case_control(self, index):
-        x_case, x_control = super().get_case_control(index)
-        if not hasattr(index, '__iter__'):
-            index = [index]
-        fails = self.time_fail.iloc[index]
-        r, c = len(index), self.Xtr.shape[1]
-        x_case = self._make_x_with_time(x_case, fails.values, r, c)
-        x_control = [self._make_x_with_time(x, fails.values, r, c)
-                     for x in x_control]
-        return x_case, np.stack(x_control)
-
-
-class NumpyTensorDataset(data.Dataset):
-    '''Turn np.array or list of np.array into a torch Dataset.
-    X: numpy array or list of numpy arrays.
-    '''
-    def __init__(self, X):
-        self.X = X
-        self.single = False if X.__class__ is list else True
-        if not self.single:
-            assert len(set([len(x) for x in self.X])) == 1,\
-                'All elements in X must have the same length.'
-
-    def __getitem__(self, index):
-        if self.single:
-            return torch.from_numpy(self.X[index])
-        return [torch.from_numpy(x[index]) for x in self.X]
-
-    def __len__(self):
-        return self.X.shape[0]
-
-
-def _identity(x):
-    '''Function returning x'''
-    return x
 
 
 class CoxNNT(object):
@@ -183,7 +77,7 @@ class CoxNNT(object):
         assert Xtr.dtype == np.float32, 'Need Xtr to be np.float32'
         trainset = CoxPrepare(Xtr, time_fail, gr_alive, n_control)
         dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True,
-                                     num_workers=n_workers, collate_fn=_identity)
+                                     num_workers=n_workers)
         return dataloader
 
     def fit_dataloader(self, dataloader, epochs=1, verbose=1, callbacks=None):
@@ -812,7 +706,7 @@ class CoxTime(CoxPH):
         assert time_fail.dtype == 'float32', 'To use time as a covariate, we need dtype: float32'
         trainset = CoxPrepareWithTime(Xtr, time_fail, gr_alive, n_control)
         dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True,
-                                     num_workers=n_workers, collate_fn=_identity)
+                                     num_workers=n_workers)
         return dataloader
 
     def predict_g(self, df, batch_size=512, return_numpy=True, eval_=True):
@@ -1115,109 +1009,3 @@ class CoxLifelines(CoxFunc):
         self.cph_lifelines = cph_lifelines
         func = lambda x: np.log(self.cph_lifelines.predict_partial_hazard(x)).as_matrix()
         super().__init__(func, df, duration_col, event_col)
-
-
-##########################################
-
-def brier_score(times, prob_alive, durations, events, train_durations, train_events):
-    '''Compute the brier scores (for survival) at given times.
-
-    For a specification on brier scores for survival data see e.g.:
-    "Assessment of evaluation criteria for survival prediction from
-    genomic data" by Bovelstad and Borgan.
-
-    Parameters:
-        times: Number or iterable with times where to compute the brier scores.
-        prob_alive: Numpy array [len(times), len(durations)] with the estimated probabilities
-            of each individual to be alive at each time in `times`. Each row represets
-            a time in input array `times`.
-        durations: Numpy array with time of events.
-        events: Boolean numpy array indecating if dead/censored (True/False).
-        train_durations: Same as durations but for training set.
-        train_events: Same as events but for training set.
-
-    Returns:
-        Numpy array with brier scores.
-    '''
-    if not hasattr(times, '__iter__'):
-        times = [times]
-    assert prob_alive.shape == (len(times), len(durations)),\
-        'Need prob_alive to have dims [len(times), len(durations)].'
-    kmf_censor = KaplanMeierFitter()
-    kmf_censor.fit(train_durations, 1-train_events)
-    km_censor_at_durations = kmf_censor.predict(durations)
-    km_censor_at_times = kmf_censor.predict(times)
-
-    def compute_score(time_, km_censor_at_time, prob_alive_):
-        died = ((durations <= time_) & (events == True))
-        survived = (durations > time_)
-
-        warnings.warn('kaplan-meier for censored data at right-censor time')
-        event_part = (prob_alive_**2)[died] / km_censor_at_durations[died]
-        survived_part = ((1 - prob_alive_)**2)[survived] / km_censor_at_time
-        return (np.sum(event_part) + np.sum(survived_part)) / len(durations)
-
-    b_scores = [compute_score(time_, km, pa)
-                for time_, km, pa in zip(times, km_censor_at_times, prob_alive)]
-    return np.array(b_scores)
-
-
-def integrated_brier_score_numpy(times_grid, prob_alive, durations, events,
-                                 train_durations, train_events):
-    '''Compute the integrated brier score (for survival).
-    This funcion takes pre-computed probabilities, while the function integrated_brier_score
-    takes a function and a grid instead.
-
-    For a specification on brier scores for survival data see e.g.:
-    "Assessment of evaluation criteria for survival prediction from
-    genomic data" by Bovelstad and Borgan.
-
-    Parameters:
-        times_grid: Iterable with times where to compute the brier scores.
-            Needs to be strictly increasing.
-        prob_alive: Numpy array [len(times_grid), len(durations)] with the estimated
-            probabilities of each individual to be alive at each time in `times_grid`.
-            Each row represets a time in input array `times_grid`.
-        durations: Numpy array with time of events.
-        events: Boolean numpy array indecating if dead/censored (True/False).
-        train_durations: Same as durations but for training set.
-        train_events: Same as events but for training set.
-    '''
-    assert pd.Series(times_grid).is_monotonic_increasing,\
-        'Need monotonic increasing times_grid.'
-    b_scores = brier_score(times_grid, prob_alive, durations, events, train_durations,
-                           train_events)
-    is_finite = np.isfinite(b_scores)
-    b_scores = b_scores[is_finite]
-    times_grid = times_grid[is_finite]
-    integral = scipy.integrate.simps(b_scores, times_grid)
-    return integral / (times_grid[-1] - times_grid[0])
-
-
-def integrated_brier_score(prob_alive_func, durations, events, train_durations, train_events,
-                           times_grid=None, n_grid_points=100):
-    '''Compute the integrated brier score (for survival).
-    This takes a function and a grid, while the function integrated_brier_score_numpy
-    takes pre-computed probabilities instead.
-
-    For a specification on brier scores for survival data see e.g.:
-    "Assessment of evaluation criteria for survival prediction from
-    genomic data" by Bovelstad and Borgan.
-
-    Parameters:
-        prob_alive_func: Function that takes an array of times and returns
-            a matrix [len(times_grid), len(durations)] with survival probabilities.
-        durations: Numpy array with time of events.
-        events: Boolean numpy array indecating if dead/censored (True/False).
-        train_durations: Same as durations but for training set.
-        train_events: Same as events but for training set.
-        times_grid: Specified time grid for integration. If None: use equidistant between
-            smallest and largest value times of durations.
-        n_grid_points: Only apply if grid is None. Gives number of grid poinst used
-            in equidistant grid.
-    '''
-    if times_grid is None:
-        times_grid = np.linspace(durations.min(), durations.max(), n_grid_points)
-    prob_alive = prob_alive_func(times_grid)
-    return integrated_brier_score_numpy(times_grid, prob_alive, durations, events,
-                                        train_durations, train_events)
