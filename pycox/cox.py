@@ -306,7 +306,7 @@ class CoxPH(CoxNNT):
             Nothing
         '''
         if compute_hazards: 
-            self.baseline_hazard_ = self.compute_baseline_hazard(df, batch_size)
+            self.baseline_hazard_ = self.compute_baseline_hazard(df, batch_size=batch_size)
             self.baseline_cumulative_hazard_ =\
                 self.compute_baseline_cumulative_hazard(baseline_hazard=self.baseline_hazard_,
                                                         batch_size=batch_size)
@@ -476,7 +476,7 @@ class CoxPH(CoxNNT):
             if df is None:
                 raise ValueError('`df` and `baseline_hazards`\
                                  cannot both be `None`.')
-            baseline_hazard = self.compute_baseline_hazard(df, batch_size)
+            baseline_hazard = self.compute_baseline_hazard(df, batch_size=batch_size)
         else:
             if df is not None:
                 raise ValueError('Only one of `df` and `baseline_hazards`\
@@ -724,14 +724,18 @@ class CoxTime(CoxPH):
         x = df[cols].as_matrix().astype('float32')
         return super(CoxPH, self).predict_g(x, batch_size, return_numpy, eval_)
 
-    def compute_baseline_hazard(self, df=None, max_duration=np.inf, batch_size=512):
+    def compute_baseline_hazard(self, df=None, max_duration=np.inf, sample=None, batch_size=512,
+                                set_hazards=True):
         '''Computes the breslow estimates of the baseline hazards of dataframe df.
 
         Parameters:
             df: Pandas dataframe with covariates, duration, and events.
                 If None: use training data frame.
             max_duration: Don't compute hazards for durations larger than max_time.
+            sample: Use sample of df. 
+                Sample proportion if 'sample' < 1, else sample number 'sample'.
             batch_size: Batch size passed calculation of g_preds.
+            set_hazards: If we should store computed hazards in object.
 
         Returns:
             Pandas series with baseline hazard. Index is duration_col.
@@ -740,6 +744,12 @@ class CoxTime(CoxPH):
             if not hasattr(self, 'df'):
                 raise ValueError('Need to fit a df, or supply a df to this function.')
             df = self.df
+        
+        if sample is not None:
+            if sample >= 1:
+                df = df.sample(n=sample)
+            else:
+                df = df.sample(frac=sample)
 
         def compute_expg_at_risk(ix, t):
             expg = self.predict_expg(df.iloc[ix:].assign(**{self.duration_col: t}), batch_size)
@@ -759,11 +769,16 @@ class CoxTime(CoxPH):
                   [[self.event_col]]
                   .agg('sum')
                   .loc[lambda x: x.index <= max_duration])
-        return (events
-                .join(at_risk_sum, how='left', sort=True)
-                .pipe(lambda x: x[self.event_col] / x['at_risk_sum'])
-                .fillna(0.)
-                .rename('baseline_hazard'))
+        base_haz =  (events
+                     .join(at_risk_sum, how='left', sort=True)
+                     .pipe(lambda x: x[self.event_col] / x['at_risk_sum'])
+                     .fillna(0.)
+                     .rename('baseline_hazard'))
+        if set_hazards:
+            self.baseline_hazard_ = base_haz
+            self.baseline_cumulative_hazard_ = self.compute_baseline_cumulative_hazard(baseline_hazard=base_haz)
+
+        return base_haz
 
     def predict_cumulative_hazard(self, df, baseline_hazard_=None, batch_size=512, verbose=0):
         '''Get cumulative hazards for dataset df.
