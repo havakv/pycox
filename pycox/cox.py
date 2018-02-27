@@ -606,7 +606,7 @@ class CoxPH(CoxNNT):
             batch_size: Batch size passed calculation of g_preds.
         '''
         def prob_alive_func(times):
-            return self.predict_survival_at_times(times, df, batch_size, False)
+            return self.predict_survival_at_times(times, df, batch_size=batch_size, return_df=False)
 
         durations = df[self.duration_col].values
         events = df[self.event_col].values
@@ -888,7 +888,9 @@ def search_sorted_idx(array, values):
     '''For sorted array, get index of values.
     If value not in array, give left index of value.
     '''
+    n = len(array)
     idx = np.searchsorted(array, values)
+    idx[idx == n] = n-1 # We can't have indexes higher than the length-1
     not_exact = values != array[idx]
     idx -= not_exact
     if any(idx < 0):
