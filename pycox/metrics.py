@@ -32,6 +32,7 @@ def brier_score(times, prob_alive, durations, events, train_durations, train_eve
     '''
     if not hasattr(times, '__iter__'):
         times = [times]
+    assert prob_alive.__class__ is np.ndarray, 'Need numpy array'
     assert prob_alive.shape == (len(times), len(durations)),\
         'Need prob_alive to have dims [len(times), len(durations)].'
     kmf_censor = KaplanMeierFitter()

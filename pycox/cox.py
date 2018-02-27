@@ -756,6 +756,7 @@ class CoxTime(CoxPH):
             return expg.flatten().sum()
 
         df = df.sort_values(self.duration_col).reset_index(drop=True)
+        self.baseline_hazards_df = df # Useful for e.g. integrated brier score
         times = (df
                  .loc[lambda x: x[self.event_col] != 0]
                  [self.duration_col]
