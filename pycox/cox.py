@@ -516,7 +516,7 @@ class CoxPH(CoxNNT):
             each individual in the df.
         '''
         return np.exp(-self.predict_cumulative_hazard(df, batch_size))
-
+    
     def _lookup_baseline_cumulative_hazard(self, time):
         '''Search for baseline_cumulative_hazard at the times time.
         Parameters:
@@ -830,14 +830,71 @@ class CoxTime(CoxPH):
         '''
         return np.exp(-self.predict_cumulative_hazard(df, baseline_hazard_, batch_size, verbose))
 
-    def predict_cumulative_hazard_at_times(self, times, df, batch_size=512, return_df=True):
-        raise NotImplementedError("This isn't as relevant when we have broken the propotionality.")
+
+    def predict_cumulative_hazard_at_times(self, times, df, baseline_hazard_=None, batch_size=512, 
+                                           return_df=True, verbose=0):
+        '''Predict cumulative hazard only at given times. This is not as efficient as
+        for the proportional hazards models.
+
+        Parameters:
+            times: Number or iterable with times.
+            df: Pandas dataframe with covariates.
+            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
+            batch_size: Batch size passed calculation of g_preds.
+            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
+            verbose: If we should print progress.
+
+        Returns:
+            Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazard
+            estimates.
+        '''
+        assert hasattr(self, 'baseline_hazard_'), 'Need to fit model first.'
+        if not hasattr(times, '__iter__'):
+            times = [times]
+        cum_haz = self.predict_cumulative_hazard(df, baseline_hazard_, batch_size, verbose)
+        times_idx = search_sorted_idx(cum_haz.index.values, times)
+        cum_haz = cum_haz.iloc[times_idx]
+        if return_df:
+            return cum_haz
+        return cum_haz.as_matrix()
+
+    def predict_survival_at_times(self, times, df, baseline_hazard_=None, batch_size=512,
+                                 return_df=True, verbose=0):
+        '''Predict survival function at given times.
+        Not very efficient!!!
+
+        Parameters:
+            times: Iterable with times.
+            df: Pandas dataframe with covariates.
+            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
+            batch_size: Batch size passed calculation of g_preds.
+            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
+            verbose: If we should print progress.
+
+        Returns:
+            Pandas dataframe (or numpy matrix) [len(times), len(df)] with survival estimates.
+        '''
+        return np.exp(-self.predict_cumulative_hazard_at_times(times, df, baseline_hazard_, batch_size, return_df,
+                                                               verbose))
 
     def concordance_index(self, df, g_preds=None, batch_size=256):
         raise NotImplementedError()
 
     def partial_log_likelihood(self, df, g_preds=None, batch_size=512):
         raise NotImplementedError()
+
+
+def search_sorted_idx(array, values):
+    '''For sorted array, get index of values.
+    If value not in array, give left index of value.
+    '''
+    idx = np.searchsorted(array, values)
+    not_exact = values != array[idx]
+    idx -= not_exact
+    if any(idx < 0):
+        warnings.warn('Given value smaller than first value')
+        idx[idx < 0] = 0
+    return idx
 
 
 class CoxPHLinear(CoxPH):
