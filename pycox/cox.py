@@ -880,8 +880,48 @@ class CoxTime(CoxPH):
     def concordance_index(self, df, g_preds=None, batch_size=256):
         raise NotImplementedError()
 
-    def partial_log_likelihood(self, df, g_preds=None, batch_size=512):
-        raise NotImplementedError()
+    def partial_log_likelihood(self, df, batch_size=512):
+        '''Calculate the partial log-likelihood for the events in datafram df.
+        This likelihood does not sample the controls.
+        Note that censored data (non events) does not have a partial log-likelihood.
+
+        Parameters:
+            df: Pandas dataframe with covariates, duration, and events.
+            batch_size: Batch size passed calculation of g_preds.
+
+        Returns:
+            Pandas series with partial likelihood.
+        '''
+
+        def expg_sum(t, i):
+            return self.predict_expg(df.iloc[i:].assign(**{self.duration_col: t}), batch_size).flatten().sum()
+
+        df = df.sort_values(self.duration_col)
+
+        times =  (df[[self.duration_col, self.event_col]]
+                  .assign(_idx=np.arange(len(df)))
+                  .loc[lambda x: x[self.event_col] == True]
+                  .drop_duplicates(self.duration_col, keep='first')
+                  .assign(_expg_sum=lambda x: [expg_sum(t, i) for t, i in zip(x[self.duration_col], x['_idx'])])
+                  .drop([self.event_col, '_idx'], axis=1))
+        
+        idx_name_old = df.index.name
+        idx_name = '__' + idx_name_old if idx_name_old else '__index'
+        df.index.name = idx_name
+
+        pll = (df
+               .loc[lambda x: x[self.event_col] == True]
+               .assign(_g_preds=lambda x: self.predict_expg(x, 1028).flatten())
+               .reset_index()
+               .merge(times, on=self.duration_col)
+               .set_index(idx_name)
+               .assign(pll=lambda x: x['_g_preds'] - np.log(x['_expg_sum']))
+               ['pll'])
+        
+        pll.index.name = idx_name_old
+        return pll
+        
+
 
 
 def search_sorted_idx(array, values):
