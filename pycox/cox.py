@@ -911,7 +911,7 @@ class CoxTime(CoxPH):
 
         pll = (df
                .loc[lambda x: x[self.event_col] == True]
-               .assign(_g_preds=lambda x: self.predict_expg(x, 1028).flatten())
+               .assign(_g_preds=lambda x: self.predict_g(x, batch_size=batch_size).flatten())
                .reset_index()
                .merge(times, on=self.duration_col)
                .set_index(idx_name)
