@@ -1115,6 +1115,32 @@ class CoxFunc(CoxPH):
         '''It's not possible to fit this object.'''
         raise ValueError("It's not possible to fit this object")
 
+class CoxTimeFunc(CoxTime):
+    '''Class for doing same as CoxTime on an arbitrary funciton g.
+
+    Parameters:
+        func: Function that g(x):
+        df: Training pandas dataframe.
+        duration_col: Name of column in df giving durations.
+        event_col: Name of column in df giving events.
+    '''
+    def __init__(self, g_func, df, duration_col, event_col):
+        optimizer = 'Not defined in this class'
+        g_model = FuncTorch(g_func)
+        super().__init__(g_model, optimizer)
+        self._fake_fit(df, duration_col, event_col)
+
+    def predict_g(self, df, *args, **kwargs):
+        cols = list(self.x_columns) + [self.duration_col]
+        x = df[cols].as_matrix().astype('float32')
+        return self.g(x)
+
+    def _fake_fit(self, df, duration_col, event_col):
+        return super().fit(df, duration_col, event_col, epochs=0)
+
+    def fit(self, *args, **kwargs):
+        '''It's not possible to fit this object.'''
+        raise ValueError("It's not possible to fit this object")
 
 class CoxLifelines(CoxFunc):
     '''Class for doing same as CoxNN on lifelines cph object.
