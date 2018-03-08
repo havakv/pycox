@@ -10,7 +10,7 @@ import pandas as pd
 from lifelines.utils import concordance_index
 from lifelines import KaplanMeierFitter
 
-def brier_score(times, prob_alive, durations, events, train_durations, train_events):
+def brier_score(times, prob_alive, durations, events):
     '''Compute the brier scores (for survival) at given times.
 
     For a specification on brier scores for survival data see e.g.:
@@ -24,8 +24,6 @@ def brier_score(times, prob_alive, durations, events, train_durations, train_eve
             a time in input array `times`.
         durations: Numpy array with time of events.
         events: Boolean numpy array indecating if dead/censored (True/False).
-        train_durations: Same as durations but for training set.
-        train_events: Same as events but for training set.
 
     Returns:
         Numpy array with brier scores.
@@ -36,15 +34,13 @@ def brier_score(times, prob_alive, durations, events, train_durations, train_eve
     assert prob_alive.shape == (len(times), len(durations)),\
         'Need prob_alive to have dims [len(times), len(durations)].'
     kmf_censor = KaplanMeierFitter()
-    kmf_censor.fit(train_durations, 1-train_events)
+    kmf_censor.fit(durations, 1-events)
     km_censor_at_durations = kmf_censor.predict(durations)
     km_censor_at_times = kmf_censor.predict(times)
 
     def compute_score(time_, km_censor_at_time, prob_alive_):
         died = ((durations <= time_) & (events == True))
         survived = (durations > time_)
-
-        warnings.warn('kaplan-meier for censored data at right-censor time')
         event_part = (prob_alive_**2)[died] / km_censor_at_durations[died]
         survived_part = ((1 - prob_alive_)**2)[survived] / km_censor_at_time
         return (np.sum(event_part) + np.sum(survived_part)) / len(durations)
@@ -54,8 +50,7 @@ def brier_score(times, prob_alive, durations, events, train_durations, train_eve
     return np.array(b_scores)
 
 
-def integrated_brier_score_numpy(times_grid, prob_alive, durations, events,
-                                 train_durations, train_events):
+def integrated_brier_score_numpy(times_grid, prob_alive, durations, events):
     '''Compute the integrated brier score (for survival).
     This funcion takes pre-computed probabilities, while the function integrated_brier_score
     takes a function and a grid instead.
@@ -72,13 +67,10 @@ def integrated_brier_score_numpy(times_grid, prob_alive, durations, events,
             Each row represets a time in input array `times_grid`.
         durations: Numpy array with time of events.
         events: Boolean numpy array indecating if dead/censored (True/False).
-        train_durations: Same as durations but for training set.
-        train_events: Same as events but for training set.
     '''
     assert pd.Series(times_grid).is_monotonic_increasing,\
         'Need monotonic increasing times_grid.'
-    b_scores = brier_score(times_grid, prob_alive, durations, events, train_durations,
-                           train_events)
+    b_scores = brier_score(times_grid, prob_alive, durations, events)
     is_finite = np.isfinite(b_scores)
     b_scores = b_scores[is_finite]
     times_grid = times_grid[is_finite]
@@ -86,7 +78,7 @@ def integrated_brier_score_numpy(times_grid, prob_alive, durations, events,
     return integral / (times_grid[-1] - times_grid[0])
 
 
-def integrated_brier_score(prob_alive_func, durations, events, train_durations, train_events,
+def integrated_brier_score(prob_alive_func, durations, events,
                            times_grid=None, n_grid_points=100):
     '''Compute the integrated brier score (for survival).
     This takes a function and a grid, while the function integrated_brier_score_numpy
@@ -101,8 +93,6 @@ def integrated_brier_score(prob_alive_func, durations, events, train_durations, 
             a matrix [len(times_grid), len(durations)] with survival probabilities.
         durations: Numpy array with time of events.
         events: Boolean numpy array indecating if dead/censored (True/False).
-        train_durations: Same as durations but for training set.
-        train_events: Same as events but for training set.
         times_grid: Specified time grid for integration. If None: use equidistant between
             smallest and largest value times of durations.
         n_grid_points: Only apply if grid is None. Gives number of grid poinst used
@@ -111,5 +101,4 @@ def integrated_brier_score(prob_alive_func, durations, events, train_durations, 
     if times_grid is None:
         times_grid = np.linspace(durations.min(), durations.max(), n_grid_points)
     prob_alive = prob_alive_func(times_grid)
-    return integrated_brier_score_numpy(times_grid, prob_alive, durations, events,
-                                        train_durations, train_events)
+    return integrated_brier_score_numpy(times_grid, prob_alive, durations, events)

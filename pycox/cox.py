@@ -3,21 +3,12 @@ File contains an implementation of cox regression with arbirary neural network a
 '''
 import warnings
 import numpy as np
-# import scipy
 import pandas as pd
 
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-# import torch.nn.functional as F
 import torch.optim as optim
-# import torch.utils.data as data
-
-# from kds.pytorch_help import DataLoaderBatch
-
-# from sklearn.metrics import roc_auc_score
-# from lifelines.utils import concordance_index
-# from lifelines import KaplanMeierFitter
 
 from .callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
 from .dataloader import DataLoaderBatch, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
@@ -583,11 +574,7 @@ class CoxPH(CoxNNT):
         prob_alive = self.predict_survival_at_times(times, df, batch_size, False)
         durations = df[self.duration_col].values
         events = df[self.event_col].values
-        train_durations = self.df[self.duration_col].values
-        train_events = self.df[self.event_col].values
-
-        return brier_score(times, prob_alive, durations, events, train_durations,
-                           train_events)
+        return brier_score(times, prob_alive, durations, events)
 
     def integrated_brier_score(self, df, times_grid=None, n_grid_points=100,
                                batch_size=512):
@@ -610,11 +597,7 @@ class CoxPH(CoxNNT):
 
         durations = df[self.duration_col].values
         events = df[self.event_col].values
-        train_durations = self.df[self.duration_col].values
-        train_events = self.df[self.event_col].values
-
-        return integrated_brier_score(prob_alive_func, durations, events, train_durations,
-                                      train_events, times_grid, n_grid_points)
+        return integrated_brier_score(prob_alive_func, durations, events, times_grid, n_grid_points)
 
     def parameters(self):
         '''Returns an iterator over module parameters.
