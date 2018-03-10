@@ -412,7 +412,7 @@ class CoxPH(CoxNNT):
         '''
         if g_preds is None:
             g_preds = self.predict_g(df, batch_size, True)
-        return concordance_index(df[self.duration_col], g_preds.flatten(),
+        return 1 - concordance_index(df[self.duration_col], g_preds.flatten(),
                                  df[self.event_col])
 
     def partial_log_likelihood(self, df, g_preds=None, batch_size=512):
