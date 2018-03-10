@@ -106,7 +106,7 @@ class CoxNNT(object):
         return self.log
 
     @staticmethod
-    def compute_loss(g_case, g_control, log_eps=1e-38, clamp=(-3e+38, 88)):
+    def compute_loss_old(g_case, g_control, log_eps=1e-38, clamp=(-3e+38, 88)):
         '''Comput the loss = - g_case + log[exp(g_case) + sum(exp(g_control))]
 
         log_eps: 1e-38 is around the smalles value we can use without getting
@@ -127,6 +127,30 @@ class CoxNNT(object):
             control_sum += torch.exp(ctr)
         g_case = torch.clamp(g_case, *clamp)  # This is somewhat fine as higher than 88 is unlikely in real world.
         loss = - g_case + torch.log(torch.exp(g_case) + control_sum + log_eps)
+        return torch.mean(loss)
+
+    @staticmethod
+    def compute_loss(g_case, g_control, clamp=(-3e+38, 88)):
+        '''Comput the loss = log[1 + sum(exp(g_control - g_case))]
+
+        This is:
+        loss = - g_case + log[exp(g_case) + sum(exp(g_control))]
+        with a version of the log-sum-exp trick.
+
+        Parameters:
+        g_case: Torch array.
+        g_control: List of arrays.
+        clamp: Lower and upper cutoff for g_case and g_control. 88 is a nice max
+            because exp(89) is inf for float32, which results in None gradients.
+            One problem is that very large g_control will not have gradients (we
+            want g_control to be small).
+        '''
+        control_sum = 0.
+        for ctr in g_control:
+            ctr = ctr - g_case
+            ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should find better way).
+            control_sum += torch.exp(ctr)
+        loss = torch.log(1. + control_sum)
         return torch.mean(loss)
 
     def predict_g(self, X, batch_size=512, return_numpy=True, eval_=True):
