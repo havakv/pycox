@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn import metrics
 from tqdm import trange
+import torch
 from torch.autograd import Variable
 
 
@@ -474,3 +475,25 @@ class MonitorCoxNNTimeLoss(MonitorCoxNNLoss):
             self.df = self.df.assign(**{model.duration_col: as_32})
 
         return super()._prepare_data()
+
+
+class ClipGradNorm(Callback):
+    '''Callback for clipping gradients.
+    
+    See torch.nn.utils.clip_grad_norm.
+
+    Parameters:
+        parameters: An iterable of Variables that will have gradients normalized.
+        max_norm (float or int): max norm of the gradients
+        norm_type (float or int): type of the used p-norm. Can be ``'inf'`` for infinity norm.
+
+    '''
+    def __init__(self, parameters, max_norm, norm_type=2):
+        self.parameters = parameters
+        self.max_norm = max_norm
+        self.norm_type = norm_type
+
+    def before_step(self):
+        torch.nn.utils.clip_grad_norm(self.parameters, self.max_norm, self.norm_type)
+        stop_signal = False
+        return stop_signal
