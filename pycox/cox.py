@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from .callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
-from .dataloader import DataLoaderBatch, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
+from .dataloader import DataLoaderSlice, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
 from .metrics import concordance_index, brier_score, integrated_brier_score
 
 
@@ -712,7 +712,7 @@ class CoxTime(CoxPH):
         assert Xtr.dtype == np.float32, 'Need Xtr to be np.float32'
         assert time_fail.dtype == 'float32', 'To use time as a covariate, we need dtype: float32'
         trainset = CoxPrepareWithTime(Xtr, time_fail, gr_alive, n_control)
-        dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True,
+        dataloader = DataLoaderSlice(trainset, batch_size=batch_size, shuffle=True,
                                      num_workers=n_workers)
         return dataloader
 

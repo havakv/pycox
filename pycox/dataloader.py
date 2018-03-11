@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
-from .pytorch_dataloader import DataLoaderBatch
+from .pytorch_dataloader import DataLoaderSlice
 
 
 def sample_alive_from_dates(dates, gr_alive, n_control=1):
