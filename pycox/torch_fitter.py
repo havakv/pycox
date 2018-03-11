@@ -6,7 +6,7 @@ import torch
 from torch.autograd import Variable
 import torch.optim as optim
 from torch.utils.data import Dataset
-from .cox import NumpyTensorDataset, DataLoaderBatch
+from .dataloader import NumpyTensorDataset, DataLoaderSlice
 from .callbacks import CallbacksList, TrainingLogger
 
 
