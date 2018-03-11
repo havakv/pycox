@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn import metrics
 from tqdm import trange
 import torch
+from torch import optim
 from torch.autograd import Variable
 
 
@@ -285,6 +286,30 @@ class MonitorMetricsBase(Callback):
                 .set_index(np.array(self.epochs)))
 
 
+class MonitorTrainLoss(MonitorMetricsBase):
+    '''Monitor metrics for training loss.
+
+    Parameters:
+        per_epoch: How often to calculate.
+    '''
+    def __init__(self, per_epoch=1):
+        monitor_funcs = {'train_loss': self.get_loss}
+        super().__init__(monitor_funcs, per_epoch, None)
+    
+    def get_loss(self, *args, **kwargs):
+        loss = np.mean(self.batch_loss)
+        return loss
+
+    def get_score_args(self):
+        return None, None
+
+    def on_fit_start(self):
+        self.batch_loss = []
+
+    def on_batch_end(self):
+        self.batch_loss.append(self.model.batch_loss.data[0])
+
+
 class MonitorMetricsXy(MonitorMetricsBase):
     '''Monitor metrics for classification and regression.
     Same as MonitorMetricsBase but we input a pair, X, y instead of data.
@@ -497,3 +522,36 @@ class ClipGradNorm(Callback):
         torch.nn.utils.clip_grad_norm(self.parameters, self.max_norm, self.norm_type)
         stop_signal = False
         return stop_signal
+
+class LRScheduler(Callback):
+    '''Wrapper for pytorch.optim.lr_scheduler objects.
+
+    Parameters:
+        scheduler: A pytorch.optim.lr_scheduler object.
+        mm_obj: MonitorMetrics object, where first metric is used for early stopping.
+            E.g. MonitorMetricsSurvival(df_val, 'cindex').
+    '''
+    def __init__(self, scheduler, mm_obj):
+        self.scheduler = scheduler
+        self.mm_obj = mm_obj
+
+    def give_model(self, model):
+        super().give_model(model)
+        self.mm_obj.give_model(model)
+
+    def on_fit_start(self):
+        self.mm_obj.on_fit_start()
+
+    def before_step(self):
+        return self.mm_obj.before_step()
+
+    def on_batch_end(self):
+        self.mm_obj.on_batch_end()
+
+    def on_epoch_end(self):
+        self.mm_obj.on_epoch_end()
+        score = self.mm_obj.scores[0][-1]
+        self.scheduler.step(score)
+        stop_signal = False
+        return stop_signal
+    
