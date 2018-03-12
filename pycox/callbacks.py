@@ -3,6 +3,7 @@ Callbacks.
 '''
 import warnings
 import time
+from collections import OrderedDict
 import numpy as np
 import pandas as pd
 from sklearn import metrics
@@ -77,6 +78,11 @@ class TrainingLogger(Callback):
         self.epochs = []
         self.loss = []
         self._verbose = verbose
+        self.train_loss = MonitorTrainLoss()
+
+    def give_model(self, model):
+        super().give_model(model)
+        self.train_loss.give_model(model)
 
     @property
     def verbose(self):
@@ -88,7 +94,7 @@ class TrainingLogger(Callback):
 
     def on_fit_start(self):
         self.prev_time = time.time()
-        self.batch_loss = []
+        self.train_loss.on_fit_start()
         if self.verbose == 2:
             self._make_prog_bar()
 
@@ -97,20 +103,14 @@ class TrainingLogger(Callback):
                                desc=str(self.epoch))
         self.prog_bar = iter(self.prog_bar)
 
-    def _get_loss(self):
-        return self.model.batch_loss.data[0]
-
     def on_batch_end(self):
-        loss = self._get_loss()
-        self.batch_loss.append(loss)
+        self.train_loss.on_batch_end()
         if self.verbose == 2:
             next(self.prog_bar)
 
     def on_epoch_end(self):
-        loss = np.mean(self.batch_loss)
+        self.train_loss.on_epoch_end()
         self.epochs.append(self.epoch)
-        self.loss.append(loss)
-        # if (self.verbose == 1) or (self.verbose == 2):
         if self.verbose:
             self.print_on_epoch_end()
         self.epoch += 1
@@ -120,36 +120,42 @@ class TrainingLogger(Callback):
         return False
     
     def get_measures(self):
-        string = '\tloss: %.4f,' % self.loss[-1]
-        if self.verbose.__class__ is dict:
-            for name, mm in self.verbose.items():
-                string += '\t%s:' % name
-                for sc in mm.scores:
-                    string += ' %.4f,' % sc[-1]
+        measures = {'loss': self.train_loss}
+        if self.verbose.__class__ in [dict, OrderedDict]:
+            measures = OrderedDict(measures, **self.verbose)
+        string = ''
+        for name, mm in measures.items():
+            string += '\t%s:' % name
+            scores = mm.scores
+            if not hasattr(scores[-1], '__iter__'):
+                scores = [scores]
+            for sc in mm.scores:
+                string += ' %.4f,' % sc[-1]
         return string[:-1]
 
     def print_on_epoch_end(self):
         new_time = time.time()
-        # loss = self.loss[-1]
         string = 'Epoch: %d,\ttime: %d sec,' % (self.epoch, new_time - self.prev_time)
         print(string + self.get_measures())
         self.prev_time = new_time
-    # def print_on_epoch_end(self, loss):
-    #     new_time = time.time()
-    #     print('Epoch: %d,\ttime: %d sec,\tloss: %.4f'
-    #           % (self.epoch, new_time - self.prev_time, loss))
-    #     self.prev_time = new_time
 
-    def history(self, df=True):
-        '''df: if True returns pd.DataFrame, else dict.
+    def to_pandas(self, naming='prefix'):
+        '''Get data in dataframe.
+        
+        Parameters:
+            naming: Put name of metrix as prefix of suffix.
         '''
-        history = dict(epoch=self.epochs, loss=self.loss)
-        if df:
-            return pd.DataFrame(history).set_index('epoch')
-        return history
-
-    def to_pandas(self):
-        return self.history()
+        df = self.train_loss.to_pandas()
+        if self.verbose.__class__ in [dict, OrderedDict]:
+            for name, mm in self.verbose.items():
+                d = mm.to_pandas()
+                if naming == 'suffix':
+                    df = df.join(d, rsuffix=name)
+                    continue
+                if naming == 'prefix':
+                    d.columns = [name+'_'+c for c in d.columns]
+                df = df.join(d)
+        return df
 
 
 class EarlyStoppingTrainLoss(Callback):
@@ -191,12 +197,12 @@ class EarlyStoppingTrainLoss(Callback):
 
 class EarlyStopping(Callback):
     '''Stop training when monitored quantity has stopped improving.
-    Takes a MonitorMetrics object and runs it as a callback.
+    Takes a Monitor object and runs it as a callback.
     Use first metric in mm_obj to determine early stopping.
 
     Parameters:
-        mm_obj: MonitorMetrics object, where first metric is used for early stopping.
-            E.g. MonitorMetricsSurvival(df_val, 'cindex').
+        mm_obj: Monitor object, where first metric is used for early stopping.
+            E.g. MonitorSurvival(df_val, 'cindex').
         minimize: If we are to minimize or maximize monitor.
         min_delta: Minimum change in the monitored quantity to qualify as an improvement,
             i.e. an absolute change of less than min_delta, will count as no improvement.
@@ -204,7 +210,7 @@ class EarlyStopping(Callback):
         model_file_path: If spesified, the model weights will be stored whever a better score
             is achieved.
     '''
-    def __init__(self, mm_obj, minimize=False, min_delta=0, patience=5, model_file_path=None):
+    def __init__(self, mm_obj, minimize=False, min_delta=0, patience=10, model_file_path=None):
         self.mm_obj = mm_obj
         self.minimize = minimize
         self.min_delta = min_delta
@@ -249,11 +255,11 @@ class EarlyStopping(Callback):
         return stop_signal
 
 
-class MonitorMetricsBase(Callback):
+class MonitorBase(Callback):
     '''Abstract class for monitoring metrics during training progress.
 
     Need to implement 'get_score_args' function to make it work.
-    See MonitorMetricsXy for an example.
+    See MonitorXy for an example.
 
     Parameters:
         monitor_funcs: Function, list, or dict of functions giving quiatities that should
@@ -304,7 +310,7 @@ class MonitorMetricsBase(Callback):
                 .set_index(np.array(self.epochs)))
 
 
-class MonitorTrainLoss(MonitorMetricsBase):
+class MonitorTrainLoss(MonitorBase):
     '''Monitor metrics for training loss.
 
     Parameters:
@@ -328,11 +334,11 @@ class MonitorTrainLoss(MonitorMetricsBase):
         self.batch_loss.append(self.model.batch_loss.data[0])
 
 
-class MonitorMetricsXy(MonitorMetricsBase):
+class MonitorXy(MonitorBase):
     '''Monitor metrics for classification and regression.
-    Same as MonitorMetricsBase but we input a pair, X, y instead of data.
+    Same as MonitorBase but we input a pair, X, y instead of data.
 
-    For survival methods, see e.g. MonitorMetricsCox.
+    For survival methods, see e.g. MonitorCox.
 
     Parameters:
         X: Numpy array with features.
@@ -356,7 +362,7 @@ class MonitorMetricsXy(MonitorMetricsBase):
         return self.y, preds
 
 
-class MonitorMetricsSklearn(MonitorMetricsXy):
+class MonitorSklearn(MonitorXy):
     '''Class for monitoring metrics of from sklearn metrics
 
     Parameters:
@@ -381,7 +387,7 @@ class MonitorMetricsSklearn(MonitorMetricsXy):
         super().__init__(X, y, monitor, per_epoch, batch_size)
 
 
-class MonitorMetricsCox(MonitorMetricsBase):
+class MonitorCox(MonitorBase):
     '''Class for monitoring metrics of survival during training progress.
 
     Parameters:
@@ -428,7 +434,7 @@ class MonitorMetricsCox(MonitorMetricsBase):
         return self.model.partial_log_likelihood(df, g_preds).mean()
 
 
-class MonitorCoxLoss(MonitorMetricsBase):
+class MonitorCoxLoss(MonitorBase):
     '''Class for monitoring validation loss in CoxNN during training progress.
     This works exactly like the loss in CoxNNTime, but it does not update the parameters of
     our model.
@@ -555,8 +561,8 @@ class LRScheduler(Callback):
 
     Parameters:
         scheduler: A pytorch.optim.lr_scheduler object.
-        mm_obj: MonitorMetrics object, where first metric is used for early stopping.
-            E.g. MonitorMetricsSurvival(df_val, 'cindex').
+        mm_obj: Monitor object, where first metric is used for early stopping.
+            E.g. MonitorSurvival(df_val, 'cindex').
     '''
     def __init__(self, scheduler, mm_obj):
         self.scheduler = scheduler
