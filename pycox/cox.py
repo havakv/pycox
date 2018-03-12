@@ -55,7 +55,11 @@ class CoxNNT(object):
             batch_size: Batch size.
             epochs: Number of epochs.
             n_workers: Number of workers for preparing data.
-            verbose: Degree of verbose.
+            verbose: Degree of verbose. If dict {'name': mm}, where mm is a MonitorMetric object,
+                this will be printed. 
+                Example: 
+                mm = MonitorCoxLoss(df_val, n_control=1, n_reps=4,)
+                cox.fit(..., verbose={'val_loss': mm}, callbacks=[mm])
             callbacks: List of callbacks.
         '''
         dataloader = self.make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size,
@@ -78,7 +82,7 @@ class CoxNNT(object):
         self.log.verbose = verbose
         if callbacks is None:
             callbacks = []
-        self.callbacks = CallbacksList([self.log]+callbacks)
+        self.callbacks = CallbacksList(callbacks + [self.log])
         self.callbacks.give_model(self)
 
         self.callbacks.on_fit_start()
@@ -273,6 +277,11 @@ class CoxPH(CoxNNT):
             batch_size: Batch size.
             epochs: Number of epochs.
             n_workers: Number of workers for preparing data.
+            verbose: Degree of verbose. If dict {'name': mm}, where mm is a MonitorMetric object,
+                this will be printed. 
+                Example: 
+                mm = MonitorCoxLoss(df_val, n_control=1, n_reps=4,)
+                cox.fit(..., verbose={'val_loss': mm}, callbacks=[mm])
             strata: Specify a list of columns to use in stratification. This is useful if a
                 catagorical covariate does not obey the proportional hazard assumption. This
                 is used similar to the `strata` expression in R.
@@ -677,6 +686,11 @@ class CoxTime(CoxPH):
             batch_size: Batch size.
             epochs: Number of epochs.
             n_workers: Number of workers for preparing data.
+            verbose: Degree of verbose. If dict {'name': mm}, where mm is a MonitorMetric object,
+                this will be printed. 
+                Example: 
+                mm = MonitorCoxTimeLoss(df_val, n_control=1, n_reps=4,)
+                cox.fit(..., verbose={'val_loss': mm}, callbacks=[mm])
             callbacks: List of callbacks.
             compute_hazards: If we should compute hazards when training has finished.
 

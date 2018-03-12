@@ -110,19 +110,35 @@ class TrainingLogger(Callback):
         loss = np.mean(self.batch_loss)
         self.epochs.append(self.epoch)
         self.loss.append(loss)
-        if (self.verbose == 1) or (self.verbose == 2):
-            self.print_on_epoch_end(loss)
+        # if (self.verbose == 1) or (self.verbose == 2):
+        if self.verbose:
+            self.print_on_epoch_end()
         self.epoch += 1
         self.batch_loss = []
         if self.verbose == 2:
             self._make_prog_bar()
         return False
+    
+    def get_measures(self):
+        string = '\tloss: %.4f,' % self.loss[-1]
+        if self.verbose.__class__ is dict:
+            for name, mm in self.verbose.items():
+                string += '\t%s:' % name
+                for sc in mm.scores:
+                    string += ' %.4f,' % sc[-1]
+        return string[:-1]
 
-    def print_on_epoch_end(self, loss):
+    def print_on_epoch_end(self):
         new_time = time.time()
-        print('Epoch: %d,\ttime: %d sec,\tloss: %.4f'
-              % (self.epoch, new_time - self.prev_time, loss))
+        # loss = self.loss[-1]
+        string = 'Epoch: %d,\ttime: %d sec,' % (self.epoch, new_time - self.prev_time)
+        print(string + self.get_measures())
         self.prev_time = new_time
+    # def print_on_epoch_end(self, loss):
+    #     new_time = time.time()
+    #     print('Epoch: %d,\ttime: %d sec,\tloss: %.4f'
+    #           % (self.epoch, new_time - self.prev_time, loss))
+    #     self.prev_time = new_time
 
     def history(self, df=True):
         '''df: if True returns pd.DataFrame, else dict.
