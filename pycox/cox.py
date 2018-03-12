@@ -58,16 +58,16 @@ class CoxNNT(object):
             verbose: Degree of verbose.
             callbacks: List of callbacks.
         '''
-        dataloader = self._make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size,
-                                           n_workers)
+        dataloader = self.make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size,
+                                          n_workers)
         log = self.fit_dataloader(dataloader, epochs, verbose, callbacks)
         return log
 
     @staticmethod
-    def _make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size, n_workers):
+    def make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size, n_workers):
         assert Xtr.dtype == np.float32, 'Need Xtr to be np.float32'
         trainset = CoxPrepare(Xtr, time_fail, gr_alive, n_control)
-        dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True,
+        dataloader = DataLoaderSlice(trainset, batch_size=batch_size, shuffle=True,
                                      num_workers=n_workers)
         return dataloader
 
@@ -173,7 +173,7 @@ class CoxNNT(object):
                 preds = [self.g(Variable(torch.from_numpy(X), volatile=True))]
         else:
             dataset = NumpyTensorDataset(X)
-            dataloader = DataLoaderBatch(dataset, batch_size)
+            dataloader = DataLoaderSlice(dataset, batch_size)
             if self.cuda:
                 preds = [self.g(Variable(x.cuda(), volatile=True))
                          for x in iter(dataloader)]
@@ -700,15 +700,15 @@ class CoxTime(CoxPH):
                                         .pipe(self._reset_idx_with_old_idx_name))
         if not self._repeated_df:
             self._prepare_data_fit()
-        dataloader = self._make_dataloader(self.Xtr, self.time_fail, self.gr_alive,
-                                           n_control, batch_size, n_workers)
+        dataloader = self.make_dataloader(self.Xtr, self.time_fail, self.gr_alive,
+                                          n_control, batch_size, n_workers)
         log = self.fit_dataloader(dataloader, epochs, verbose, callbacks)
 
         self.set_hazards(self.df, compute_hazards=compute_hazards)
         return log
 
     @staticmethod
-    def _make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size, n_workers):
+    def make_dataloader(Xtr, time_fail, gr_alive, n_control, batch_size, n_workers):
         assert Xtr.dtype == np.float32, 'Need Xtr to be np.float32'
         assert time_fail.dtype == 'float32', 'To use time as a covariate, we need dtype: float32'
         trainset = CoxPrepareWithTime(Xtr, time_fail, gr_alive, n_control)

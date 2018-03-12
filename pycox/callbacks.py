@@ -1,6 +1,7 @@
 '''
 Callbacks.
 '''
+import warnings
 import time
 import numpy as np
 import pandas as pd
@@ -147,6 +148,7 @@ class EarlyStoppingTrainLoss(Callback):
         patience: Number of epochs with no improvement after which training will be stopped.
     '''
     def __init__(self, min_delta=0, patience=5):
+        warnings.warn('Shoud not use EarlyStoppingTrainLoss!!! Revrite to early stopping.')
         self.min_delta = min_delta
         self.patience = patience
         self.val = np.inf
@@ -410,24 +412,27 @@ class MonitorMetricsCox(MonitorMetricsBase):
         return self.model.partial_log_likelihood(df, g_preds).mean()
 
 
-class MonitorCoxNNLoss(MonitorMetricsBase):
+class MonitorCoxLoss(MonitorMetricsBase):
     '''Class for monitoring validation loss in CoxNN during training progress.
     This works exactly like the loss in CoxNNTime, but it does not update the parameters of
     our model.
 
-    It use the model's _make_data_loader function to generate a dataloader for the validation
+    It use the model's make_dataloader function to generate a dataloader for the validation
     set, and has it's own fit methods with eval=True in the net.
 
     Parameters:
         df: Pandas dataframe with data used for monitoring.
         n_control: Number of control samples.
+        n_reps: Number of replications of the loss that are averaged.
+            For smaller datasets it might give smoother validation curves.
         n_workers: Number of workers for preparing data.
         batch_size: Batch size used for calculating the scores.
         per_epoch: Calculated scores per epoch.
     '''
-    def __init__(self, df, n_control, n_workers=0, batch_size=512, per_epoch=1):
+    def __init__(self, df, n_control, n_reps=1, n_workers=0, batch_size=1028, per_epoch=1):
         self.df = df
         self.n_control = n_control
+        self.n_reps = n_reps
         self.n_workers = n_workers
         monitor = {'loss': self._loss}
         self._dataloader_exists = False
@@ -442,17 +447,17 @@ class MonitorCoxNNLoss(MonitorMetricsBase):
     def on_fit_start(self):
         if not self._dataloader_exists:
             self.df = self.df.sort_values(self.model.duration_col).reset_index()
-            self.dataloader = self._make_dataloader()
+            self.dataloader = self.make_dataloader()
         self._dataloader_exists = True
 
     def _loss(self, doesnt=None, matter=None):
         loss = self._run_dataloader()
         return loss
 
-    def _make_dataloader(self):
+    def make_dataloader(self):
         X, time_fail, gr_alive = self._prepare_data()
-        dataloader = self.model._make_dataloader(X, time_fail, gr_alive, self.n_control,
-                                                 self.batch_size, self.n_workers)
+        dataloader = self.model.make_dataloader(X, time_fail, gr_alive, self.n_control*self.n_reps,
+                                                self.batch_size, self.n_workers)
         return dataloader
 
     def _prepare_data(self):
@@ -470,20 +475,24 @@ class MonitorCoxNNLoss(MonitorMetricsBase):
                 case, control = case.cuda(), control.cuda()
             case, control = Variable(case, volatile=True), Variable(control, volatile=True)
             g_case = self.model.g(case)
-            g_control = [self.model.g(ctr) for ctr in control]
-            batch_loss = self.model.compute_loss(g_case, g_control)
-            loss.append(batch_loss.data[0])
+            g_control_all = [self.model.g(ctr) for ctr in control]
+            # batch_loss = self.model.compute_loss(g_case, g_control)
+            # loss.append(batch_loss.data[0])
+            iters = np.arange(0, len(g_control_all)+self.n_control, self.n_control)
+            g_control = [g_control_all[s:e]for s, e in zip(iters[:-1], iters[1:])]
+            batch_loss = [self.model.compute_loss(g_case, gc).data[0] for gc in g_control]
+            loss.append(np.mean(batch_loss))
 
         self.model.g.train()
         return np.mean(loss)
 
 
-class MonitorCoxNNTimeLoss(MonitorCoxNNLoss):
+class MonitorCoxTimeLoss(MonitorCoxLoss):
     '''Class for monitoring validation loss in CoxNNTime.
     This works exactly like the loss in CoxNNTime, but it does not update the parameters of
     our model.
 
-    It use the model's _make_data_loader function to generate a dataloader for the validation
+    It use the model's make_dataloader function to generate a dataloader for the validation
     set, and has it's own fit methods with eval=True in the net.
 
     Parameters:
@@ -501,6 +510,8 @@ class MonitorCoxNNTimeLoss(MonitorCoxNNLoss):
 
         return super()._prepare_data()
 
+MonitorCoxNNLoss = MonitorCoxLoss  # Legacy
+MonitorCoxNNTimeLoss  = MonitorCoxTimeLoss  # Legacy
 
 class ClipGradNorm(Callback):
     '''Callback for clipping gradients.
