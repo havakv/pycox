@@ -37,7 +37,7 @@ class FitNet(object):
     @staticmethod
     def make_dataset(Xtr, ytr, batch_size, num_workers):
         trainset = PrepareData(Xtr, ytr)
-        dataloader = DataLoaderBatch(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        dataloader = DataLoaderSlice(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
         return dataloader
 
     def fit(self, Xtr, ytr, batch_size=64, epochs=1, num_workers=0, callbacks=None, verbose=1):
@@ -75,7 +75,7 @@ class FitNet(object):
                 preds = [self.net(Variable(torch.from_numpy(X), volatile=True))]
         else:
             dataset = NumpyTensorDataset(X)
-            dataloader = DataLoaderBatch(dataset, batch_size)
+            dataloader = DataLoaderSlice(dataset, batch_size)
             if self.cuda:
                 preds = [self.net(Variable(x.cuda(), volatile=True))
                          for x in iter(dataloader)]
