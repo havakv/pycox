@@ -70,6 +70,81 @@ class Callback(object):
         stop_signal = False
         return stop_signal
 
+# class PlotProgressTraining(Callback):
+#     '''Plott progress'''
+#     def __init__(self, filename):
+#         super().__init__()
+#         self.filename = filename
+#         self._first = True
+
+#     def on_epoch_end(self):
+#         import altair as alt
+#         if self._first:
+#             self._first = False
+#             return False
+
+#         df = (self.model.log.to_pandas()
+#               .reset_index()
+#               .melt(id_vars=['epoch'],
+#                     value_vars=['train_loss', 'val_loss'],
+#                     var_name='data', value_name='loss'))
+#         (alt.Chart(df).mark_line().encode(
+#             color='data:N',
+#             x='epoch',
+#             y='loss',
+#         ).savechart(self.filename+'.vl.json', 'json'))
+#         return False
+
+class PlotProgress(Callback):
+    '''Plott progress
+
+    Parameters:
+        monitor: Dict with names and Moniro objects.
+        filename: Filename (without ending).
+    '''
+    def __init__(self, monitor, filename='progress'):
+        super().__init__()
+        self.filename = filename
+        self._first = True
+        assert monitor.__class__ in [dict, OrderedDict], 'for now we need dict'
+        self.monitor = monitor
+
+    def on_epoch_end(self):
+        import altair as alt
+        if self._first:
+            self._first = False
+            return False
+
+        df = self.to_pandas()
+        df = (df.reset_index()
+              .melt(id_vars=['epoch'],
+                    value_vars=df.columns,
+                    var_name='data', value_name='loss'))
+        (alt.Chart(df).mark_line().encode(
+            color='data:N',
+            x='epoch',
+            y='loss',
+        ).savechart(self.filename+'.vl.json', 'json'))
+        return False
+
+    def to_pandas(self, naming='prefix'):
+        '''Get data in dataframe.
+
+        Parameters:
+            naming: Put name of metrix as prefix of suffix.
+        '''
+        df = pd.DataFrame()
+        if self.monitor.__class__ in [dict, OrderedDict]:
+            for name, mm in self.monitor.items():
+                d = mm.to_pandas()
+                if naming == 'suffix':
+                    df = df.join(d, how='outer', rsuffix=name)
+                    continue
+                if naming == 'prefix':
+                    d.columns = [name+'_'+c for c in d.columns]
+                df = df.join(d, how='outer')
+        return df
+
 
 class TrainingLogger(Callback):
     '''Holding statistics about training.'''
@@ -307,7 +382,10 @@ class MonitorBase(Callback):
         '''Return scores as a pandas dataframe'''
         scores = np.array(self.scores).transpose()
         return (pd.DataFrame(scores, columns=self.monitor_names)
-                .set_index(np.array(self.epochs)))
+                .assign(epoch=np.array(self.epochs))
+                .set_index('epoch'))
+        # return (pd.DataFrame(scores, columns=self.monitor_names)
+        #         .set_index(np.array(self.epochs)))
 
 
 class MonitorTrainLoss(MonitorBase):
@@ -317,7 +395,7 @@ class MonitorTrainLoss(MonitorBase):
         per_epoch: How often to calculate.
     '''
     def __init__(self, per_epoch=1):
-        monitor_funcs = {'train_loss': self.get_loss}
+        monitor_funcs = {'loss': self.get_loss}
         super().__init__(monitor_funcs, per_epoch, None)
     
     def get_loss(self, *args, **kwargs):
