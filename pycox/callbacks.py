@@ -6,6 +6,7 @@ import time
 from collections import OrderedDict
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn import metrics
 from tqdm import trange
 import torch
@@ -101,31 +102,50 @@ class PlotProgress(Callback):
     Parameters:
         monitor: Dict with names and Moniro objects.
         filename: Filename (without ending).
+        type: If 'altair' plot with altair.
+            If not, type is given as fileending to matplotlib.
     '''
-    def __init__(self, monitor, filename='progress'):
+    def __init__(self, monitor, filename='progress', type='svg',
+                 style='fivethirtyeight'):
         super().__init__()
         self.filename = filename
         self._first = True
         assert monitor.__class__ in [dict, OrderedDict], 'for now we need dict'
         self.monitor = monitor
+        self.type = type
+        self.style = style
 
     def on_epoch_end(self):
-        import altair as alt
         if self._first:
             self._first = False
             return False
 
+        if self.type == 'altair':
+            self.plot_altair()
+            return False
+
+        plt.style.use(self.style)
+        self.to_pandas().plot()
+        plt.savefig(self.filename+'.'+self.type)
+        plt.close('all')
+        return False
+
+    def plot_altair(self):
+        import altair as alt
         df = self.to_pandas()
+        # l, u = df.min().min(),  df.max().max()
+        # diff = (u - l) * 0.05
         df = (df.reset_index()
               .melt(id_vars=['epoch'],
                     value_vars=df.columns,
                     var_name='data', value_name='loss'))
+
         (alt.Chart(df).mark_line().encode(
+            # alt.Y('loss:Q', scale=alt.Scale(domain=(l-diff, u+diff))),
+            y='loss:Q',
+            x='epoch:Q',
             color='data:N',
-            x='epoch',
-            y='loss',
         ).savechart(self.filename+'.vl.json', 'json'))
-        return False
 
     def to_pandas(self, naming='prefix'):
         '''Get data in dataframe.
@@ -189,7 +209,7 @@ class TrainingLogger(Callback):
         if self.verbose:
             self.print_on_epoch_end()
         self.epoch += 1
-        self.batch_loss = []
+        # self.batch_loss = []
         if self.verbose == 2:
             self._make_prog_bar()
         return False
@@ -295,21 +315,7 @@ class EarlyStopping(Callback):
         self.scores = []
         self.n = 0
 
-    def give_model(self, model):
-        super().give_model(model)
-        self.mm_obj.give_model(model)
-
-    def on_fit_start(self):
-        self.mm_obj.on_fit_start()
-
-    def before_step(self):
-        return self.mm_obj.before_step()
-
-    def on_batch_end(self):
-        self.mm_obj.on_batch_end()
-
     def on_epoch_end(self):
-        self.mm_obj.on_epoch_end()
         score = self.mm_obj.scores[0][-1]
         self.scores.append(score)
 
@@ -384,8 +390,6 @@ class MonitorBase(Callback):
         return (pd.DataFrame(scores, columns=self.monitor_names)
                 .assign(epoch=np.array(self.epochs))
                 .set_index('epoch'))
-        # return (pd.DataFrame(scores, columns=self.monitor_names)
-        #         .set_index(np.array(self.epochs)))
 
 
 class MonitorTrainLoss(MonitorBase):
@@ -610,8 +614,6 @@ class MonitorCoxTimeLoss(MonitorCoxLoss):
 
         return super()._prepare_data()
 
-MonitorCoxNNLoss = MonitorCoxLoss  # Legacy
-MonitorCoxNNTimeLoss  = MonitorCoxTimeLoss  # Legacy
 
 class ClipGradNorm(Callback):
     '''Callback for clipping gradients.
@@ -646,21 +648,7 @@ class LRScheduler(Callback):
         self.scheduler = scheduler
         self.mm_obj = mm_obj
 
-    def give_model(self, model):
-        super().give_model(model)
-        self.mm_obj.give_model(model)
-
-    def on_fit_start(self):
-        self.mm_obj.on_fit_start()
-
-    def before_step(self):
-        return self.mm_obj.before_step()
-
-    def on_batch_end(self):
-        self.mm_obj.on_batch_end()
-
     def on_epoch_end(self):
-        self.mm_obj.on_epoch_end()
         score = self.mm_obj.scores[0][-1]
         self.scheduler.step(score)
         stop_signal = False
