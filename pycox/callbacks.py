@@ -124,9 +124,10 @@ class PlotProgress(Callback):
             self.plot_altair()
             return False
 
-        plt.style.use(self.style)
-        self.to_pandas().plot()
-        plt.savefig(self.filename+'.'+self.type)
+        # plt.style.use(self.style)
+        with plt.style.context(self.style):
+            self.to_pandas().plot()
+            plt.savefig(self.filename+'.'+self.type)
         plt.close('all')
         return False
 
