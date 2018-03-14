@@ -416,6 +416,11 @@ class MonitorTrainLoss(MonitorBase):
     def on_batch_end(self):
         self.batch_loss.append(self.model.batch_loss.data[0])
 
+    def on_epoch_end(self):
+        stop_signal = super().on_epoch_end()
+        self.batch_loss = []
+        return stop_signal
+
 
 class MonitorXy(MonitorBase):
     '''Monitor metrics for classification and regression.
@@ -581,8 +586,6 @@ class MonitorCoxLoss(MonitorBase):
             case, control = Variable(case, volatile=True), Variable(control, volatile=True)
             g_case = self.model.g(case)
             g_control_all = [self.model.g(ctr) for ctr in control]
-            # batch_loss = self.model.compute_loss(g_case, g_control)
-            # loss.append(batch_loss.data[0])
             iters = np.arange(0, len(g_control_all)+self.n_control, self.n_control)
             g_control = [g_control_all[s:e]for s, e in zip(iters[:-1], iters[1:])]
             batch_loss = [self.model.compute_loss(g_case, gc).data[0] for gc in g_control]

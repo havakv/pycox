@@ -45,7 +45,7 @@ class FitNet(object):
         dataloader = self.make_dataset(Xtr, ytr, batch_size, num_workers)
 
         callbacks = callbacks if callbacks else []
-        self.callbacks = CallbacksList([self.log]+callbacks)
+        self.callbacks = CallbacksList(callbacks + [self.log])
         self.callbacks.give_model(self)
         self.callbacks.on_fit_start()
 
