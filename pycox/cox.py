@@ -13,34 +13,32 @@ import torch.optim as optim
 from .callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
 from .dataloader import DataLoaderSlice, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
 from .metrics import concordance_index, brier_score, integrated_brier_score
+from .utils import to_cuda
 
 
 
 
-class CoxNNT(object):
-    '''Class holding the cox method for temportal covariates.
-    See CoxNN for static covariates.
-    TODO:
-     - Use high number of controls (more than whats alwas available):
-        - Combine batches with similar controls (can have mixing problems).
-     ez - batch_size=1 can work quite easily (but slow).
-     EZ - Use copies of same control when there is not enough (e.g. sample with replacement)
-        - Use copies, but add something canceling out the gradients.
+class CoxBase(object):
+    '''Base class for cox models.
 
-    gModel: pytorch model for computing g(X). h = h0 exp(g(X)).
-    optimizer: torch optimizer. If None SGD(lr=0.1, momentum=0.9)
-    cuda: if we should run on a gpu if available.
+    Parameters:
+        g_model: Torch model for computing g(X). h = h0 exp(g(X)).
+        optimizer: Torch optimizer. If None SGD(lr=0.1, momentum=0.9)
+        cuda: Set to True if use GPU, or to number to choose GPU.
+            Can also be a dict with parameters passed to .cuda(...).
     '''
-    def __init__(self, gModel, optimizer=None, cuda=True):
-        self.g = gModel
+    def __init__(self, g_model, optimizer=None, cuda=False):
+        self.g = g_model
         self.optimizer = optimizer
         if optimizer is None:
             self.optimizer = optim.SGD(self.g.parameters(), lr=0.01, momentum=0.9)
         self.log = TrainingLogger()
         self.cuda = False
-        if cuda and torch.cuda.is_available():
-            self.cuda = True
-            self.g.cuda()
+        if cuda is not False:
+            if not torch.cuda.is_available():
+                raise ValueError('Cude is not available')
+            self.cuda = cuda
+            to_cuda(self.g, self.cuda)
 
     def fit(self, Xtr, time_fail, gr_alive, n_control=1,
             batch_size=64, epochs=1, n_workers=0, verbose=1, callbacks=[]):
@@ -88,19 +86,10 @@ class CoxNNT(object):
         self.callbacks.on_fit_start()
         for _ in range(epochs):
             for case, control in dataloader:
-                if self.cuda:
-                    case, control = case.cuda(), control.cuda()
+                if self.cuda is not False:
+                    case, control = to_cuda(case, self.cuda), to_cuda(control, self.cuda)
                 case, control = Variable(case), Variable(control)
                 self.fit_info['case_control'] = (case, control)
-                # g_case = self.g(case)
-                # g_control = [self.g(ctr) for ctr in control]
-                # batch_size = case.size()[0]
-                # n_control = len(control)
-                # both = torch.cat([case] + control)
-                # g_both = self.g(both) # We need to pass
-                # g_case = g_both[:batch_size]
-                # g_control = g_both[batch_size:]
-                # g_control = torch.split(g_control, n_control)
                 g_case, g_control = self._g_case_control(case, control)
 
                 self.fit_info['g_case_control'] = (g_case, g_control)
@@ -124,16 +113,11 @@ class CoxNNT(object):
         '''
         batch_size = case.size()[0]
         control = [ctr for ctr in control]
-        # n_control = len(control)
         both = torch.cat([case] + control)
         g_both = self.g(both)
-        # g_case = g_both[:batch_size]
-        # g_control = g_both[batch_size:]
-        # g_control = torch.split(g_control, batch_size)
         g_both = torch.split(g_both, batch_size)
         g_case = g_both[0]
         g_control = torch.stack(g_both[1:])
-        # return g_case, torch.stack(g_control)
         return g_case, g_control
 
     @staticmethod
@@ -198,15 +182,15 @@ class CoxNNT(object):
         if eval_:
             self.g.eval()
         if len(X) < batch_size:
-            if self.cuda:
-                preds = [self.g(Variable(torch.from_numpy(X).cuda(), volatile=True))]
+            if self.cuda is not False:
+                preds = [self.g(Variable(to_cuda(torch.from_numpy(X), self.cuda), volatile=True))]
             else:
                 preds = [self.g(Variable(torch.from_numpy(X), volatile=True))]
         else:
             dataset = NumpyTensorDataset(X)
             dataloader = DataLoaderSlice(dataset, batch_size)
-            if self.cuda:
-                preds = [self.g(Variable(x.cuda(), volatile=True))
+            if self.cuda is not False:
+                preds = [self.g(Variable(to_cuda(x, self.cuda), volatile=True))
                          for x in iter(dataloader)]
             else:
                 preds = [self.g(Variable(x, volatile=True))
@@ -214,7 +198,7 @@ class CoxNNT(object):
         if eval_:
             self.g.train()
         if return_numpy:
-            if self.cuda:
+            if self.cuda is not False:
                 preds = [pred.data.cpu().numpy() for pred in preds]
             else:
                 preds = [pred.data.numpy() for pred in preds]
@@ -243,27 +227,29 @@ class CoxNNT(object):
             warnings.warn('Might need to set optim again!')
 
 
-class CoxPH(CoxNNT):
+class CoxPH(CoxBase):
     '''This class implements fitting Cox's proportional hazard model:
     h(t|x) = h_0(t)*exp(g(x)), where g(x) is a neural net specified with pytorch.
     Parameters:
-        gModel: pytorch net that implements the model g(x).
+        g_model: pytorch net that implements the model g(x).
         optimizer: pytorch optimizer. If None optimizer is set to
             SGD with lr=0.01 and momentum=0.9.
-        cuda: Set to True if use GPU.
+        cuda: Set to True if use GPU, or to number to choose GPU.
+            Can also be a dict with parameters passed to .cuda(...).
     '''
-    def __init__(self, g_model, optimizer=None, cuda=False):
-        self.g = g_model
-        self.optimizer = optimizer
-        if optimizer is None:
-            self.optimizer = optim.SGD(self.g.parameters(), lr=0.01, momentum=0.9)
-        self.cuda = False
-        if cuda:
-            if not torch.cuda.is_available():
-                raise ValueError('Cude is not available')
-            self.cuda = True
-            self.g.cuda()
-        self.log = TrainingLogger()
+    # def __init__(self, g_model, optimizer=None, cuda=False):
+        # self.g = g_model
+        # self.optimizer = optimizer
+        # if optimizer is None:
+        #     self.optimizer = optim.SGD(self.g.parameters(), lr=0.01, momentum=0.9)
+        # self.cuda = False
+        # if cuda:
+        #     if not torch.cuda.is_available():
+        #         raise ValueError('Cude is not available')
+        #     self.cuda = True
+        #     self.g.cuda()
+        # self.log = TrainingLogger()
+        # super()__init__(self, g_model, optimizer=optimizer, cuda=cuda):
 
     def _is_repeated_fit_df(self, df, duration_col, event_col):
         if hasattr(self, 'df'):
@@ -997,7 +983,8 @@ class CoxPHLinear(CoxPH):
             If None optimizer is set to Adam with default parameters.
             Function should take one argument (pytorch model) and return the optimizer.
             See CoxPHLinear.set_optim_default as an example.
-        cuda: Set to True if use GPU.
+        cuda: Set to True if use GPU, or to number to choose GPU.
+            Can also be a dict with parameters passed to .cuda(...).
     '''
     def __init__(self, input_size, set_optim_func=None, cuda=False):
         self.input_size = input_size
@@ -1065,7 +1052,8 @@ class CoxPHMLP(CoxPH):
             If None optimizer is set to SGD with lr=0.01, and momentum=0.9.
             Function should take one argument (pytorch model) and return the optimizer.
             See Cox.set_optim_default as an example.
-        cuda: Set to True if use GPU.
+        cuda: Set to True if use GPU, or to number to choose GPU.
+            Can also be a dict with parameters passed to .cuda(...).
     '''
     def __init__(self, input_size, hidden_size, set_optim_func=None, cuda=False):
         self.input_size = input_size

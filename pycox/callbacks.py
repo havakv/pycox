@@ -12,6 +12,7 @@ from tqdm import trange
 import torch
 from torch import optim
 from torch.autograd import Variable
+from .utils import to_cuda
 
 
 class CallbacksList(object):
@@ -581,8 +582,8 @@ class MonitorCoxLoss(MonitorBase):
         self.model.g.eval()
         loss = []
         for case, control in self.dataloader:
-            if self.model.cuda:
-                case, control = case.cuda(), control.cuda()
+            if self.model.cuda is not False:
+                case, control = to_cuda(case, self.model.cuda), to_cuda(control, self.model.cuda)
             case, control = Variable(case, volatile=True), Variable(control, volatile=True)
             g_case = self.model.g(case)
             g_control_all = [self.model.g(ctr) for ctr in control]
