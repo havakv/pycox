@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 from .dataloader import NumpyTensorDataset, DataLoaderSlice
 from .callbacks import CallbacksList, TrainingLogger
+from .utils import to_cuda
 
 
 class PrepareData(Dataset):
@@ -30,8 +31,9 @@ class FitNet(object):
         self.loss_func = loss_func
         self.optimizer = optimizer if optimizer else optim.SGD(self.net.parameters(), 0.01, 0.9)
         self.cuda = cuda
-        if self.cuda:
-            self.net.cuda()
+        if self.cuda is not False:
+            to_cuda(self.net, self.cuda)
+
         self.log = TrainingLogger()
 
     @staticmethod
@@ -51,8 +53,9 @@ class FitNet(object):
 
         for _ in range(epochs):
             for Xtr, ytr in dataloader:
-                if self.cuda:
-                    Xtr, ytr = Xtr.cuda(), ytr.cuda()
+                if self.cuda is not False:
+                    Xtr, ytr = to_cuda(Xtr, self.cuda), to_cuda(ytr, self.cuda)
+                    # Xtr, ytr = Xtr.cuda(), ytr.cuda()
                 Xtr, ytr = Variable(Xtr), Variable(ytr)
                 out = self.net(Xtr)
                 self.batch_loss = self.loss_func(out, ytr)
@@ -69,15 +72,16 @@ class FitNet(object):
         if eval_:
             self.net.eval()
         if len(X) < batch_size:
-            if self.cuda:
-                preds = [self.net(Variable(torch.from_numpy(X).cuda(), volatile=True))]
+            if self.cuda is not False:
+                preds = [self.net(Variable(to_cuda(torch.from_numpy(X), self.cuda), volatile=True))]
+                # preds = [self.net(Variable(torch.from_numpy(X).cuda(), volatile=True))]
             else:
                 preds = [self.net(Variable(torch.from_numpy(X), volatile=True))]
         else:
             dataset = NumpyTensorDataset(X)
             dataloader = DataLoaderSlice(dataset, batch_size)
-            if self.cuda:
-                preds = [self.net(Variable(x.cuda(), volatile=True))
+            if self.cuda is not False:
+                preds = [self.net(Variable(to_cuda(x, self.cuda), volatile=True))
                          for x in iter(dataloader)]
             else:
                 preds = [self.net(Variable(x, volatile=True))
@@ -85,7 +89,7 @@ class FitNet(object):
         if eval_:
             self.net.train()
         if return_numpy:
-            if self.cuda:
+            if self.cuda is not False:
                 preds = [pred.data.cpu().numpy() for pred in preds]
             else:
                 preds = [pred.data.numpy() for pred in preds]

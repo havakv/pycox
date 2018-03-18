@@ -131,3 +131,16 @@ class MapperCoxTime(object):
         if self.log:
             inverse = np.exp(inverse) - 1
         return inverse
+
+def to_cuda(obj, cuda_args):
+    '''Some general rules for using obj.cuda()
+
+    If cuda_args is True: obj.cuda().
+    If cuda_args is iterage obj.cuda(**cuda_args)
+    Else (typically int): obj.cuda(cuda_args).
+    '''
+    if cuda_args is True:
+        return obj.cuda()
+    if hasattr(cuda_args, '__iter__'):
+        return obj.cuda(**cuda_args)
+    return obj.cuda(cuda_args)
