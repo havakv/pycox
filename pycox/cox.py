@@ -92,10 +92,19 @@ class CoxNNT(object):
                     case, control = case.cuda(), control.cuda()
                 case, control = Variable(case), Variable(control)
                 self.fit_info['case_control'] = (case, control)
-                gCase = self.g(case)
-                gControl = [self.g(ctr) for ctr in control]
-                self.fit_info['g_case_control'] = (gCase, gControl)
-                self.batch_loss = self.compute_loss(gCase, gControl)
+                # g_case = self.g(case)
+                # g_control = [self.g(ctr) for ctr in control]
+                # batch_size = case.size()[0]
+                # n_control = len(control)
+                # both = torch.cat([case] + control)
+                # g_both = self.g(both) # We need to pass
+                # g_case = g_both[:batch_size]
+                # g_control = g_both[batch_size:]
+                # g_control = torch.split(g_control, n_control)
+                g_case, g_control = self._g_case_control(case, control)
+
+                self.fit_info['g_case_control'] = (g_case, g_control)
+                self.batch_loss = self.compute_loss(g_case, g_control)
                 self.optimizer.zero_grad()
                 self.batch_loss.backward()
                 stop_signal = self.callbacks.before_step()
@@ -108,6 +117,24 @@ class CoxNNT(object):
                 break
 
         return self.log
+
+    def _g_case_control(self, case, control):
+        '''We need to concat case and control and pass all though
+        the net 'g' in one batch. If not, batch norm will fail.
+        '''
+        batch_size = case.size()[0]
+        control = [ctr for ctr in control]
+        # n_control = len(control)
+        both = torch.cat([case] + control)
+        g_both = self.g(both)
+        # g_case = g_both[:batch_size]
+        # g_control = g_both[batch_size:]
+        # g_control = torch.split(g_control, batch_size)
+        g_both = torch.split(g_both, batch_size)
+        g_case = g_both[0]
+        g_control = torch.stack(g_both[1:])
+        # return g_case, torch.stack(g_control)
+        return g_case, g_control
 
     @staticmethod
     def compute_loss_old(g_case, g_control, log_eps=1e-38, clamp=(-3e+38, 88)):
