@@ -95,3 +95,21 @@ class FitNet(object):
                 preds = [pred.data.numpy() for pred in preds]
             return np.concatenate(preds)
         return preds
+
+    def save_model_weights(self, path, **kwargs):
+        '''Save the model weights.
+
+        Parameters:
+            path: The filepath of the model.
+            **kwargs: Arguments passed to torch.save method.
+        '''
+        torch.save(self.net.state_dict(), path, **kwargs)
+
+    def load_model_weights(self, path, **kwargs):
+        '''Load model weights.
+
+        Parameters:
+            path: The filepath of the model.
+            **kwargs: Arguments passed to torch.load method.
+        '''
+        self.net.load_state_dict(torch.load(path, **kwargs))
