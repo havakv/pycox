@@ -330,7 +330,7 @@ class CoxPH(CoxBase):
         self.set_hazards(self.df, compute_hazards=compute_hazards)
         return log
 
-    def set_hazards(self, df=None, batch_size=512, compute_hazards=True):
+    def set_hazards(self, df=None, batch_size=1028, compute_hazards=True):
         '''Add attributes baseline_hazard_ and baseline_cumulative_hazard_ to self.
 
         Parameters:
@@ -496,15 +496,15 @@ class CoxPH(CoxBase):
                 .iloc[::-1]
                 .rename('baseline_hazard'))
 
-    def compute_baseline_cumulative_hazard(self, df=None, baseline_hazard=None, batch_size=512):
+    def compute_baseline_cumulative_hazard(self, df=None, batch_size=1028, baseline_hazard=None):
         '''Compute the baseline cumulative hazard of dataframe df or baseline_hazard.
 
         Parameters:
             df: Pandas dataframe with covariates, duration, and events.
                 If `None` use training data frame, or supplied baseline_hazards.
+            batch_size: Batch size passed calculation of g_preds.
             baseline_hazards: Pandas series with baseline hazards.
                 If `None` use supplied df or training data frame.
-            batch_size: Batch size passed calculation of g_preds.
 
         Returns:
             Pandas series with baseline cumulative hazard. Index is duration_col.
@@ -569,7 +569,7 @@ class CoxPH(CoxBase):
         bch = self.baseline_cumulative_hazard_.iloc[idx]
         return bch
 
-    def predict_cumulative_hazard_at_times(self, times, df, batch_size=512, return_df=True):
+    def predict_cumulative_hazard_at_times(self, times, df, batch_size=16448, return_df=True):
         '''Predict cumulative hazard H(x, t) = exp(- H0(t)*exp(g(x))), only at given times.
 
         Parameters:
@@ -815,15 +815,15 @@ class CoxTime(CoxPH):
 
         return base_haz
 
-    def predict_cumulative_hazard(self, df, baseline_hazard_=None, batch_size=512, verbose=0):
+    def predict_cumulative_hazard(self, df, batch_size=16448, verbose=0, baseline_hazard_=None):
         '''Get cumulative hazards for dataset df.
         H(x, t) = \sum [h0(t) exp(g(x, t))]
 
         Parameters:
             df: Pandas dataframe with covariates.
-            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
             batch_size: Batch size passed calculation of g_preds.
             verbose: If we should print progress.
+            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
 
         Returns:
             Pandas data frame with cumulative hazards. One columns for
@@ -848,35 +848,35 @@ class CoxTime(CoxPH):
         hazards *= baseline_hazard_.values.reshape(-1, 1)
         return pd.DataFrame(hazards, columns=df.index, index=baseline_hazard_.index).cumsum()
 
-    def predict_survival_function(self, df, baseline_hazard_=None, batch_size=512, verbose=0):
+    def predict_survival_function(self, df, batch_size=512, verbose=0, baseline_hazard_=None):
         '''Predict survival function for dataset df.
         S(x, t) = exp(-H(x, t))
 
         Parameters:
             df: Pandas dataframe with covariates.
-            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
             batch_size: Batch size passed calculation of g_preds.
             verbose: If we should print progress.
+            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
 
         Returns:
             Pandas data frame with survival functions. One columns for
             each individual in the df.
         '''
-        return np.exp(-self.predict_cumulative_hazard(df, baseline_hazard_, batch_size, verbose))
+        return np.exp(-self.predict_cumulative_hazard(df, batch_size, verbose, baseline_hazard_))
 
 
-    def predict_cumulative_hazard_at_times(self, times, df, baseline_hazard_=None, batch_size=512, 
-                                           return_df=True, verbose=0):
+    def predict_cumulative_hazard_at_times(self, times, df, batch_size=16448, return_df=True,
+                                           verbose=0, baseline_hazard_=None):
         '''Predict cumulative hazard only at given times. This is not as efficient as
         for the proportional hazards models.
 
         Parameters:
             times: Number or iterable with times.
             df: Pandas dataframe with covariates.
-            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
             batch_size: Batch size passed calculation of g_preds.
             return_df: Whether or not to return a pandas dataframe or a numpy matrix.
             verbose: If we should print progress.
+            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
 
         Returns:
             Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazard
@@ -885,31 +885,31 @@ class CoxTime(CoxPH):
         assert hasattr(self, 'baseline_hazard_'), 'Need to fit model first.'
         if not hasattr(times, '__iter__'):
             times = [times]
-        cum_haz = self.predict_cumulative_hazard(df, baseline_hazard_, batch_size, verbose)
+        cum_haz = self.predict_cumulative_hazard(df, batch_size, verbose, baseline_hazard_)
         times_idx = search_sorted_idx(cum_haz.index.values, times)
         cum_haz = cum_haz.iloc[times_idx]
         if return_df:
             return cum_haz
         return cum_haz.as_matrix()
 
-    def predict_survival_at_times(self, times, df, baseline_hazard_=None, batch_size=512,
-                                 return_df=True, verbose=0):
+    def predict_survival_at_times(self, times, df, batch_size=16448, return_df=True,
+                                  verbose=0, baseline_hazard_=None):
         '''Predict survival function at given times.
         Not very efficient!!!
 
         Parameters:
             times: Iterable with times.
             df: Pandas dataframe with covariates.
-            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
             batch_size: Batch size passed calculation of g_preds.
             return_df: Whether or not to return a pandas dataframe or a numpy matrix.
             verbose: If we should print progress.
+            baseline_hazard_: Pandas series with index: time, and values: baseline hazards.
 
         Returns:
             Pandas dataframe (or numpy matrix) [len(times), len(df)] with survival estimates.
         '''
-        return np.exp(-self.predict_cumulative_hazard_at_times(times, df, baseline_hazard_, batch_size, return_df,
-                                                               verbose))
+        return np.exp(-self.predict_cumulative_hazard_at_times(times, df, batch_size, return_df,
+                                                               verbose, baseline_hazard_))
 
     def concordance_index(self, df, g_preds=None, batch_size=256):
         raise NotImplementedError()
