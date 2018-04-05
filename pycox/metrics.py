@@ -35,7 +35,8 @@ def brier_score(times, prob_alive, durations, events):
         'Need prob_alive to have dims [len(times), len(durations)].'
     kmf_censor = KaplanMeierFitter()
     kmf_censor.fit(durations, 1-events)
-    km_censor_at_durations = kmf_censor.predict(durations)
+    # km_censor_at_durations = kmf_censor.predict(durations)
+    km_censor_at_durations = kmf_censor.survival_function_.loc[durations].values.flatten()
     km_censor_at_times = kmf_censor.predict(times)
 
     def compute_score(time_, km_censor_at_time, prob_alive_):
