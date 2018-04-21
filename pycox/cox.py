@@ -212,7 +212,14 @@ class CoxBase(object):
             path: The filepath of the model.
             **kwargs: Arguments passed to torch.save method.
         '''
-        torch.save(self.g.state_dict(), path, **kwargs)
+        if self.cuda is not False:
+            # If we don't do this, torch will move g to default gpu.
+            # Remove this when bug is fixed...
+            self.g.cpu()
+            torch.save(self.g.state_dict(), path, **kwargs)
+            to_cuda(self.g, self.cuda)
+        else:
+            torch.save(self.g.state_dict(), path, **kwargs)
 
     def load_model_weights(self, path, warn=True, **kwargs):
         '''Load model weights.
