@@ -103,3 +103,44 @@ def integrated_brier_score(prob_alive_func, durations, events,
         times_grid = np.linspace(durations.min(), durations.max(), n_grid_points)
     prob_alive = prob_alive_func(times_grid)
     return integrated_brier_score_numpy(times_grid, prob_alive, durations, events)
+
+def binomial_log_likelihood(times, prob_alive, durations, events, eps=1e-7):
+    '''Compute the binomial log-likelihood for survival at given times.
+
+    We compute binomial log-likelihood weighted by the inverse censoring distribution.
+    This is the same weighting scheeme as for the brier score.
+
+    Parameters:
+        times: Number or iterable with times where to compute the brier scores.
+        prob_alive: Numpy array [len(times), len(durations)] with the estimated probabilities
+            of each individual to be alive at each time in `times`. Each row represets
+            a time in input array `times`.
+        durations: Numpy array with time of events.
+        events: Boolean numpy array indecating if dead/censored (True/False).
+        eps: Clip prob_alive at (eps, 1-eps).
+
+    Returns:
+        Numpy array with brier scores.
+    '''
+    if not hasattr(times, '__iter__'):
+        times = [times]
+    assert prob_alive.__class__ is np.ndarray, 'Need numpy array'
+    assert prob_alive.shape == (len(times), len(durations)),\
+        'Need prob_alive to have dims [len(times), len(durations)].'
+    kmf_censor = KaplanMeierFitter()
+    kmf_censor.fit(durations, 1-events)
+    km_censor_at_durations = kmf_censor.survival_function_.loc[durations].values.flatten()
+    km_censor_at_times = kmf_censor.predict(times)
+
+    prob_alive = np.clip(prob_alive, eps, 1-eps)
+
+    def compute_score(time_, km_censor_at_time, prob_alive_):
+        died = ((durations <= time_) & (events == True))
+        survived = (durations > time_)
+        event_part = np.log(1 - prob_alive_[died]) / km_censor_at_durations[died]
+        survived_part = np.log(prob_alive_[survived]) / km_censor_at_time
+        return (np.sum(event_part) + np.sum(survived_part)) / len(durations)
+
+    scores = [compute_score(time_, km, pa)
+              for time_, km, pa in zip(times, km_censor_at_times, prob_alive)]
+    return np.array(scores)

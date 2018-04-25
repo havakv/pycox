@@ -103,7 +103,14 @@ class FitNet(object):
             path: The filepath of the model.
             **kwargs: Arguments passed to torch.save method.
         '''
-        torch.save(self.net.state_dict(), path, **kwargs)
+        if self.cuda is not False:
+            # If we don't do this, torch will move g to default gpu.
+            # Remove this when bug is fixed...
+            self.net.cpu()
+            torch.save(self.net.state_dict(), path, **kwargs)
+            to_cuda(self.net, self.cuda)
+        else:
+            torch.save(self.net.state_dict(), path, **kwargs)
 
     def load_model_weights(self, path, **kwargs):
         '''Load model weights.
