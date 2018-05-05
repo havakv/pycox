@@ -50,7 +50,6 @@ def brier_score(times, prob_alive, durations, events):
                 for time_, km, pa in zip(times, km_censor_at_times, prob_alive)]
     return np.array(b_scores)
 
-
 def integrated_brier_score_numpy(times_grid, prob_alive, durations, events):
     '''Compute the integrated brier score (for survival).
     This funcion takes pre-computed probabilities, while the function integrated_brier_score
@@ -77,7 +76,6 @@ def integrated_brier_score_numpy(times_grid, prob_alive, durations, events):
     times_grid = times_grid[is_finite]
     integral = scipy.integrate.simps(b_scores, times_grid)
     return integral / (times_grid[-1] - times_grid[0])
-
 
 def integrated_brier_score(prob_alive_func, durations, events,
                            times_grid=None, n_grid_points=100):

@@ -6,14 +6,14 @@ import numpy as np
 import pandas as pd
 
 import torch
-from torch.autograd import Variable
+# from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
 
 from .callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
 from .dataloader import DataLoaderSlice, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
 from .metrics import concordance_index, brier_score, integrated_brier_score
-from .utils import to_cuda
+# from .utils import to_cuda
 
 
 
@@ -22,23 +22,37 @@ class CoxBase(object):
     '''Base class for cox models.
 
     Parameters:
-        g_model: Torch model for computing g(X). h = h0 exp(g(X)).
+        g: Torch model for computing g(X). h = h0 exp(g(X)).
         optimizer: Torch optimizer. If None SGD(lr=0.1, momentum=0.9)
-        cuda: Set to True if use GPU, or to number to choose GPU.
-            Can also be a dict with parameters passed to .cuda(...).
+        device: Which device to compute on.
+            Preferrably pass a torch.device object.
+            If `None`: use default gpu if avaiable, else use cpu.
+            If `int`: used that gpu: torch.device('cuda:<device>').
+            If `string`: string is passed to torch.device(`string`).
     '''
-    def __init__(self, g_model, optimizer=None, cuda=False):
-        self.g = g_model
+    def __init__(self, g, optimizer=None, device=None):
+        self.g = g
         self.optimizer = optimizer
         if optimizer is None:
             self.optimizer = optim.SGD(self.g.parameters(), lr=0.01, momentum=0.9)
         self.log = TrainingLogger()
-        self.cuda = False
-        if cuda is not False:
-            if not torch.cuda.is_available():
-                raise ValueError('Cude is not available')
-            self.cuda = cuda
-            to_cuda(self.g, self.cuda)
+        if device is None:
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        elif device.__class__ is str:
+            device = torch.device(device)
+        elif device.__class__ is int:
+            device = torch.device('cuda:{}'.format(device))
+        else:
+            if device.__class__ is not torch.device:
+                raise ValueError('Argument `device` needs to be None, string, or torch.device object.')
+        self.device = device
+        self.g.to(self.device)
+        # self.cuda = False
+        # if cuda is not False:
+        #     if not torch.cuda.is_available():
+        #         raise ValueError('Cude is not available')
+        #     self.cuda = cuda
+        #     to_cuda(self.g, self.cuda)
 
     def fit(self, Xtr, time_fail, gr_alive, n_control=1,
             batch_size=64, epochs=1, n_workers=0, verbose=1, callbacks=[]):
@@ -86,9 +100,10 @@ class CoxBase(object):
         self.callbacks.on_fit_start()
         for _ in range(epochs):
             for case, control in dataloader:
-                if self.cuda is not False:
-                    case, control = to_cuda(case, self.cuda), to_cuda(control, self.cuda)
-                case, control = Variable(case), Variable(control)
+                case, control = case.to(self.device), control.to(self.device)
+                # if self.cuda is not False:
+                #     case, control = to_cuda(case, self.cuda), to_cuda(control, self.cuda)
+                # case, control = Variable(case), Variable(control)
                 self.fit_info['case_control'] = (case, control)
                 g_case, g_control = self._g_case_control(case, control)
 
@@ -120,32 +135,32 @@ class CoxBase(object):
         g_control = torch.stack(g_both[1:])
         return g_case, g_control
 
-    @staticmethod
-    def compute_loss_old(g_case, g_control, log_eps=1e-38, clamp=(-3e+38, 88)):
-        '''Comput the loss = - g_case + log[exp(g_case) + sum(exp(g_control))]
+    # @staticmethod
+    # def compute_loss_old(g_case, g_control, log_eps=1e-38, clamp=(-3e+38, 88)):
+    #     '''Comput the loss = - g_case + log[exp(g_case) + sum(exp(g_control))]
 
-        log_eps: 1e-38 is around the smalles value we can use without getting
-            nan gradients. This is found by experimenting...
-        clamp: Lower and upper cutoff for g_case and g_control. 88 is a nice max
-            because exp(89) is inf for float32, which results in None gradients.
-            One problem is that very large g_control will not have gradients (we
-            want g_control to be small).
+    #     log_eps: 1e-38 is around the smalles value we can use without getting
+    #         nan gradients. This is found by experimenting...
+    #     clamp: Lower and upper cutoff for g_case and g_control. 88 is a nice max
+    #         because exp(89) is inf for float32, which results in None gradients.
+    #         One problem is that very large g_control will not have gradients (we
+    #         want g_control to be small).
         
-        TODO:
-            Use log-sum-exp trick for better numerical stability.
-                log(sum(exp(x))) = a + log(sum(exp(x-a))),
-                where a is calculated from the batch???
-        '''
-        control_sum = 0.
-        for ctr in g_control:
-            ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should find better way).
-            control_sum += torch.exp(ctr)
-        g_case = torch.clamp(g_case, *clamp)  # This is somewhat fine as higher than 88 is unlikely in real world.
-        loss = - g_case + torch.log(torch.exp(g_case) + control_sum + log_eps)
-        return torch.mean(loss)
+    #     TODO:
+    #         Use log-sum-exp trick for better numerical stability.
+    #             log(sum(exp(x))) = a + log(sum(exp(x-a))),
+    #             where a is calculated from the batch???
+    #     '''
+    #     control_sum = 0.
+    #     for ctr in g_control:
+    #         ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should find better way).
+    #         control_sum += torch.exp(ctr)
+    #     g_case = torch.clamp(g_case, *clamp)  # This is somewhat fine as higher than 88 is unlikely in real world.
+    #     loss = - g_case + torch.log(torch.exp(g_case) + control_sum + log_eps)
+    #     return torch.mean(loss)
 
     @staticmethod
-    def compute_loss(g_case, g_control, clamp=(-3e+38, 88)):
+    def compute_loss(g_case, g_control, clamp=(-3e+38, 88.)):
         '''Comput the loss = log[1 + sum(exp(g_control - g_case))]
 
         This is:
@@ -167,8 +182,33 @@ class CoxBase(object):
             control_sum += torch.exp(ctr)
         loss = torch.log(1. + control_sum)
         return torch.mean(loss)
+    
+    def _predict_fun(self, fun, X, batch_size=8224, return_numpy=True, eval_=True):
+        '''Predict fun(X).
 
-    def predict_g(self, X, batch_size=512, return_numpy=True, eval_=True):
+        Parameters:
+            X: Numpy matrix with with covariates.
+            batch_size: Batch size.
+            return_numpy: If False, a torch tensor is returned.
+            eval_: If true, set `fun` in eval mode for prediction
+                and back to train mode after that (only affects dropout and batchnorm).
+                If False, leaves `fun` modes as they are.
+        '''
+        if eval_:
+            fun.eval()
+        with torch.no_grad():
+            dataset = NumpyTensorDataset(X)
+            dataloader = DataLoaderSlice(dataset, batch_size)
+            preds = [fun(x.to(self.device)) for x in iter(dataloader)]
+            preds = torch.cat(preds)
+        if eval_:
+            fun.train()
+
+        if return_numpy:
+            return preds.numpy()
+        return preds
+
+    def predict_g(self, X, batch_size=8224, return_numpy=True, eval_=True):
         '''Return g predictions, p = h0 exp(g(x)).
 
         Parameters:
@@ -179,31 +219,61 @@ class CoxBase(object):
                 and back to train mode after that (only affects dropout and batchnorm).
                 If False, leaves the network modes as they are.
         '''
-        if eval_:
-            self.g.eval()
-        if len(X) < batch_size:
-            if self.cuda is not False:
-                preds = [self.g(Variable(to_cuda(torch.from_numpy(X), self.cuda), volatile=True))]
-            else:
-                preds = [self.g(Variable(torch.from_numpy(X), volatile=True))]
-        else:
-            dataset = NumpyTensorDataset(X)
-            dataloader = DataLoaderSlice(dataset, batch_size)
-            if self.cuda is not False:
-                preds = [self.g(Variable(to_cuda(x, self.cuda), volatile=True))
-                         for x in iter(dataloader)]
-            else:
-                preds = [self.g(Variable(x, volatile=True))
-                         for x in iter(dataloader)]
-        if eval_:
-            self.g.train()
-        if return_numpy:
-            if self.cuda is not False:
-                preds = [pred.data.cpu().numpy() for pred in preds]
-            else:
-                preds = [pred.data.numpy() for pred in preds]
-            return np.concatenate(preds)
-        return preds
+        fun = self.g
+        return self._predict_fun(fun, X, batch_size, return_numpy, eval_)
+        # if eval_:
+        #     self.g.eval()
+        # with torch.no_grad():
+        #     dataset = NumpyTensorDataset(X)
+        #     dataloader = DataLoaderSlice(dataset, batch_size)
+        #     preds = [self.g(x.to(self.device)) for x in iter(dataloader)]
+        #     preds = torch.cat(preds)
+        # if eval_:
+        #     self.g.train()
+
+        # if return_numpy:
+        #     return preds.numpy()
+        # return preds
+
+        #     if len(X) < batch_size:
+        #         if self.cuda is not False:
+        #             preds = [self.g(Variable(to_cuda(torch.from_numpy(X), self.cuda), volatile=True))]
+        #         else:
+        #             # preds = [self.g(Variable(torch.from_numpy(X), volatile=True))]
+        #             preds = [self.g(torch.tensor(X))]
+        #     else:
+        #         dataset = NumpyTensorDataset(X)
+        #         dataloader = DataLoaderSlice(dataset, batch_size)
+        #         if self.cuda is not False:
+        #             preds = [self.g(Variable(to_cuda(x, self.cuda), volatile=True))
+        #                      for x in iter(dataloader)]
+        #         else:
+        #             # preds = [self.g(Variable(x, volatile=True))
+        #             #          for x in iter(dataloader)]
+        #             preds = [self.g(x) for x in iter(dataloader)]
+        #     if eval_:
+        #         self.g.train()
+        #     if return_numpy:
+        #         if self.cuda is not False:
+        #             preds = [pred.data.cpu().numpy() for pred in preds]
+        #         else:
+        #             preds = [pred.data.numpy() for pred in preds]
+        #         return np.concatenate(preds)
+        # return preds
+
+    def predict_expg(self, X, batch_size=8224, return_numpy=True, eval_=True):
+        '''Return g predictions, p = h0 exp(g(x)).
+
+        Parameters:
+            X: Numpy matrix with with covariates.
+            batch_size: Batch size.
+            return_numpy: If False, a torch tensor is returned.
+            eval_: If true, set the network in eval mode for prediction
+                and back to train mode after that (only affects dropout and batchnorm).
+                If False, leaves the network modes as they are.
+        '''
+        expg = _Expg(self.g)
+        return self._predict_fun(expg, X, batch_size, return_numpy, eval_)
 
     def save_model_weights(self, path, **kwargs):
         '''Save the model weights.
@@ -212,14 +282,15 @@ class CoxBase(object):
             path: The filepath of the model.
             **kwargs: Arguments passed to torch.save method.
         '''
-        if self.cuda is not False:
-            # If we don't do this, torch will move g to default gpu.
-            # Remove this when bug is fixed...
-            self.g.cpu()
-            torch.save(self.g.state_dict(), path, **kwargs)
-            to_cuda(self.g, self.cuda)
-        else:
-            torch.save(self.g.state_dict(), path, **kwargs)
+        return torch.save(self.g.state_dict(), path, **kwargs)
+        # if self.cuda is not False:
+        #     # If we don't do this, torch will move g to default gpu.
+        #     # Remove this when bug is fixed...
+        #     self.g.cpu()
+        #     torch.save(self.g.state_dict(), path, **kwargs)
+        #     to_cuda(self.g, self.cuda)
+        # else:
+        #     torch.save(self.g.state_dict(), path, **kwargs)
 
     def load_model_weights(self, path, warn=True, **kwargs):
         '''Load model weights.
@@ -230,8 +301,20 @@ class CoxBase(object):
         '''
         self.g.load_state_dict(torch.load(path, **kwargs))
         if warn:
+            warnings.warn('Might need to transfer to cuda???')
             warnings.warn('Need to recompute baseline hazards after loading.')
             warnings.warn('Might need to set optim again!')
+
+
+class _Expg(nn.Module):
+    '''Class for adding exp to g model.'''
+    def __init__(self, g):
+        super().__init__()
+        self.g = g
+
+    def forward(self, x):
+        return torch.exp(self.g(x))
+    
 
 
 class CoxPH(CoxBase):
@@ -241,8 +324,10 @@ class CoxPH(CoxBase):
         g_model: pytorch net that implements the model g(x).
         optimizer: pytorch optimizer. If None optimizer is set to
             SGD with lr=0.01 and momentum=0.9.
-        cuda: Set to True if use GPU, or to number to choose GPU.
-            Can also be a dict with parameters passed to .cuda(...).
+        device: Which device to compute on.
+            Preferrably pass a torch.device object.
+            If `None`: use default gpu if avaiable, else use cpu.
+            If `string`: string is passed to torch.device(`string`).
     '''
     # def __init__(self, g_model, optimizer=None, cuda=False):
         # self.g = g_model
@@ -403,30 +488,35 @@ class CoxPH(CoxBase):
         x = df[self.x_columns].as_matrix().astype('float32')
         return super().predict_g(x, batch_size, return_numpy, eval_)
 
-    def predict_expg(self, df, batch_size=512, return_numpy=True):
+    def predict_expg(self, df, batch_size=512, return_numpy=True, eval_=True):
         '''Return exp(g(x)) predictions, h = h0 * exp(g(x)).
 
         Parameters:
             df: a Pandas dataframe with covariates.
             batch_size: batch size.
             return_numpy: If False, a torch tensor is returned
+            eval_: If true, set the network in eval mode for prediction
+                and back to train mode after that (only affects dropout and batchnorm).
+                If False, leaves the network modes as they are.
         '''
-        if return_numpy is False:
-            raise NotImplementedError('Only implemented for numpy now.')
-        return np.exp(self.predict_g(df, batch_size, return_numpy=True))
+        # if return_numpy is False:
+        #     raise NotImplementedError('Only implemented for numpy now.')
+        # return np.exp(self.predict_g(df, batch_size, return_numpy=True))
+        x = df[self.x_columns].as_matrix().astype('float32')
+        return super().predict_expg(x, batch_size, return_numpy, eval_)
 
-    def predict(self, df, batch_size=64, compute_on_log=True):
-        '''Predict hazard h = h0 * exp(g(X))
-        Requires that we have computed the breslow estimates for h0.
-        X: covariates.
-        times: DataFrame with same index as X, the times
-            corresponding to the covariates (timeAlive), and the
-            label (failNextDay).
-        compute_on_log: If True, we compute exp(g(x) + log(h0)), while
-            if False, we compute exp(g(x)) * h0. They should be equivalent,
-            but True is recomended due to numerical stability.
-        '''
-        raise NotImplementedError()
+    # def predict(self, df, batch_size=64, compute_on_log=True):
+    #     '''Predict hazard h = h0 * exp(g(X))
+    #     Requires that we have computed the breslow estimates for h0.
+    #     X: covariates.
+    #     times: DataFrame with same index as X, the times
+    #         corresponding to the covariates (timeAlive), and the
+    #         label (failNextDay).
+    #     compute_on_log: If True, we compute exp(g(x) + log(h0)), while
+    #         if False, we compute exp(g(x)) * h0. They should be equivalent,
+    #         but True is recomended due to numerical stability.
+    #     '''
+    #     raise NotImplementedError()
 
     def concordance_index(self, df, g_preds=None, batch_size=256):
         '''Concoradance index (from lifelines.utils).
@@ -990,17 +1080,19 @@ class CoxPHLinear(CoxPH):
             If None optimizer is set to Adam with default parameters.
             Function should take one argument (pytorch model) and return the optimizer.
             See CoxPHLinear.set_optim_default as an example.
-        cuda: Set to True if use GPU, or to number to choose GPU.
-            Can also be a dict with parameters passed to .cuda(...).
+        device: Which device to compute on.
+            Preferrably pass a torch.device object.
+            If `None`: use default gpu if avaiable, else use cpu.
+            If `string`: string is passed to torch.device(`string`).
     '''
-    def __init__(self, input_size, set_optim_func=None, cuda=False):
+    def __init__(self, input_size, set_optim_func=None, device=None):
         self.input_size = input_size
         g_model = self._make_g_model(self.input_size)
         self.set_optim_func = set_optim_func
         if self.set_optim_func is None:
             self.set_optim_func = self.set_optim_default
         optimizer = self.set_optim_func(g_model)
-        super().__init__(g_model, optimizer, cuda)
+        super().__init__(g_model, optimizer, device)
 
     @staticmethod
     def set_optim_default(g_model):
@@ -1059,10 +1151,12 @@ class CoxPHMLP(CoxPH):
             If None optimizer is set to SGD with lr=0.01, and momentum=0.9.
             Function should take one argument (pytorch model) and return the optimizer.
             See Cox.set_optim_default as an example.
-        cuda: Set to True if use GPU, or to number to choose GPU.
-            Can also be a dict with parameters passed to .cuda(...).
+        device: Which device to compute on.
+            Preferrably pass a torch.device object.
+            If `None`: use default gpu if avaiable, else use cpu.
+            If `string`: string is passed to torch.device(`string`).
     '''
-    def __init__(self, input_size, hidden_size, set_optim_func=None, cuda=False):
+    def __init__(self, input_size, hidden_size, set_optim_func=None, device=None):
         self.input_size = input_size
         self.hidden_size = hidden_size
         g_model = self._make_g_model(self.input_size, self.hidden_size)
@@ -1070,7 +1164,7 @@ class CoxPHMLP(CoxPH):
         if self.set_optim_func is None:
             self.set_optim_func = self.set_optim_default
         optimizer = self.set_optim_func(g_model)
-        super().__init__(g_model, optimizer, cuda)
+        super().__init__(g_model, optimizer, device)
 
     @staticmethod
     def set_optim_default(g_model):

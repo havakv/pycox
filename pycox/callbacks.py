@@ -8,11 +8,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import metrics
-from tqdm import trange
 import torch
 from torch import optim
 from torch.autograd import Variable
-from .utils import to_cuda
+# from .utils import to_cuda
 
 
 class CallbacksList(object):
@@ -196,6 +195,7 @@ class TrainingLogger(Callback):
             self._make_prog_bar()
 
     def _make_prog_bar(self):
+        from tqdm import trange
         self.prog_bar = trange(self.model.fit_info['batches_per_epoch'],
                                desc=str(self.epoch))
         self.prog_bar = iter(self.prog_bar)
@@ -278,7 +278,7 @@ class EarlyStoppingTrainLoss(Callback):
         self.batch_loss = []
 
     def on_batch_end(self):
-        self.batch_loss.append(self.model.batch_loss.data[0])
+        self.batch_loss.append(self.model.batch_loss.item())
 
     def on_epoch_end(self):
         loss = np.mean(self.batch_loss)
@@ -415,7 +415,7 @@ class MonitorTrainLoss(MonitorBase):
         self.batch_loss = []
 
     def on_batch_end(self):
-        self.batch_loss.append(self.model.batch_loss.data[0])
+        self.batch_loss.append(self.model.batch_loss.item())
 
     def on_epoch_end(self):
         stop_signal = super().on_epoch_end()
@@ -579,6 +579,7 @@ class MonitorCoxLoss(MonitorBase):
         return X, time_fail, gr_alive
 
     def _run_dataloader(self):
+        warnings.warn('Try to make this part of the original using context switch "with torch.set_grad_enabled(is_train):"')
         self.model.g.eval()
         loss = []
         for case, control in self.dataloader:
@@ -589,7 +590,7 @@ class MonitorCoxLoss(MonitorBase):
             g_control_all = [self.model.g(ctr) for ctr in control]
             iters = np.arange(0, len(g_control_all)+self.n_control, self.n_control)
             g_control = [g_control_all[s:e]for s, e in zip(iters[:-1], iters[1:])]
-            batch_loss = [self.model.compute_loss(g_case, gc).data[0] for gc in g_control]
+            batch_loss = [self.model.compute_loss(g_case, gc).item() for gc in g_control]
             loss.append(np.mean(batch_loss))
 
         self.model.g.train()

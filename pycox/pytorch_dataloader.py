@@ -5,7 +5,7 @@ and can potentially stop workers from shutting down at each batch.
 '''
 import torch
 # import torch.utils.data as data
-from torch.utils.data.dataloader import DataLoader, DataLoaderIter, ExceptionWrapper, \
+from torch.utils.data.dataloader import DataLoader, _DataLoaderIter, ExceptionWrapper, \
     _set_SIGCHLD_handler, _worker_manager_loop, pin_memory_batch
 import torch.multiprocessing as multiprocessing
 from torch._C import _set_worker_signal_handlers, _update_worker_pids
@@ -73,7 +73,7 @@ def _worker_loop(dataset, index_queue, data_queue, collate_fn, seed, init_fn, wo
 #         else:
 #             data_queue.put((idx, samples))
 
-class DataLoaderIterSlice(DataLoaderIter):
+class DataLoaderIterSlice(_DataLoaderIter):
     "Iterates once over the DataLoader's dataset, as specified by the sampler"
 
     def __init__(self, loader):
