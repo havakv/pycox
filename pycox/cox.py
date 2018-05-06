@@ -107,10 +107,12 @@ class CoxBase(object):
                 # case, control = Variable(case), Variable(control)
                 self.fit_info['case_control'] = (case, control)
                 # g_case, g_control = self._g_case_control(case, control)
+                case, control = case.to(self.device), control.to(self.device)
+                g_case, g_control = self.compute_g_case_control(case, control)
 
-                self.batch_loss, g_case, g_control = self.compute_batch(case, control)
+                # self.batch_loss, g_case, g_control = self.compute_batch(case, control)
                 self.fit_info['g_case_control'] = (g_case, g_control)
-                # self.batch_loss = self.compute_loss(g_case, g_control)
+                self.batch_loss = self.compute_loss(g_case, g_control)
                 self.optimizer.zero_grad()
                 self.batch_loss.backward()
                 stop_signal = self.callbacks.before_step()
@@ -124,16 +126,19 @@ class CoxBase(object):
 
         return self.log
     
-    def compute_batch(self, case, control):
-        case, control = case.to(self.device), control.to(self.device)
-        g_case, g_control = self._g_case_control(case, control)
-        batch_loss = self._compute_loss(g_case, g_control)
-        return batch_loss, g_case, g_control
+    # def compute_batch(self, case, control, loss=True):
+    #     case, control = case.to(self.device), control.to(self.device)
+    #     g_case, g_control = self._g_case_control(case, control)
+    #     batch_loss = None
+    #     if loss:
+    #         batch_loss = self.compute_loss(g_case, g_control)
+    #     return batch_loss, g_case, g_control
 
-    def _g_case_control(self, case, control):
+    def compute_g_case_control(self, case, control):
         '''We need to concat case and control and pass all though
         the net 'g' in one batch. If not, batch norm will fail.
         '''
+        # case, control = case.to(self.device), control.to(self.device)
         batch_size = case.size()[0]
         control = [ctr for ctr in control]
         both = torch.cat([case] + control)
@@ -168,7 +173,7 @@ class CoxBase(object):
     #     return torch.mean(loss)
 
     @staticmethod
-    def _compute_loss(g_case, g_control, clamp=(-3e+38, 88.)):
+    def compute_loss(g_case, g_control, clamp=(-3e+38, 88.)):
         '''Comput the loss = log[1 + sum(exp(g_control - g_case))]
 
         This is:

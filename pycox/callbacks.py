@@ -588,13 +588,15 @@ class MonitorCoxLoss(MonitorBase):
             # case, control = Variable(case, volatile=True), Variable(control, volatile=True)
             # g_case = self.model.g(case)
             # g_control_all = [self.model.g(ctr) for ctr in control]
-            # iters = np.arange(0, len(g_control_all)+self.n_control, self.n_control)
-            # g_control = [g_control_all[s:e]for s, e in zip(iters[:-1], iters[1:])]
-            # g_case, g_control = self.model._g_case_control(case, control)
-            # batch_loss = [self.model.compute_loss(g_case, gc).item() for gc in g_control]
             with torch.no_grad():
-                batch_loss, _, _ = self.model.compute_batch(case, control)
-                loss.append(np.mean(batch_loss.item()))
+                # self.case_control = (case, control)
+                case, control = case.to(self.model.device), control.to(self.model.device)
+                g_case, g_control = self.model.compute_g_case_control(case, control)
+                # self.g_case_control = (g_case, g_control)
+                iters = np.arange(0, len(control)+self.n_control, self.n_control)
+                g_control = [g_control[s:e] for s, e in zip(iters[:-1], iters[1:])]
+                batch_loss = [self.model.compute_loss(g_case, gc).item() for gc in g_control]
+                loss.append(np.mean(batch_loss))
 
         self.model.g.train()
         return np.mean(loss)
