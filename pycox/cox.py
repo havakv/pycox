@@ -7,8 +7,9 @@ import pandas as pd
 
 import torch
 # from torch.autograd import Variable
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
+# import torch.nn as nn
+# import torch.optim as optim
 
 from .callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
 from .dataloader import DataLoaderSlice, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
@@ -100,15 +101,16 @@ class CoxBase(object):
         self.callbacks.on_fit_start()
         for _ in range(epochs):
             for case, control in dataloader:
-                case, control = case.to(self.device), control.to(self.device)
+                # case, control = case.to(self.device), control.to(self.device)
                 # if self.cuda is not False:
                 #     case, control = to_cuda(case, self.cuda), to_cuda(control, self.cuda)
                 # case, control = Variable(case), Variable(control)
                 self.fit_info['case_control'] = (case, control)
-                g_case, g_control = self._g_case_control(case, control)
+                # g_case, g_control = self._g_case_control(case, control)
 
+                self.batch_loss, g_case, g_control = self.compute_batch(case, control)
                 self.fit_info['g_case_control'] = (g_case, g_control)
-                self.batch_loss = self.compute_loss(g_case, g_control)
+                # self.batch_loss = self.compute_loss(g_case, g_control)
                 self.optimizer.zero_grad()
                 self.batch_loss.backward()
                 stop_signal = self.callbacks.before_step()
@@ -121,6 +123,12 @@ class CoxBase(object):
                 break
 
         return self.log
+    
+    def compute_batch(self, case, control):
+        case, control = case.to(self.device), control.to(self.device)
+        g_case, g_control = self._g_case_control(case, control)
+        batch_loss = self._compute_loss(g_case, g_control)
+        return batch_loss, g_case, g_control
 
     def _g_case_control(self, case, control):
         '''We need to concat case and control and pass all though
@@ -160,7 +168,7 @@ class CoxBase(object):
     #     return torch.mean(loss)
 
     @staticmethod
-    def compute_loss(g_case, g_control, clamp=(-3e+38, 88.)):
+    def _compute_loss(g_case, g_control, clamp=(-3e+38, 88.)):
         '''Comput the loss = log[1 + sum(exp(g_control - g_case))]
 
         This is:

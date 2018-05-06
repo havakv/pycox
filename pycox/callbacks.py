@@ -540,7 +540,7 @@ class MonitorCoxLoss(MonitorBase):
         batch_size: Batch size used for calculating the scores.
         per_epoch: Calculated scores per epoch.
     '''
-    def __init__(self, df, n_control, n_reps=1, n_workers=0, batch_size=1028, per_epoch=1):
+    def __init__(self, df, n_control=1, n_reps=1, n_workers=0, batch_size=1028, per_epoch=1):
         self.df = df
         self.n_control = n_control
         self.n_reps = n_reps
@@ -579,19 +579,22 @@ class MonitorCoxLoss(MonitorBase):
         return X, time_fail, gr_alive
 
     def _run_dataloader(self):
-        warnings.warn('Try to make this part of the original using context switch "with torch.set_grad_enabled(is_train):"')
         self.model.g.eval()
         loss = []
         for case, control in self.dataloader:
-            if self.model.cuda is not False:
-                case, control = to_cuda(case, self.model.cuda), to_cuda(control, self.model.cuda)
-            case, control = Variable(case, volatile=True), Variable(control, volatile=True)
-            g_case = self.model.g(case)
-            g_control_all = [self.model.g(ctr) for ctr in control]
-            iters = np.arange(0, len(g_control_all)+self.n_control, self.n_control)
-            g_control = [g_control_all[s:e]for s, e in zip(iters[:-1], iters[1:])]
-            batch_loss = [self.model.compute_loss(g_case, gc).item() for gc in g_control]
-            loss.append(np.mean(batch_loss))
+            # if self.model.cuda is not False:
+            #     case, control = to_cuda(case, self.model.cuda), to_cuda(control, self.model.cuda)
+            # case, control = case.to(self.model.device), control.to(self.model.device)
+            # case, control = Variable(case, volatile=True), Variable(control, volatile=True)
+            # g_case = self.model.g(case)
+            # g_control_all = [self.model.g(ctr) for ctr in control]
+            # iters = np.arange(0, len(g_control_all)+self.n_control, self.n_control)
+            # g_control = [g_control_all[s:e]for s, e in zip(iters[:-1], iters[1:])]
+            # g_case, g_control = self.model._g_case_control(case, control)
+            # batch_loss = [self.model.compute_loss(g_case, gc).item() for gc in g_control]
+            with torch.no_grad():
+                batch_loss, _, _ = self.model.compute_batch(case, control)
+                loss.append(np.mean(batch_loss.item()))
 
         self.model.g.train()
         return np.mean(loss)
