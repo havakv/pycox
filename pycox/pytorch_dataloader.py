@@ -3,6 +3,7 @@ Small changes to the pytorch dataloader.
 Now works with with batches (slicing rather than loop over indexes), 
 and can potentially stop workers from shutting down at each batch.
 '''
+import random
 import torch
 # import torch.utils.data as data
 from torch.utils.data.dataloader import DataLoader, _DataLoaderIter, ExceptionWrapper, \
