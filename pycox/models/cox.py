@@ -11,10 +11,11 @@ from torch import nn, optim
 # import torch.nn as nn
 # import torch.optim as optim
 
-from ..callbacks.callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
+from ..callbacks.callbacks import CallbacksList, TrainingLogger#, EarlyStoppingTrainLoss
 from ..dataloader import DataLoaderSlice, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
 from ..metrics import concordance_index, brier_score, integrated_brier_score
 from .base import BaseModel
+from .torch_models import FuncTorch, _Expg
 # from .utils import to_cuda
 
 class CoxBase(BaseModel):
@@ -175,13 +176,14 @@ class CoxBase(BaseModel):
 
     def fit_dataloader(self, dataloader, epochs=1, verbose=1, callbacks=None):
         '''Fit method for pytorch dataloader.'''
-        self.fit_info = {'batches_per_epoch': len(dataloader)}
+        # self.fit_info = {'batches_per_epoch': len(dataloader)}
 
-        self.log.verbose = verbose
-        if callbacks is None:
-            callbacks = []
-        self.callbacks = CallbacksList(callbacks + [self.log])
-        self.callbacks.give_model(self)
+        # self.log.verbose = verbose
+        # if callbacks is None:
+        #     callbacks = []
+        # self.callbacks = CallbacksList(callbacks + [self.log])
+        # self.callbacks.give_model(self)
+        self._setup_train_info(dataloader, verbose, callbacks)
 
         self.callbacks.on_fit_start()
         for _ in range(epochs):
@@ -392,7 +394,6 @@ class CoxBase(BaseModel):
         
         return self._predict_cumulative_hazards(df, batch_size, verbose, baseline_hazards_)
 
-
     def _predict_cumulative_hazards(self, df, batch_size=16448, verbose=False, baseline_hazards_=None):
         raise NotImplementedError
 
@@ -476,17 +477,6 @@ class CoxBase(BaseModel):
         durations = df[self.duration_col].values
         events = df[self.event_col].values
         return integrated_brier_score(prob_alive_func, durations, events, times_grid, n_grid_points)
-
-
-class _Expg(nn.Module):
-    '''Class for adding exp to g model.'''
-    def __init__(self, g):
-        super().__init__()
-        self.g = g
-
-    def forward(self, x):
-        return torch.exp(self.g(x))
-    
 
 
 class CoxPH(CoxBase):
@@ -959,8 +949,8 @@ class CoxTime(CoxBase):
             return cum_haz
         return cum_haz.as_matrix()
 
-    def concordance_index(self, df, g_preds=None, batch_size=256):
-        raise NotImplementedError()
+    # def concordance_index(self, df, g_preds=None, batch_size=256):
+    #     raise NotImplementedError()
 
     def partial_log_likelihood(self, df, batch_size=512):
         '''Calculate the partial log-likelihood for the events in datafram df.
@@ -1004,8 +994,6 @@ class CoxTime(CoxBase):
         return pll
         
 
-
-
 def search_sorted_idx(array, values):
     '''For sorted array, get index of values.
     If value not in array, give left index of value.
@@ -1021,162 +1009,85 @@ def search_sorted_idx(array, values):
     return idx
 
 
-class CoxPHLinear(CoxPH):
-    '''This class implements Cox's proportional hazards model:
-    h(t|x) = h_0(t)*exp(g(x)), where g(x) = beta^T x.
 
-    Parameters:
-        input_size: Size of x, i.e. number of covariates.
-        set_optim_func: Function for setting pytorch optimizer.
-            If None optimizer is set to Adam with default parameters.
-            Function should take one argument (pytorch model) and return the optimizer.
-            See CoxPHLinear.set_optim_default as an example.
-        device: Which device to compute on.
-            Preferrably pass a torch.device object.
-            If `None`: use default gpu if avaiable, else use cpu.
-            If `string`: string is passed to torch.device(`string`).
-    '''
-    def __init__(self, input_size, set_optim_func=None, device=None):
-        self.input_size = input_size
-        g_model = self._make_g_model(self.input_size)
-        self.set_optim_func = set_optim_func
-        if self.set_optim_func is None:
-            self.set_optim_func = self.set_optim_default
-        optimizer = self.set_optim_func(g_model)
-        super().__init__(g_model, optimizer, device)
+# class CoxPHMLP(CoxPH):
+#     '''This class implements Cox's proportional hazards model:
+#     h(t|x) = h_0(t)*exp(g(x)), where g(x) = is an one-hidden-layer MLP with elu activation.
 
-    @staticmethod
-    def set_optim_default(g_model):
-        return optim.Adam(g_model.parameters())
+#     Parameters:
+#         input_size: Size of x, i.e. number of covariates.
+#         hidden_size: Size of hidden layer.
+#         set_optim_func: Function for setting pytorch optimizer.
+#             If None optimizer is set to SGD with lr=0.01, and momentum=0.9.
+#             Function should take one argument (pytorch model) and return the optimizer.
+#             See Cox.set_optim_default as an example.
+#         device: Which device to compute on.
+#             Preferrably pass a torch.device object.
+#             If `None`: use default gpu if avaiable, else use cpu.
+#             If `string`: string is passed to torch.device(`string`).
+#     '''
+#     def __init__(self, input_size, hidden_size, set_optim_func=None, device=None):
+#         self.input_size = input_size
+#         self.hidden_size = hidden_size
+#         g_model = self._make_g_model(self.input_size, self.hidden_size)
+#         self.set_optim_func = set_optim_func
+#         if self.set_optim_func is None:
+#             self.set_optim_func = self.set_optim_default
+#         optimizer = self.set_optim_func(g_model)
+#         super().__init__(g_model, optimizer, device)
 
-    def _make_g_model(self, input_size):
-        return nn.Sequential(nn.Linear(input_size, 1, bias=False))
+#     @staticmethod
+#     def set_optim_default(g_model):
+#         return optim.SGD(g_model.parameters(), lr=0.01, momentum=0.9)
 
-    def fit(self, df, duration_col, event_col=None, n_control=1, batch_size=64, epochs=500,
-            n_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
-            early_stopping=True):
-        '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
-        are handled using Efron's tie-method.
+#     def _make_g_model(self, input_size, hidden_size):
+#         return nn.Sequential(nn.Linear(input_size, hidden_size), nn.ELU(),
+#                              nn.Linear(hidden_size, 1, bias=False))
 
-        Parameters:
-            df: A Pandas dataframe with necessary columns `duration_col` and
-                `event_col`, plus other covariates. `duration_col` refers to
-                the lifetimes of the subjects. `event_col` refers to whether
-                the 'death' events was observed: 1 if observed, 0 else (censored).
-            duration_col: The column in dataframe that contains the subjects'
-                lifetimes.
-            event_col: The column in dataframe that contains the subjects' death
-                observation. If left as None, assume all individuals are non-censored.
-            n_control: Number of control samples.
-            batch_size: Batch size.
-            epochs: Number of epochs.
-            n_workers: Number of workers for preparing data.
-            strata: Specify a list of columns to use in stratification. This is useful if a
-                catagorical covariate does not obey the proportional hazards assumption. This
-                is used similar to the `strata` expression in R.
-                See http://courses.washington.edu/b515/l17.pdf.
-            callbacks: List of callbacks.
-            compute_hazards: If we should compute hazards when training has finished.
-            early_stopping: Use prespesifed early stopping callback to stop when loss hasn't
-                imporved for last 5 epochs.
+#     def fit(self, df, duration_col, event_col=None, n_control=1, batch_size=64, epochs=500,
+#             n_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
+#             early_stopping=True):
+#     # def fit(self, df, duration_col, event_col=None, batch_size=64, epochs=500,
+#     #         num_workers=0, n_control=1, verbose=1, strata=None, early_stopping=True,
+#     #         callbacks=None):
+#         '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
+#         are handled using Efron's tie-method.
 
-        # Returns:
-        #     self, with additional properties: hazards_
-        '''
-        if callbacks is None:
-            callbacks = []
-        if early_stopping:
-            callbacks.append(EarlyStoppingTrainLoss())
-        return super().fit(df, duration_col, event_col, n_control, batch_size, epochs,
-                           n_workers, verbose, strata, callbacks, compute_hazards)
+#         Parameters:
+#             df: A Pandas dataframe with necessary columns `duration_col` and
+#                 `event_col`, plus other covariates. `duration_col` refers to
+#                 the lifetimes of the subjects. `event_col` refers to whether
+#                 the 'death' events was observed: 1 if observed, 0 else (censored).
+#             duration_col: The column in dataframe that contains the subjects'
+#                 lifetimes.
+#             event_col: The column in dataframe that contains the subjects' death
+#                 observation. If left as None, assume all individuals are non-censored.
+#             n_control: Number of control samples.
+#             batch_size: Batch size.
+#             epochs: Number of epochs.
+#             n_workers: Number of workers for preparing data.
+#             strata: Specify a list of columns to use in stratification. This is useful if a
+#                 catagorical covariate does not obey the proportional hazards assumption. This
+#                 is used similar to the `strata` expression in R.
+#                 See http://courses.washington.edu/b515/l17.pdf.
+#             callbacks: List of callbacks.
+#             compute_hazards: If we should compute hazards when training has finished.
+#             early_stopping: Use prespesifed early stopping callback to stop when loss hasn't
+#                 imporved for last 5 epochs.
 
-
-class CoxPHMLP(CoxPH):
-    '''This class implements Cox's proportional hazards model:
-    h(t|x) = h_0(t)*exp(g(x)), where g(x) = is an one-hidden-layer MLP with elu activation.
-
-    Parameters:
-        input_size: Size of x, i.e. number of covariates.
-        hidden_size: Size of hidden layer.
-        set_optim_func: Function for setting pytorch optimizer.
-            If None optimizer is set to SGD with lr=0.01, and momentum=0.9.
-            Function should take one argument (pytorch model) and return the optimizer.
-            See Cox.set_optim_default as an example.
-        device: Which device to compute on.
-            Preferrably pass a torch.device object.
-            If `None`: use default gpu if avaiable, else use cpu.
-            If `string`: string is passed to torch.device(`string`).
-    '''
-    def __init__(self, input_size, hidden_size, set_optim_func=None, device=None):
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        g_model = self._make_g_model(self.input_size, self.hidden_size)
-        self.set_optim_func = set_optim_func
-        if self.set_optim_func is None:
-            self.set_optim_func = self.set_optim_default
-        optimizer = self.set_optim_func(g_model)
-        super().__init__(g_model, optimizer, device)
-
-    @staticmethod
-    def set_optim_default(g_model):
-        return optim.SGD(g_model.parameters(), lr=0.01, momentum=0.9)
-
-    def _make_g_model(self, input_size, hidden_size):
-        return nn.Sequential(nn.Linear(input_size, hidden_size), nn.ELU(),
-                             nn.Linear(hidden_size, 1, bias=False))
-
-    def fit(self, df, duration_col, event_col=None, n_control=1, batch_size=64, epochs=500,
-            n_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
-            early_stopping=True):
-    # def fit(self, df, duration_col, event_col=None, batch_size=64, epochs=500,
-    #         num_workers=0, n_control=1, verbose=1, strata=None, early_stopping=True,
-    #         callbacks=None):
-        '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
-        are handled using Efron's tie-method.
-
-        Parameters:
-            df: A Pandas dataframe with necessary columns `duration_col` and
-                `event_col`, plus other covariates. `duration_col` refers to
-                the lifetimes of the subjects. `event_col` refers to whether
-                the 'death' events was observed: 1 if observed, 0 else (censored).
-            duration_col: The column in dataframe that contains the subjects'
-                lifetimes.
-            event_col: The column in dataframe that contains the subjects' death
-                observation. If left as None, assume all individuals are non-censored.
-            n_control: Number of control samples.
-            batch_size: Batch size.
-            epochs: Number of epochs.
-            n_workers: Number of workers for preparing data.
-            strata: Specify a list of columns to use in stratification. This is useful if a
-                catagorical covariate does not obey the proportional hazards assumption. This
-                is used similar to the `strata` expression in R.
-                See http://courses.washington.edu/b515/l17.pdf.
-            callbacks: List of callbacks.
-            compute_hazards: If we should compute hazards when training has finished.
-            early_stopping: Use prespesifed early stopping callback to stop when loss hasn't
-                imporved for last 5 epochs.
-
-        # Returns:
-        #     self, with additional properties: hazards_
-        '''
-        if callbacks is None:
-            callbacks = []
-        if early_stopping:
-            callbacks.append(EarlyStoppingTrainLoss())
-        return super().fit(df, duration_col, event_col, n_control, batch_size, epochs,
-                           n_workers, verbose, strata, callbacks, compute_hazards)
+#         # Returns:
+#         #     self, with additional properties: hazards_
+#         '''
+#         if callbacks is None:
+#             callbacks = []
+#         if early_stopping:
+#             callbacks.append(EarlyStoppingTrainLoss())
+#         return super().fit(df, duration_col, event_col, n_control, batch_size, epochs,
+#                            n_workers, verbose, strata, callbacks, compute_hazards)
 
 
-class FuncTorch(nn.Module):
-    def __init__(self, func):
-        self.func = func
-        super().__init__()
 
-    def forward(self, x):
-        return self.func(x)
-
-
-class CoxFunc(CoxPH):
+class CoxPHFunc(CoxPH):
     '''Class for doing same as CoxNN on an arbitrary funciton g.
     h(x, t) = h_0(t) * exp(g(x))
 
@@ -1230,8 +1141,8 @@ class CoxTimeFunc(CoxTime):
         '''It's not possible to fit this object.'''
         raise ValueError("It's not possible to fit this object")
 
-class CoxLifelines(CoxFunc):
-    '''Class for doing same as CoxNN on lifelines cph object.
+class CoxLifelines(CoxPHFunc):
+    '''Class for doing same as CoxPH on lifelines cph object.
 
     Parameters:
         cph_lifelines: Fitted CoxPHFitter object from Lifelines.

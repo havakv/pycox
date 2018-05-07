@@ -1,8 +1,10 @@
 '''Base models.
 '''
+from collections import OrderedDict
 import torch
 from torch import optim
-from ..callbacks.callbacks import CallbacksList, TrainingLogger, EarlyStoppingTrainLoss
+# from ..callbacks.callbacks import CallbacksList, TrainingLogger
+from ..callbacks import callbacks as cb
 from ..dataloader import NumpyTensorDataset, DataLoaderSlice
 
 class BaseModel(object):
@@ -34,7 +36,9 @@ class BaseModel(object):
         self.device = device
         self.net.to(self.device)
 
-        self.log = TrainingLogger()
+        self.train_loss = cb.MonitorTrainLoss()
+        self.log = cb.TrainingLogger()
+        self.log.monitors = OrderedDict(loss=self.train_loss)
     
     def make_dataloader(self):
         raise NotImplementedError
@@ -45,7 +49,7 @@ class BaseModel(object):
         self.log.verbose = verbose
         if callbacks is None:
             callbacks = []
-        self.callbacks = CallbacksList(callbacks + [self.log])
+        self.callbacks = cb.CallbacksList([self.train_loss] + callbacks + [self.log])
         self.callbacks.give_model(self)
 
     def _predict_func_numpy(self, func, X, batch_size=8224, return_numpy=True, eval_=True):

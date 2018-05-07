@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 # from ..callbacks import CallbacksList, TrainingLogger
 # from .utils import to_cuda
 from .base import BaseModel
+from ..dataloader import DataLoaderSlice 
 
 
 class PrepareData(Dataset):

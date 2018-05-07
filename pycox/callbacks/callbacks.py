@@ -174,11 +174,21 @@ class TrainingLogger(Callback):
         self.epochs = []
         self.loss = []
         self._verbose = verbose
-        self.train_loss = MonitorTrainLoss()
+        # self.train_loss = MonitorTrainLoss()
+    
+    # def give_monitors(self, monitors_dict):
+    #     self.monitors = monitors_dict
+    @property
+    def monitors(self):
+        return self._monitors
+
+    @monitors.setter
+    def monitors(self, monitor_dict):
+        self._monitors = monitor_dict
 
     def give_model(self, model):
         super().give_model(model)
-        self.train_loss.give_model(model)
+        # self.train_loss.give_model(model)
 
     @property
     def verbose(self):
@@ -190,34 +200,36 @@ class TrainingLogger(Callback):
 
     def on_fit_start(self):
         self.prev_time = time.time()
-        self.train_loss.on_fit_start()
-        if self.verbose == 2:
-            self._make_prog_bar()
+        # self.train_loss.on_fit_start()
+        # if self.verbose == 2:
+        #     self._make_prog_bar()
 
-    def _make_prog_bar(self):
-        from tqdm import trange
-        self.prog_bar = trange(self.model.fit_info['batches_per_epoch'],
-                               desc=str(self.epoch))
-        self.prog_bar = iter(self.prog_bar)
+    # def _make_prog_bar(self):
+    #     from tqdm import trange
+    #     self.prog_bar = trange(self.model.fit_info['batches_per_epoch'],
+    #                            desc=str(self.epoch))
+    #     self.prog_bar = iter(self.prog_bar)
 
     def on_batch_end(self):
-        self.train_loss.on_batch_end()
-        if self.verbose == 2:
-            next(self.prog_bar)
+        pass
+        # self.train_loss.on_batch_end()
+        # if self.verbose == 2:
+        #     next(self.prog_bar)
 
     def on_epoch_end(self):
-        self.train_loss.on_epoch_end()
+        # self.train_loss.on_epoch_end()
         self.epochs.append(self.epoch)
         if self.verbose:
             self.print_on_epoch_end()
         self.epoch += 1
         # self.batch_loss = []
-        if self.verbose == 2:
-            self._make_prog_bar()
+        # if self.verbose == 2:
+        #     self._make_prog_bar()
         return False
     
     def get_measures(self):
-        measures = {'loss': self.train_loss}
+        # measures = {'loss': self.train_loss}
+        measures = self.monitors
         if self.verbose.__class__ in [dict, OrderedDict]:
             measures = OrderedDict(measures, **self.verbose)
         string = ''
@@ -242,54 +254,58 @@ class TrainingLogger(Callback):
         Parameters:
             naming: Put name of metrix as prefix of suffix.
         '''
-        df = self.train_loss.to_pandas()
+        # df = self.train_loss.to_pandas()
+        mon = self.monitors.copy()
+        df = mon.pop('loss').to_pandas()
         if self.verbose.__class__ in [dict, OrderedDict]:
-            for name, mm in self.verbose.items():
-                d = mm.to_pandas()
-                if naming == 'suffix':
-                    df = df.join(d, rsuffix=name)
-                    continue
-                if naming == 'prefix':
-                    d.columns = [name+'_'+c for c in d.columns]
-                df = df.join(d)
+            mon.update(self.verbose)
+        # for name, mm in self.verbose.items():
+        for name, mm in mon.items():
+            d = mm.to_pandas()
+            if naming == 'suffix':
+                df = df.join(d, rsuffix=name)
+                continue
+            if naming == 'prefix':
+                d.columns = [name+'_'+c for c in d.columns]
+            df = df.join(d)
         return df
 
 
-class EarlyStoppingTrainLoss(Callback):
-    '''Stop trainig when the training loss has stopped improving.
+# class EarlyStoppingTrainLoss(Callback):
+#     '''Stop trainig when the training loss has stopped improving.
 
-    For stopping using the full partial log-likelihood, (on train or val)
-    see EarlyStopping.
+#     For stopping using the full partial log-likelihood, (on train or val)
+#     see EarlyStopping.
 
-    Parameters:
-        min_delta: Minimum change in the monitored quantity to qualify as an improvement,
-            i.e. an absolute change of less than min_delta, will count as no improvement.
-        patience: Number of epochs with no improvement after which training will be stopped.
-    '''
-    def __init__(self, min_delta=0, patience=5):
-        warnings.warn('Shoud not use EarlyStoppingTrainLoss!!! Revrite to early stopping.')
-        self.min_delta = min_delta
-        self.patience = patience
-        self.val = np.inf
-        self.n = 0
-        self.loss = []
+#     Parameters:
+#         min_delta: Minimum change in the monitored quantity to qualify as an improvement,
+#             i.e. an absolute change of less than min_delta, will count as no improvement.
+#         patience: Number of epochs with no improvement after which training will be stopped.
+#     '''
+#     def __init__(self, min_delta=0, patience=5):
+#         warnings.warn('Shoud not use EarlyStoppingTrainLoss!!! Revrite to early stopping.')
+#         self.min_delta = min_delta
+#         self.patience = patience
+#         self.val = np.inf
+#         self.n = 0
+#         self.loss = []
 
-    def on_fit_start(self):
-        self.batch_loss = []
+#     def on_fit_start(self):
+#         self.batch_loss = []
 
-    def on_batch_end(self):
-        self.batch_loss.append(self.model.batch_loss.item())
+#     def on_batch_end(self):
+#         self.batch_loss.append(self.model.batch_loss.item())
 
-    def on_epoch_end(self):
-        loss = np.mean(self.batch_loss)
-        self.loss.append(loss)
-        if loss < (self.val - self.min_delta):
-            self.val = loss
-            self.n = -1
-        self.n += 1
-        self.batch_loss = []
-        stop_signal = True if self.n >= self.patience else False
-        return stop_signal
+#     def on_epoch_end(self):
+#         loss = np.mean(self.batch_loss)
+#         self.loss.append(loss)
+#         if loss < (self.val - self.min_delta):
+#             self.val = loss
+#             self.n = -1
+#         self.n += 1
+#         self.batch_loss = []
+#         stop_signal = True if self.n >= self.patience else False
+#         return stop_signal
 
 
 class EarlyStopping(Callback):
@@ -307,7 +323,7 @@ class EarlyStopping(Callback):
         model_file_path: If spesified, the model weights will be stored whever a better score
             is achieved.
     '''
-    def __init__(self, mm_obj, minimize=False, min_delta=0, patience=10, model_file_path=None):
+    def __init__(self, mm_obj, minimize=True, min_delta=0, patience=10, model_file_path=None):
         self.mm_obj = mm_obj
         self.minimize = minimize
         self.min_delta = min_delta
@@ -536,15 +552,15 @@ class MonitorCoxLoss(MonitorBase):
         n_control: Number of control samples.
         n_reps: Number of replications of the loss that are averaged.
             For smaller datasets it might give smoother validation curves.
-        n_workers: Number of workers for preparing data.
+        num_workers: Number of workers for preparing data.
         batch_size: Batch size used for calculating the scores.
         per_epoch: Calculated scores per epoch.
     '''
-    def __init__(self, df, n_control=1, n_reps=1, n_workers=0, batch_size=1028, per_epoch=1):
+    def __init__(self, df, n_control=1, n_reps=1, num_workers=0, batch_size=1028, per_epoch=1):
         self.df = df
         self.n_control = n_control
         self.n_reps = n_reps
-        self.n_workers = n_workers
+        self.num_workers = num_workers
         monitor = {'loss': self._loss}
         self._dataloader_exists = False
         super().__init__(monitor, per_epoch, batch_size)
@@ -566,17 +582,17 @@ class MonitorCoxLoss(MonitorBase):
         return loss
 
     def make_dataloader(self):
-        X, time_fail, gr_alive = self._prepare_data()
-        dataloader = self.model.make_dataloader(X, time_fail, gr_alive, self.n_control*self.n_reps,
-                                                self.batch_size, self.n_workers)
+        X, durations, at_risk_dict = self._prepare_data()
+        dataloader = self.model.make_dataloader(X, durations, at_risk_dict, self.n_control*self.n_reps,
+                                                self.batch_size, self.num_workers)
         return dataloader
 
     def _prepare_data(self):
         model = self.model
-        time_fail = self.df.loc[lambda x: x[model.event_col] == 1][model.duration_col]
-        gr_alive = model._gr_alive(self.df, model.duration_col)
+        durations = self.df.loc[lambda x: x[model.event_col] == 1][model.duration_col]
+        at_risk_dict = model._make_at_risk_dict(self.df, model.duration_col)
         X = self.df[model.x_columns].as_matrix().astype('float32')
-        return X, time_fail, gr_alive
+        return X, durations, at_risk_dict
 
     def _run_dataloader(self):
         self.model.g.eval()
@@ -595,7 +611,7 @@ class MonitorCoxLoss(MonitorBase):
                 # self.g_case_control = (g_case, g_control)
                 iters = np.arange(0, len(control)+self.n_control, self.n_control)
                 g_control = [g_control[s:e] for s, e in zip(iters[:-1], iters[1:])]
-                batch_loss = [self.model.compute_loss(g_case, gc).item() for gc in g_control]
+                batch_loss = [self.model.loss_func(g_case, gc).item() for gc in g_control]
                 loss.append(np.mean(batch_loss))
 
         self.model.g.train()
@@ -613,7 +629,7 @@ class MonitorCoxTimeLoss(MonitorCoxLoss):
     Parameters:
         df: Pandas dataframe with data used for monitoring.
         n_control: Number of control samples.
-        n_workers: Number of workers for preparing data.
+        num_workers: Number of workers for preparing data.
         batch_size: Batch size used for calculating the scores.
         per_epoch: Calculated scores per epoch.
     '''
