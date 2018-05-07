@@ -248,25 +248,25 @@ class TrainingLogger(Callback):
         print(string + self.get_measures())
         self.prev_time = new_time
 
-    def to_pandas(self, naming='prefix'):
+    # def to_pandas(self, naming=None):
+    def to_pandas(self):
         '''Get data in dataframe.
-        
-        Parameters:
-            naming: Put name of metrix as prefix of suffix.
         '''
         # df = self.train_loss.to_pandas()
         mon = self.monitors.copy()
-        df = mon.pop('loss').to_pandas()
+        df = mon.pop('train_loss').to_pandas()
+        df.columns = ['train_loss']
         if self.verbose.__class__ in [dict, OrderedDict]:
             mon.update(self.verbose)
         # for name, mm in self.verbose.items():
         for name, mm in mon.items():
             d = mm.to_pandas()
-            if naming == 'suffix':
-                df = df.join(d, rsuffix=name)
-                continue
-            if naming == 'prefix':
-                d.columns = [name+'_'+c for c in d.columns]
+            # if naming == 'suffix':
+            #     df = df.join(d, rsuffix=name)
+            #     continue
+            # if naming == 'prefix':
+            #     d.columns = [name+'_'+c for c in d.columns]
+            d.columns = [name]
             df = df.join(d)
         return df
 

@@ -76,8 +76,6 @@ class CoxPHLinear(CoxPH):
         if early_stop_train_patience is not None:
             if early_stop_train_patience.__class__ is not int:
                 raise ValueError('`early_stop_patience` needs to be `int`')
-            # callbacks.append(EarlyStoppingTrainLoss())
-            # train_loss = cb.MonitorTrainLoss()
             es = cb.EarlyStopping(self.train_loss, minimize=True,
                                   patience=early_stop_train_patience)
             callbacks.append(es)
@@ -153,20 +151,14 @@ class _AbstractCoxReluNet(object):
                 self.val_loss = cb.MonitorCoxTimeLoss(df_val, n_control, n_reps=5, num_workers=num_workers,
                                                       batch_size=batch_size)
                 mon = self.log.monitors.copy()
-                mon.update({'val': self.val_loss})
+                mon.update({'val_loss': self.val_loss})
                 self.log.monitors = mon
 
             callbacks.append(self.val_loss)
 
-            # if verbose:
-            #     verbose = {'val': self.val_loss}
-                # if verbose.__class__ is not dict:
-                #     verbose = {}
-                # verbose.update(val_verb)
         if early_stop_patience is None:
             early_stop_patience = 9223372036854775807
     
-        # if early_stop_patience is not None:
         if early_stop_patience.__class__ is not int:
             raise ValueError('`early_stop_patience` needs to be `int`')
         if df_val is None:
@@ -200,14 +192,3 @@ class CoxTimeReluNet(_AbstractCoxReluNet, CoxTime):
         return super().fit(df_train, duration_col, event_col, df_val, batch_size, epochs,
                            num_workers, verbose, compute_hazards, n_control,
                            early_stop_patience)
-    # def __init__(self, input_size, n_layers, n_nodes, dropout=False, batch_norm=True,
-    #              optimizer=None, device=None):
-    #     g = ReluNet(input_size, n_layers, n_nodes, dropout=False, batch_norm=True)
-    #     super().__init__(g, optimizer, device)
-    
-    # def fit(self, df_train, duration_col, event_col=None, df_val=None, batch_size=64, epochs=10,
-    #         n_workers=0, verbose=True, callbacks=None, compute_hazards=False, n_control=1):
-    #     '''
-    #     TODO:
-    #         Warn if input_size does not fit df! Give better warning than pytorch!!!!!!!!
-    #     '''

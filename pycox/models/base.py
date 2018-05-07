@@ -38,7 +38,7 @@ class BaseModel(object):
 
         self.train_loss = cb.MonitorTrainLoss()
         self.log = cb.TrainingLogger()
-        self.log.monitors = OrderedDict(loss=self.train_loss)
+        self.log.monitors = OrderedDict(train_loss=self.train_loss)
     
     @property
     def optimizer(self):
