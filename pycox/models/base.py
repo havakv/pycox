@@ -40,6 +40,14 @@ class BaseModel(object):
         self.log = cb.TrainingLogger()
         self.log.monitors = OrderedDict(loss=self.train_loss)
     
+    @property
+    def optimizer(self):
+        return self._optimizer
+
+    @optimizer.setter
+    def optimizer(self, optimizer):
+        self._optimizer = optimizer
+    
     def make_dataloader(self):
         raise NotImplementedError
     

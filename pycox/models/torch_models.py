@@ -6,6 +6,15 @@ import torch
 from torch import nn
 
 class ReluNet(nn.Module):
+    '''Relu net with dropout and batch norm
+
+    Parameters:
+        input_size: Input size.
+        n_layers: Number of layers.
+        n_nodes: Size of each layer.
+        dropout: Dropout rate. If `False`, no dropout.
+        batch_norm: If use of batch norm.
+    '''
     def __init__(self, input_size, n_layers, n_nodes, dropout=False, batch_norm=True):
         super().__init__()
         self.input_size = input_size
