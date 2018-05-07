@@ -139,9 +139,6 @@ class _AbstractCoxReluNet(object):
         # Returns:
         #     self, with additional properties: hazards_
         '''
-        
-        warnings.warn('Need to fix max time for baseline!!!')
-
         callbacks = []
         first_fit = not hasattr(self, '_fit_params')
         if not first_fit:

@@ -287,7 +287,7 @@ class CoxBase(BaseModel):
         '''Need to be implemeted by the respective methods'''
         raise NotImplementedError
     
-    def compute_baseline_hazards(self, df=None, max_duration=np.inf, sample=None, batch_size=8224,
+    def compute_baseline_hazards(self, df=None, max_duration=None, sample=None, batch_size=8224,
                                 set_hazards=True):
         '''Computes the breslow estimates of the baseline hazards of dataframe df.
 
@@ -323,7 +323,7 @@ class CoxBase(BaseModel):
 
         return base_haz
 
-    def compute_baseline_cumulative_hazards(self, df=None, max_duration=np.inf, sample=None,
+    def compute_baseline_cumulative_hazards(self, df=None, max_duration=None, sample=None,
                                             batch_size=8224, set_hazards=True, baseline_hazards_=None):
         '''Compute the baseline cumulative hazards of dataframe df or baseline_hazards.
 
@@ -368,7 +368,7 @@ class CoxBase(BaseModel):
         #         .cumsum()
         #         .rename('baseline_cumulative_hazards'))
     
-    def predict_cumulative_hazards(self, df, batch_size=16448, verbose=False, baseline_hazards_=None):
+    def predict_cumulative_hazards(self, df, max_duration=None, batch_size=16448, verbose=False, baseline_hazards_=None):
         '''Get cumulative hazards for dataset df.
         H(x, t) = sum [h0(t) exp(g(x, t))]
         or
@@ -376,6 +376,7 @@ class CoxBase(BaseModel):
 
         Parameters:
             df: Pandas dataframe with covariates.
+            max_duration: Don't compute hazards for durations larger than max_time.
             batch_size: Batch size passed calculation of g_preds.
             verbose: If we should print progress.
             baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
@@ -386,23 +387,24 @@ class CoxBase(BaseModel):
             each individual in the df.
         '''
         if baseline_hazards_ is None:
-            assert hasattr(self, 'baseline_hazards_'), 'Need to fit model first.'
-            assert self.baseline_hazards_ is not None, 'Need to compute baseline_hazards_'
+            if not hasattr(self, 'baseline_hazards_'):
+                raise ValueError('Need to compute baseline_hazards_.')
+            # assert self.baseline_hazards_ is not None, 'Need to compute baseline_hazards_'
             baseline_hazards_ = self.baseline_hazards_
         assert baseline_hazards_.index.is_monotonic_increasing,\
             'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
-        
-        return self._predict_cumulative_hazards(df, batch_size, verbose, baseline_hazards_)
+        return self._predict_cumulative_hazards(df, max_duration, batch_size, verbose, baseline_hazards_)
 
-    def _predict_cumulative_hazards(self, df, batch_size=16448, verbose=False, baseline_hazards_=None):
+    def _predict_cumulative_hazards(self, df, max_duration, batch_size, verbose, baseline_hazards_):
         raise NotImplementedError
 
-    def predict_survival_function(self, df, batch_size=512, verbose=False, baseline_hazards_=None):
+    def predict_survival_function(self, df, max_duration=None, batch_size=512, verbose=False, baseline_hazards_=None):
         '''Predict survival function for dataset df.
         S(x, t) = exp(-H(x, t))
 
         Parameters:
             df: Pandas dataframe with covariates.
+            max_duration: Don't compute hazards for durations larger than max_time.
             batch_size: Batch size passed calculation of g_preds.
             verbose: If we should print progress.
             baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
@@ -411,7 +413,7 @@ class CoxBase(BaseModel):
             Pandas data frame with survival functions. One columns for
             each individual in the df.
         '''
-        return np.exp(-self.predict_cumulative_hazards(df, batch_size, verbose, baseline_hazards_))
+        return np.exp(-self.predict_cumulative_hazards(df, max_duration, batch_size, verbose, baseline_hazards_))
 
     def predict_cumulative_hazards_at_times(self, times, df, batch_size=16448, return_df=True,
                                            verbose=0, baseline_hazards_=None):
@@ -601,14 +603,16 @@ class CoxPH(CoxBase):
 
         Parameters:
             df: Pandas dataframe with covariates, duration, and events.
-            max_duration: Needs to be np.inf for the moment.
+            max_duration: Has no computational effect here.
             batch_size: Batch size passed calculation of g_preds.
 
         Returns:
             Pandas series with baseline hazards. Index is duration_col.
         '''
-        if max_duration != np.inf:
-            raise ValueError('Need `max_duration` = np.inf. Not implemented for other values.')
+        # if max_duration is not None:
+        #     raise ValueError('Need `max_duration` = None. Not implemented for other values.')
+        if max_duration is None:
+            max_duration = np.inf
 
         # Here we are computing when expg when there are no events.
         #   Could be made faster, by only computing when there are events.
@@ -621,6 +625,7 @@ class CoxPH(CoxBase):
                 .pipe(lambda x: x[self.event_col]/x['expg'])
                 .fillna(0.)
                 .iloc[::-1]
+                .loc[lambda x: x.index <= max_duration]
                 .rename('baseline_hazards'))
 
     # def compute_baseline_cumulative_hazards(self, df=None, batch_size=1028, baseline_hazards=None):
@@ -649,7 +654,7 @@ class CoxPH(CoxBase):
     #             .cumsum()
     #             .rename('baseline_cumulative_hazards'))
 
-    def _predict_cumulative_hazards(self, df, batch_size, verbose, baseline_hazards_):
+    def _predict_cumulative_hazards(self, df, max_duration, batch_size, verbose, baseline_hazards_):
         '''Get cumulative hazards for dataset df.
         H(x, t) = H0(t) exp(g(x))
 
@@ -664,12 +669,14 @@ class CoxPH(CoxBase):
         # if verbose:
         #     warnings.warn('verbose has no effect here')
         # assert hasattr(self, 'baseline_cumulative_hazards_'), 'Need to fit model first.'
+        max_duration = np.inf if max_duration is None else max_duration
         if baseline_hazards_ is self.baseline_hazards_:
             # bch = self.baseline_cumulative_hazards_.values.reshape(-1, 1)
             bch = self.baseline_cumulative_hazards_
         else:
             bch = self.compute_baseline_cumulative_hazards(set_hazards=False, 
                                                            baseline_hazards_=baseline_hazards_)
+        bch = bch.loc[lambda x: x.index <= max_duration]
         expg = self.predict_expg(df, batch_size, return_numpy=True).reshape(1, -1)
         return pd.DataFrame(bch.values.reshape(-1, 1).dot(expg), columns=df.index,
                             index=bch.index)
@@ -861,6 +868,8 @@ class CoxTime(CoxBase):
         Returns:
             Pandas series with baseline hazards. Index is duration_col.
         '''
+        if max_duration is None:
+            max_duration = np.inf
         def compute_expg_at_risk(ix, t):
             expg = self.predict_expg(df.iloc[ix:].assign(**{self.duration_col: t}), batch_size)
             return expg.flatten().sum()
@@ -888,7 +897,7 @@ class CoxTime(CoxBase):
                      .rename('baseline_hazards'))
         return base_haz
 
-    def _predict_cumulative_hazards(self, df, batch_size, verbose, baseline_hazards_):
+    def _predict_cumulative_hazards(self, df, max_duration, batch_size, verbose, baseline_hazards_):
         '''Get cumulative hazards for dataset df.
         H(x, t) = sum [h0(t) exp(g(x, t))]
 
@@ -909,9 +918,12 @@ class CoxTime(CoxBase):
         # assert baseline_hazards_.index.is_monotonic_increasing,\
         #     'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
 
+
         def expg_at_time(t):
             return self.predict_expg(df.assign(**{self.duration_col: t}), batch_size).flatten()
 
+        max_duration = np.inf if max_duration is None else max_duration
+        baseline_hazards_ = baseline_hazards_.loc[lambda x: x.index <= max_duration]
         r, c = baseline_hazards_.shape[0], df.shape[0]
         hazards = np.empty((r, c))
         for idx, t in enumerate(baseline_hazards_.index):
@@ -941,8 +953,9 @@ class CoxTime(CoxBase):
         # assert hasattr(self, 'baseline_hazards_'), 'Need to fit model first.'
         if not hasattr(times, '__iter__'):
             times = [times]
-        warnings.warn('should give predict_cumulative_hazards max value')
-        cum_haz = self.predict_cumulative_hazards(df, batch_size, verbose, baseline_hazards_)
+        max_duration = max(times)
+        cum_haz = self.predict_cumulative_hazards(df, max_duration, batch_size,
+                                                  verbose, baseline_hazards_)
         times_idx = search_sorted_idx(cum_haz.index.values, times)
         cum_haz = cum_haz.iloc[times_idx]
         if return_df:
