@@ -14,27 +14,30 @@ class CoxPHLinear(CoxPH):
 
     Parameters:
         input_size: Size of x, i.e. number of covariates.
-        set_optim_func: Function for setting pytorch optimizer.
-            If None optimizer is set to Adam with default parameters.
-            Function should take one argument (pytorch model) and return the optimizer.
-            See CoxPHLinear.set_optim_default as an example.
+        optimizer_func: Set optimizer.
+            E.g. optimizer_func = lambda x: optim.Adam(x, lr=0.1)
+            If `None`: use defult Adam optimizer.
         device: Which device to compute on.
             Preferrably pass a torch.device object.
             If `None`: use default gpu if avaiable, else use cpu.
             If `string`: string is passed to torch.device(`string`).
     '''
-    def __init__(self, input_size, set_optim_func=None, device=None):
+    def __init__(self, input_size, optimizer_func=None, device=None):
         self.input_size = input_size
-        g_model = self._make_g_model(self.input_size)
-        self.set_optim_func = set_optim_func
-        if self.set_optim_func is None:
-            self.set_optim_func = self.set_optim_default
-        optimizer = self.set_optim_func(g_model)
-        super().__init__(g_model, optimizer, device)
+        g = self._make_g_model(self.input_size)
+        # self.set_optim_func = set_optim_func
+        # optimizer = self.set_optim_func(g_model)
+        # if self.set_optim_func is None:
+        #     self.set_optim_func = self.set_optim_default
+        if optimizer_func is not None:
+            optimizer = optimizer_func(g.parameters())
+        else:
+            optimizer = torch.optim.Adam(g.parameters())
+        super().__init__(g, optimizer, device)
 
-    @staticmethod
-    def set_optim_default(g_model):
-        return optim.Adam(g_model.parameters())
+    # @staticmethod
+    # def set_optim_default(parameters):
+    #     return optim.Adam(parameters)
 
     def _make_g_model(self, input_size):
         return nn.Sequential(nn.Linear(input_size, 1, bias=False))
@@ -191,4 +194,4 @@ class CoxTimeReluNet(_AbstractCoxReluNet, CoxTime):
             ''')
         return super().fit(df_train, duration_col, event_col, df_val, batch_size, epochs,
                            num_workers, verbose, compute_hazards, n_control,
-                           early_stop_patience)
+                           early_stop_patience, model_path)
