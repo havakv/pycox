@@ -154,6 +154,7 @@ class PlotProgress(Callback):
         Parameters:
             naming: Put name of metrix as prefix of suffix.
         '''
+        warnings.warn('Need to updata this one')
         df = pd.DataFrame()
         if self.monitor.__class__ in [dict, OrderedDict]:
             for name, mm in self.monitor.items():
@@ -404,6 +405,7 @@ class MonitorBase(Callback):
 
     def to_pandas(self):
         '''Return scores as a pandas dataframe'''
+        warnings.warn('should include argument for naming of columns')
         scores = np.array(self.scores).transpose()
         return (pd.DataFrame(scores, columns=self.monitor_names)
                 .assign(epoch=np.array(self.epochs))
@@ -645,21 +647,21 @@ class MonitorCoxTimeLoss(MonitorCoxLoss):
 class ClipGradNorm(Callback):
     '''Callback for clipping gradients.
     
-    See torch.nn.utils.clip_grad_norm.
+    See torch.nn.utils.clip_grad_norm_.
 
     Parameters:
-        parameters: An iterable of Variables that will have gradients normalized.
+        net: Network wtih parameters() function.
         max_norm (float or int): max norm of the gradients
         norm_type (float or int): type of the used p-norm. Can be ``'inf'`` for infinity norm.
 
     '''
-    def __init__(self, parameters, max_norm, norm_type=2):
-        self.parameters = parameters
+    def __init__(self, net, max_norm, norm_type=2):
+        self.net = net
         self.max_norm = max_norm
         self.norm_type = norm_type
 
     def before_step(self):
-        torch.nn.utils.clip_grad_norm(self.parameters, self.max_norm, self.norm_type)
+        torch.nn.utils.clip_grad_norm_(self.net.parameters(), self.max_norm, self.norm_type)
         stop_signal = False
         return stop_signal
 
