@@ -250,7 +250,7 @@ class TrainingLogger(Callback):
         self.prev_time = new_time
 
     # def to_pandas(self, naming=None):
-    def to_pandas(self):
+    def to_pandas(self, colnames=None):
         '''Get data in dataframe.
         '''
         # df = self.train_loss.to_pandas()
@@ -269,6 +269,10 @@ class TrainingLogger(Callback):
             #     d.columns = [name+'_'+c for c in d.columns]
             d.columns = [name]
             df = df.join(d)
+        if colnames:
+            if colnames.__class__ is str:
+                colnames = [colnames]
+            df.columns = colnames
         return df
 
 
@@ -403,11 +407,15 @@ class MonitorBase(Callback):
         self.epoch += 1
         return False
 
-    def to_pandas(self):
+    def to_pandas(self, colnames=None):
         '''Return scores as a pandas dataframe'''
-        warnings.warn('should include argument for naming of columns')
+        if colnames is not None:
+            if colnames.__class__ is str:
+                colnames = [colnames]
+        else:
+            colnames = self.monitor_names
         scores = np.array(self.scores).transpose()
-        return (pd.DataFrame(scores, columns=self.monitor_names)
+        return (pd.DataFrame(scores, columns=colnames)
                 .assign(epoch=np.array(self.epochs))
                 .set_index('epoch'))
 
