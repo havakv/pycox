@@ -600,7 +600,7 @@ class MonitorCoxLoss(MonitorBase):
     def _prepare_data(self):
         model = self.model
         durations = self.df.loc[lambda x: x[model.event_col] == 1][model.duration_col]
-        at_risk_dict = model._make_at_risk_dict(self.df, model.duration_col)
+        at_risk_dict = model.make_at_risk_dict(self.df, model.duration_col)
         X = self.df[model.x_columns].as_matrix().astype('float32')
         return X, durations, at_risk_dict
 

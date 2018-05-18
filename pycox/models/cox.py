@@ -42,7 +42,7 @@ class CoxBase(BaseModel):
         return False
 
     @staticmethod
-    def _make_at_risk_dict(df, duration_col):
+    def make_at_risk_dict(df, duration_col):
         '''Create dict(duration: indices) from sorted df.
 
         Parameters:
@@ -68,7 +68,7 @@ class CoxBase(BaseModel):
         Add durations, at_risk_dict, x_columns, and Xtr to self.
         '''
         self.durations = self.df.loc[lambda x: x[self.event_col] == 1][self.duration_col]
-        self.at_risk_dict = self._make_at_risk_dict(self.df, self.duration_col)
+        self.at_risk_dict = self.make_at_risk_dict(self.df, self.duration_col)
         Xtr = self.df.drop([self.duration_col, self.event_col, self.old_index_name], axis=1)
         self.x_columns = Xtr.columns
         self.Xtr = Xtr.as_matrix().astype('float32')

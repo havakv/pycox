@@ -38,6 +38,7 @@ class MapperCoxTime(object):
     
     Parameters:
         cov_mapper: DataFrameMapper for covariates (excluding time/duration).
+            Set to None if you don't want to transform covariates.
         duration_col: Name of duration column.
         event_col: Name of event column. If None, we don't use evnet_col.
         log: If we should log transform (np.log1p) durations before applying StandardScalar().
@@ -64,8 +65,12 @@ class MapperCoxTime(object):
         self.log = log
         self._duration_scaler = StandardScaler()
         self._duration_mapper = DataFrameMapper([([self.duration_col], self._duration_scaler)])
-        self.mapper = DataFrameFeatureUnion([('covariates', self.cov_mapper), ('duration', self._duration_mapper)],
-                                            df_out=True)
+        if self.cov_mapper is not None:
+            self.mapper = DataFrameFeatureUnion([('covariates', self.cov_mapper), ('duration', self._duration_mapper)],
+                                                df_out=True)
+        else:
+            self.mapper = DataFrameFeatureUnion([('duration', self._duration_mapper)],
+                                                df_out=True)
    
     def _log_trans_duration(self, df):
         return df.assign(**{self.duration_col: np.log1p(df[self.duration_col])})
