@@ -1,28 +1,50 @@
 # pycox
 
 
-<!-- .. image:: https://img.shields.io/pypi/v/pycox.svg
-        :target: https://pypi.python.org/pypi/pycox
-
-.. image:: https://img.shields.io/travis/havakv/pycox.svg
-        :target: https://travis-ci.org/havakv/pycox
-
-.. image:: https://readthedocs.org/projects/pycox/badge/?version=latest
-        :target: https://pycox.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status -->
-
 [![Build Status](https://img.shields.io/travis/havakv/pycox.svg?branch=master)](https://travis-ci.org/havakv/pycox)
 [![PyPI - License](https://img.shields.io/pypi/l/Django.svg)](https://github.com/havakv/pycox/blob/master/LICENSE)
 [![Read the Docs](https://img.shields.io/readthedocs/pip.svg)](https://pycox.readthedocs.io/en/latest/?badge=latest)
 
 
 
-<!-- [![Build Status](https://travis-ci.org/keras-team/keras.svg?branch=master)](https://travis-ci.org/keras-team/keras)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/keras-team/keras/blob/master/LICENSE) -->
-
-
 Cox regression with pytorch
 
+
+------------------
+
+
+## Installation
+
+The package only works for python 3.5+.
+
+Before installing pycox, please install the newest version of [pytorch](https://pytorch.org/).
+
+In addition, we require the following packages:
+
+- numpy
+- scipy
+- pandas
+- matplotlib
+- scikit-learn
+- lifelines
+- [sklearn-pandas](https://github.com/scikit-learn-contrib/sklearn-pandas)
+
+
+**Then install pycox from the GitHub source:**
+
+First, clone pycox using `git`:
+
+```sh
+git clone https://github.com/havakv/pycox.git
+```
+
+ Then, `cd` to the pycox folder and run the install command:
+```sh
+cd pycox
+sudo python setup.py install
+```
+
+------------------
 
 ## Features
 
