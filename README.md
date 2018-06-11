@@ -17,7 +17,7 @@ Cox regression with pytorch
 
 The package only works for python 3.5+.
 
-Before installing pycox, please install the newest version of [pytorch](https://pytorch.org/).
+Before installing pycox, please install [pytorch](https://pytorch.org/). We now only support pytorch 0.4.
 
 In addition, we require the following packages:
 
