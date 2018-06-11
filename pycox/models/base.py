@@ -72,11 +72,37 @@ class BaseModel(object):
                 and back to train mode after that (only affects dropout and batchnorm).
                 If False, leaves `fun` modes as they are.
         '''
+        dataset = NumpyTensorDataset(X)
+        dataloader = DataLoaderSlice(dataset, batch_size)
+        return self._predict_func_dataloader(func, dataloader, return_numpy, eval_)
+        # if eval_:
+        #     func.eval()
+        # with torch.no_grad():
+        #     dataset = NumpyTensorDataset(X)
+        #     dataloader = DataLoaderSlice(dataset, batch_size)
+        #     preds = [func(x.to(self.device)) for x in iter(dataloader)]
+        #     preds = torch.cat(preds)
+        # if eval_:
+        #     func.train()
+
+        # if return_numpy:
+        #     return preds.numpy()
+        # return preds
+
+    def _predict_func_dataloader(self, func, dataloader, return_numpy=True, eval_=True):
+        '''Get func(X) for dataloader.
+
+        Parameters:
+            func: Pytorch module.
+            dataloader: Pytorch dataloader.
+            return_numpy: If False, a torch tensor is returned.
+            eval_: If true, set `fun` in eval mode for prediction
+                and back to train mode after that (only affects dropout and batchnorm).
+                If False, leaves `fun` modes as they are.
+        '''
         if eval_:
             func.eval()
         with torch.no_grad():
-            dataset = NumpyTensorDataset(X)
-            dataloader = DataLoaderSlice(dataset, batch_size)
             preds = [func(x.to(self.device)) for x in iter(dataloader)]
             preds = torch.cat(preds)
         if eval_:
@@ -85,6 +111,28 @@ class BaseModel(object):
         if return_numpy:
             return preds.numpy()
         return preds
+    
+    # def _predict_func_tensor(self, func, x, return_numpy=True, eval_=True):
+    #     '''Get func(X) for tensor X.
+
+    #     Parameters:
+    #         func: Pytorch module.
+    #         x: Pytorch tensor.
+    #         return_numpy: If False, a torch tensor is returned.
+    #         eval_: If true, set `fun` in eval mode for prediction
+    #             and back to train mode after that (only affects dropout and batchnorm).
+    #             If False, leaves `fun` modes as they are.
+    #     '''
+    #     if eval_:
+    #         func.eval()
+    #     with torch.no_grad():
+    #         preds = func(x.to(self.device))
+    #     if eval_:
+    #         func.train()
+
+    #     if return_numpy:
+    #         return preds.numpy()
+    #     return preds
 
     def save_model_weights(self, path, **kwargs):
         '''Save the model weights.
