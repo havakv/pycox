@@ -12,17 +12,16 @@
         :alt: Documentation Status -->
 
 [![Build Status](https://img.shields.io/travis/havakv/pycox.svg?branch=master)](https://travis-ci.org/havakv/pycox)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/havakv/pycox/blob/master/LICENSE)
+[![PyPI - License](https://img.shields.io/pypi/l/Django.svg)](https://github.com/havakv/pycox/blob/master/LICENSE)
+[![Read the Docs](https://img.shields.io/readthedocs/pip.svg)](https://pycox.readthedocs.io/en/latest/?badge=latest)
+
+
 
 <!-- [![Build Status](https://travis-ci.org/keras-team/keras.svg?branch=master)](https://travis-ci.org/keras-team/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/keras-team/keras/blob/master/LICENSE) -->
 
 
 Cox regression with pytorch
-
-
-- Free software: BSD license
-- Documentation: https://pycox.readthedocs.io.
 
 
 ## Features
