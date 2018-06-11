@@ -7,10 +7,10 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
-from .pytorch_dataloader import DataLoaderSlice
+from .utils.pytorch_dataloader import DataLoaderSlice
 
 
-def sample_alive_from_dates(dates, gr_alive, n_control=1):
+def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
     '''Sample index from living at time given in dates.
     dates: np.array of times (or pd.Series).
     gr_alive: dict with gr_alive[time] = <array with index of alive in X matrix>.
@@ -19,13 +19,13 @@ def sample_alive_from_dates(dates, gr_alive, n_control=1):
     !!!! This is now with replacement!!!!!
 
     '''
-    lengths = np.array([gr_alive[x].shape[0] for x in dates])  # Can be moved outside
+    lengths = np.array([at_risk_dict[x].shape[0] for x in dates])  # Can be moved outside
     idx = (np.random.uniform(size=(n_control, dates.size)) * lengths).astype('int')
     samp = np.empty((dates.size, n_control), dtype=int)
     samp.fill(np.nan)
 
     for it, time in enumerate(dates):
-        samp[it, :] = gr_alive[time][idx[:, it]]
+        samp[it, :] = at_risk_dict[time][idx[:, it]]
     return samp
 
 
@@ -34,26 +34,26 @@ class CoxPrepare(data.Dataset):
 
     Parameters:
     Xtr: np.array float32, with all training data.
-    time_fail: pd.Series with index corresponding to failures in Xtr
+    durations: pd.Series with index corresponding to failures in Xtr
         and values giving time of death (as int).
-    gr_alive: dict with
+    at_risk_dict: dict with
             key: time of death
             val: index (Xtr) of alive at time 'key'.
     n_control: number of control samples.
     '''
-    def __init__(self, Xtr, time_fail, gr_alive, n_control=1):
+    def __init__(self, Xtr, durations, at_risk_dict, n_control=1):
         self.Xtr = Xtr
-        self.time_fail = time_fail
-        self.gr_alive = gr_alive
+        self.durations = durations
+        self.at_risk_dict = at_risk_dict
         self.n_control = n_control
 
     def get_case_control(self, index):
         if not hasattr(index, '__iter__'):
             index = [index]
-        fails = self.time_fail.iloc[index]
+        fails = self.durations.iloc[index]
 
         x_case = self.Xtr[fails.index]
-        control_idx = sample_alive_from_dates(fails.values, self.gr_alive, self.n_control)
+        control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
         x_control = [self.Xtr[idx] for idx in control_idx.transpose()]
         return x_case, np.stack(x_control)
 
@@ -62,7 +62,7 @@ class CoxPrepare(data.Dataset):
         return torch.from_numpy(x_case), torch.from_numpy(x_control)
 
     def __len__(self):
-        return self.time_fail.size
+        return self.durations.size
 
 
 class CoxPrepareWithTime(CoxPrepare):
@@ -87,7 +87,7 @@ class CoxPrepareWithTime(CoxPrepare):
         x_case, x_control = super().get_case_control(index)
         if not hasattr(index, '__iter__'):
             index = [index]
-        fails = self.time_fail.iloc[index]
+        fails = self.durations.iloc[index]
         r, c = len(index), self.Xtr.shape[1]
         x_case = self._make_x_with_time(x_case, fails.values, r, c)
         x_control = [self._make_x_with_time(x, fails.values, r, c)
