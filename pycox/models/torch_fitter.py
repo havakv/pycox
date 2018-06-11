@@ -62,7 +62,7 @@ class FitNet(BaseModel):
         return self.log
 
     def predict(self, X, batch_size=8224, return_numpy=True, eval_=True):
-        return self._predict_func_numpy(self.net, batch_size, return_numpy, eval_)
+        return self._predict_func_numpy(self.net, X, batch_size, return_numpy, eval_)
 
 # class FitNet(object):
 #     def __init__(self, net, loss_func, optimizer=None, device=None):
