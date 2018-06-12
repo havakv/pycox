@@ -13,7 +13,7 @@ This is an implementation of \<link to paper\> in pytorch.
 In short, we train relative risk models with neural networks to model the event times of future events.
 
 
-<img src="./Time-to-event.svg" width="40%">
+<img src="./figures/time-to-event.svg" width="40%">
 
 
 ------------------
