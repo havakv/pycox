@@ -43,7 +43,7 @@ class CoxPHLinear(CoxPH):
         return nn.Sequential(nn.Linear(input_size, 1, bias=False))
 
     def fit(self, df, duration_col, event_col=None, n_control=1, batch_size=64, epochs=500,
-            n_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
+            num_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
             early_stop_train_patience=None):
         '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
         are handled using Efron's tie-method.
@@ -60,7 +60,7 @@ class CoxPHLinear(CoxPH):
             n_control: Number of control samples.
             batch_size: Batch size.
             epochs: Number of epochs.
-            n_workers: Number of workers for preparing data.
+            num_workers: Number of workers for preparing data.
             strata: Specify a list of columns to use in stratification. This is useful if a
                 catagorical covariate does not obey the proportional hazards assumption. This
                 is used similar to the `strata` expression in R.
@@ -83,7 +83,7 @@ class CoxPHLinear(CoxPH):
                                   patience=early_stop_train_patience)
             callbacks.append(es)
         return super().fit(df, duration_col, event_col, n_control, batch_size, epochs,
-                           n_workers, verbose, strata, callbacks, compute_hazards)
+                           num_workers, verbose, strata, callbacks, compute_hazards)
 
 
 class _AbstractCoxReluNet(object):

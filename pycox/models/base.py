@@ -109,7 +109,7 @@ class BaseModel(object):
             func.train()
 
         if return_numpy:
-            return preds.numpy()
+            return preds.cpu().numpy()
         return preds
     
     # def _predict_func_tensor(self, func, x, return_numpy=True, eval_=True):

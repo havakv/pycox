@@ -584,8 +584,8 @@ class CoxPH(CoxBase):
             Pandas dataframe with duration, g_preds, and the
                 partial log-likelihood pll.
         '''
-        if df is self._df:  # We use the trainig df
-            warnings.warn('Should make this more effective when we use training df')
+        # if df is self._df:  # We use the trainig df
+        #     warnings.warn('Should make this more effective when we use training df')
         return (df
                 .assign(_g_preds=g_preds if g_preds is not None else self.predict_g(df, batch_size, True))
                 .sort_values(self.duration_col, ascending=False)
@@ -1119,6 +1119,9 @@ class CoxPHFunc(CoxPH):
     def predict_g(self, df, *args, **kwargs):
         x = df[self.x_columns].as_matrix().astype('float32')
         return self.g(x)
+    
+    def predict_expg(self, df, *args, **kwargs):
+        return np.exp(self.predict_g(df, *args, **kwargs))
 
     def _fake_fit(self, df, duration_col, event_col):
         return super().fit(df, duration_col, event_col, epochs=0)
