@@ -30,24 +30,56 @@ class CallbacksList(object):
         for c in self.callbacks:
             c.give_model(model)
 
+    # def on_fit_start(self):
+    #     for c in self.callbacks:
+    #         c.on_fit_start()
+
+    # def before_step(self):
+    #     stop_signal = False
+    #     for c in self.callbacks:
+    #         stop_signal += c.before_step()
+    #     return stop_signal
+
+    # def on_batch_end(self):
+    #     for c in self.callbacks:
+    #         c.on_batch_end()
+
+    # def on_epoch_end(self):
+    #     stop_signal = False
+    #     for c in self.callbacks:
+    #         stop_signal += c.on_epoch_end()
+    #     return stop_signal
+
     def on_fit_start(self):
+        stop_signal = False
         for c in self.callbacks:
-            c.on_fit_start()
+            stop = c.on_fit_start()
+            stop = stop if stop else False
+            stop_signal += stop
+        return stop_signal
 
     def before_step(self):
         stop_signal = False
         for c in self.callbacks:
-            stop_signal += c.before_step()
+            stop = c.before_step()
+            stop = stop if stop else False
+            stop_signal += stop
         return stop_signal
 
     def on_batch_end(self):
+        stop_signal = False
         for c in self.callbacks:
-            c.on_batch_end()
+            stop = c.on_batch_end()
+            stop = stop if stop else False
+            stop_signal += stop
+        return stop_signal
 
     def on_epoch_end(self):
         stop_signal = False
         for c in self.callbacks:
-            stop_signal += c.on_epoch_end()
+            stop = c.on_epoch_end()
+            stop = stop if stop else False
+            stop_signal += stop
         return stop_signal
 
 

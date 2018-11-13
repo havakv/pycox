@@ -185,7 +185,10 @@ class CoxBase(BaseModel):
         # self.callbacks.give_model(self)
         self._setup_train_info(dataloader, verbose, callbacks)
 
-        self.callbacks.on_fit_start()
+        # self.callbacks.on_fit_start()
+        stop_signal = self.callbacks.on_fit_start()
+        if stop_signal:
+            raise RuntimeError('Got stop_signal from callback before fit starts')
         for _ in range(epochs):
             for case, control in dataloader:
                 self.fit_info['case_control'] = (case, control)
@@ -199,13 +202,18 @@ class CoxBase(BaseModel):
                 if stop_signal:
                     raise RuntimeError('Stop signal in before_step().')
                 self.optimizer.step()
-                self.callbacks.on_batch_end()
-            stop_signal = self.callbacks.on_epoch_end()
+                # self.callbacks.on_batch_end()
+                stop_signal += self.callbacks.on_batch_end()
+                if stop_signal:
+                    break
+            else:
+                stop_signal += self.callbacks.on_epoch_end()
+            # stop_signal = self.callbacks.on_epoch_end()
             if stop_signal:
                 break
 
         return self.log
-    
+
     def compute_g_case_control(self, case, control):
         '''We need to concat case and control and pass all though
         the net 'g' in one batch. If not, batch norm will fail.
