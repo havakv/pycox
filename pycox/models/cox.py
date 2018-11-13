@@ -1149,6 +1149,9 @@ class CoxTimeFunc(CoxTime):
         cols = list(self.x_columns) + [self.duration_col]
         x = df[cols].as_matrix().astype('float32')
         return self.g(x)
+    
+    def predict_expg(self, df, *args, **kwargs):
+        return np.exp(self.predict_g(df, *args, **kwargs))
 
     def _fake_fit(self, df, duration_col, event_col):
         return super().fit(df, duration_col, event_col, epochs=0)
