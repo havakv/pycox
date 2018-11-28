@@ -6,17 +6,376 @@ import numpy as np
 import pandas as pd
 
 import torch
-# from torch.autograd import Variable
 from torch import nn, optim
-# import torch.nn as nn
-# import torch.optim as optim
 
 from ..callbacks.callbacks import CallbacksList, TrainingLogger#, EarlyStoppingTrainLoss
 from ..dataloader import DataLoaderSlice, CoxPrepare, CoxPrepareWithTime, NumpyTensorDataset
 from ..metrics import concordance_index, brier_score, integrated_brier_score
 from .base import BaseModel
 from .torch_models import FuncTorch, _Expg
-# from .utils import to_cuda
+
+from pyth import Model, tuplefy, TupleLeaf
+
+from torch.utils import data
+from pycox.dataloader import sample_alive_from_dates
+import pyth
+
+def make_at_risk_dict(df):
+    '''Create dict(duration: indices) from sorted df.
+
+    Parameters:
+        df: A Pandas dataframe with covariates, sorted by duration_col.
+        duration_col: Column holding the durations.
+
+    Returns:
+        A dict mapping durations to indices (row number, not index in data frame).
+        For each time => index of all individual alive.
+    '''
+    assert df.duration.is_monotonic_increasing, 'Requires df sorted by `duration_col`.'
+    df = df.reset_index(drop=True)
+    allidx = df.index.values
+    keys = df.duration.drop_duplicates(keep='first')
+
+    at_risk_dict = dict()
+    for ix, t in keys.iteritems():
+        at_risk_dict[t] = allidx[ix:]
+    return at_risk_dict
+
+class CoxPreparePyth(data.Dataset):
+    def __init__(self, input, df_train_target, n_control=1):
+
+        # self.durations = self.df.loc[lambda x: x[self.event_col] == 1][self.duration_col]
+        self.durations = df_train_target.loc[lambda x: x.event == 1].duration
+        self.at_risk_dict = make_at_risk_dict(df_train_target)
+        # Xtr = self.df.drop([self.duration_col, self.event_col, self.old_index_name], axis=1)
+        # self.x_columns = Xtr.columns
+        # self.Xtr = Xtr.as_matrix().astype('float32')
+
+        self.input = tuplefy(input)
+        assert type(self.durations) is pd.Series
+        # self.durations = durations
+        # self.at_risk_dict = at_risk_dict
+        self.n_control = n_control
+
+    def __getitem__(self, index):
+        if not hasattr(index, '__iter__'):
+            index = [index]
+        fails = self.durations.iloc[index]
+        x_case = self.input.iloc[fails.index]
+        control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
+        x_control = TupleLeaf(self.input.iloc[idx] for idx in control_idx.transpose())
+        return tuplefy(x_case, x_control).to_tensor(), None
+
+    def __len__(self):
+        return len(self.durations)
+
+def loss_cox(g_case, g_control, clamp=(-3e+38, 88.)): 
+    control_sum = 0.
+    for ctr in g_control:
+        ctr = ctr - g_case
+        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should find better way).
+        control_sum += torch.exp(ctr)
+    loss = torch.log(1. + control_sum)
+    return torch.mean(loss)
+
+
+class PythCoxPH(Model):
+    def __init__(self, net, optimizer=None, device=None):
+        loss = loss_cox
+        super().__init__(net, loss, optimizer, device)
+
+    def compute_loss(self, input, target):
+        assert target is None, 'Need target to be none, input=(case, control)'
+        batch_size = input.lens().flatten().get_if_all_equal()
+        if batch_size is None:
+            raise RuntimeError("All elements in input does not have the same lenght.")
+        case, control = input # both are TupleTree
+        input_all = TupleLeaf((case,) + control).cat()
+        g_all = self.net(*input_all)
+        g_all = tuplefy(g_all).split(batch_size).flatten()
+        g_case = g_all[0]
+        g_control = g_all[1:]
+        return self.loss(g_case, g_control)
+
+    def make_dataloader(self, data, batch_size, shuffle, num_workers=0, n_control=1, training=False):
+        if training:
+            dataloader = self.make_dataloader_train(*data, batch_size, shuffle, num_workers,
+                                                    n_control)
+        else:
+            dataloader = self.make_dataloader_test(data, batch_size, shuffle, num_workers)
+        return dataloader
+
+    def make_dataloader_test(self, input, batch_size, shuffle=False, num_workers=0):
+        dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
+        return dataloader
+    
+    def make_dataloader_train(self, input, target, batch_size, shuffle=True, num_workers=0, n_control=1):
+        target = tuplefy(target).to_numpy()
+        duration, event = target
+        idx_sort = np.argsort(duration)
+        input = tuplefy(input).iloc[idx_sort]
+        duration, event = target.iloc[idx_sort]
+        self.df_train_target = pd.DataFrame(dict(duration=duration, event=event))
+        self.duration_col = 'duration'
+        self.event_col = 'event'
+        self.training_data = (input, self.df_train_target)
+
+        # assert X.dtype == np.float32, 'Need Xtr to be np.float32'
+        dataset = CoxPreparePyth(input, self.df_train_target, n_control)
+        dataloader = pyth.data.DataLoaderSlice(dataset, batch_size=batch_size,
+                                               shuffle=shuffle, num_workers=num_workers)
+        return dataloader
+
+    def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
+            num_workers=0, shuffle=True, n_control=1, compute_hazards=True):
+        """Fit  model with inputs and targets.
+        
+        Arguments:
+            input {np.array, tensor or tuple} -- Input (x) passed to net.
+            target {np.array, tensor or tuple} -- Target (y) passed to loss function.
+        
+        Keyword Arguments:
+            batch_size {int} -- Elemets in each batch (default: {256})
+            epochs {int} -- Number of epochs (default: {1})
+            callbacks {list} -- list of callbacks (default: {None})
+            verbose {bool} -- Print progress (default: {True})
+            num_workers {int} -- Number of workers used in the dataloader (default: {0})
+            shuffle {bool} -- If we should shuffle the order of the dataset (default: {True})
+    
+        Returns:
+            TrainingLogger -- Training log
+        """
+        log = super().fit(input, target, batch_size, epochs, callbacks, verbose, num_workers,
+                          shuffle, n_control=n_control, training=True)
+        del self.fit_info
+        if compute_hazards:
+            self.compute_baseline_hazards()
+        return log
+
+    def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
+        '''Computes the breslow estimates of the baseline hazards of dataframe df.
+
+        Parameters:
+            df: Pandas dataframe with covariates, duration, and events.
+            max_duration: Has no computational effect here.
+            batch_size: Batch size passed calculation of g_preds.
+
+        Returns:
+            Pandas series with baseline hazards. Index is duration_col.
+        '''
+        if max_duration is None:
+            max_duration = np.inf
+
+        # Here we are computing when expg when there are no events.
+        #   Could be made faster, by only computing when there are events.
+        return (df_train_target
+                .assign(expg=np.exp(self.predict(input, batch_size)))
+                .groupby(self.duration_col)
+                .agg({'expg': 'sum', self.event_col: 'sum'})
+                .sort_index(ascending=False)
+                .assign(expg=lambda x: x['expg'].cumsum())
+                .pipe(lambda x: x[self.event_col]/x['expg'])
+                .fillna(0.)
+                .iloc[::-1]
+                .loc[lambda x: x.index <= max_duration]
+                .rename('baseline_hazards'))
+
+    def compute_baseline_hazards(self, training_data=None, max_duration=None, sample=None, batch_size=8224,
+                                set_hazards=True):
+        '''Computes the breslow estimates of the baseline hazards of dataframe df.
+
+        Parameters:
+            # df: Pandas dataframe with covariates, duration, and events.
+            #     If None: use training data frame.
+            max_duration: Don't compute hazards for durations larger than max_time.
+            sample: Use sample of df. 
+                Sample proportion if 'sample' < 1, else sample number 'sample'.
+            batch_size: Batch size passed calculation of g_preds.
+            set_hazards: If we should store computed hazards in object.
+
+        Returns:
+            Pandas series with baseline hazards. Index is duration_col.
+        '''
+        if training_data is None:
+            # if not hasattr(self, 'df'):
+            #     raise ValueError('Need to fit a df, or supply a df to this function.')
+            # df = self.df
+            if not hasattr(self, 'training_data'):
+                raise ValueError('Need to fit, or supply a training_data to this function.')
+            training_data = self.training_data
+        
+        input, df_train_target = training_data
+        df_train_target = df_train_target.reset_index(drop=True)
+        
+        if sample is not None:
+            if sample >= 1:
+                df_train_target = df_train_target.sample(n=sample)
+            else:
+                df_train_target = df_train_target.sample(frac=sample)
+            input = input.iloc[df_train_target.index.values]
+        
+        base_haz = self._compute_baseline_hazards(input, df_train_target, max_duration, batch_size)
+
+        if set_hazards:
+            self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
+
+        return base_haz
+
+    def compute_baseline_cumulative_hazards(self, training_data=None, max_duration=None, sample=None,
+                                            batch_size=8224, set_hazards=True, baseline_hazards_=None):
+        '''Compute the baseline cumulative hazards of dataframe df or baseline_hazards.
+
+        Parameters:
+            # df: Pandas dataframe with covariates, duration, and events.
+            #     If None: use training data frame.
+            max_duration: Don't compute hazards for durations larger than max_time.
+            sample: Use sample of df. 
+                Sample proportion if 'sample' < 1, else sample number 'sample'.
+            batch_size: Batch size passed calculation of g_preds.
+            set_hazards: If we should store computed hazards in object.
+            baseline_hazards: Pandas series with baseline hazards.
+                If `None` use supplied df or training data frame.
+
+        Returns:
+            Pandas series with baseline cumulative hazards. Index is duration_col.
+        '''
+        if (training_data is not None) and (baseline_hazards_ is not None):
+            raise ValueError("'training_data' and 'baseline_hazards_' can not both be different from 'None'.")
+        if baseline_hazards_ is None:
+            baseline_hazards_ = self.compute_baseline_hazards(training_data, max_duration, sample, batch_size,
+                                                             set_hazards=False)
+        assert baseline_hazards_.index.is_monotonic_increasing,\
+            'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
+        bch = (baseline_hazards_
+                .cumsum()
+                .rename('baseline_cumulative_hazards'))
+
+        if set_hazards:
+            self.baseline_hazards_ = baseline_hazards_
+            self.baseline_cumulative_hazards_ = bch
+
+        return bch
+
+    def predict_cumulative_hazards(self, input, max_duration=None, batch_size=16448, verbose=False, baseline_hazards_=None):
+        '''Get cumulative hazards for dataset df.
+        H(x, t) = sum [h0(t) exp(g(x, t))]
+        or
+        H(x, t) = sum [h0(t) exp(g(x))]
+
+        Parameters:
+            # df: Pandas dataframe with covariates.
+            max_duration: Don't compute hazards for durations larger than max_time.
+            batch_size: Batch size passed calculation of g_preds.
+            verbose: If we should print progress.
+            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
+                If None, use baseline_hazards_ of model.
+
+        Returns:
+            Pandas data frame with cumulative hazards. One columns for
+            each individual in the df.
+        '''
+        if baseline_hazards_ is None:
+            if not hasattr(self, 'baseline_hazards_'):
+                raise ValueError('Need to compute baseline_hazards_.')
+            baseline_hazards_ = self.baseline_hazards_
+        assert baseline_hazards_.index.is_monotonic_increasing,\
+            'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
+        return self._predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_)
+
+    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_):
+        '''Get cumulative hazards for dataset df.
+        H(x, t) = H0(t) exp(g(x))
+
+        Parameters:
+            df: Pandas dataframe with covariates.
+            batch_size: Batch size passed calculation of g_preds.
+
+        Returns:
+            Pandas data frame with cumulative hazards. One columns for
+            each individual in the df.
+        '''
+        max_duration = np.inf if max_duration is None else max_duration
+        if baseline_hazards_ is self.baseline_hazards_:
+            bch = self.baseline_cumulative_hazards_
+        else:
+            bch = self.compute_baseline_cumulative_hazards(set_hazards=False, 
+                                                           baseline_hazards_=baseline_hazards_)
+        bch = bch.loc[lambda x: x.index <= max_duration]
+        # expg = self.predict_expg(df, batch_size, return_numpy=True).reshape(1, -1)
+        expg = np.exp(self.predict(input, batch_size)).reshape(1, -1)
+        return pd.DataFrame(bch.values.reshape(-1, 1).dot(expg), 
+                            index=bch.index)
+
+    def predict_survival_function(self, input, max_duration=None, batch_size=512, verbose=False, baseline_hazards_=None):
+        '''Predict survival function for dataset df.
+        S(x, t) = exp(-H(x, t))
+
+        Parameters:
+            # df: Pandas dataframe with covariates.
+            max_duration: Don't compute hazards for durations larger than max_time.
+            batch_size: Batch size passed calculation of g_preds.
+            verbose: If we should print progress.
+            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
+
+        Returns:
+            Pandas data frame with survival functions. One columns for
+            each individual in the df.
+        '''
+        return np.exp(-self.predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_))
+
+    def predict_cumulative_hazards_at_times(self, times, input, batch_size=16448, return_df=True,
+                                            verbose=False, baseline_hazards_=None):
+        '''Predict cumulative hazards H(x, t) = exp(- H0(t)*exp(g(x))), only at given times.
+
+        Parameters:
+            times: Number or iterable with times.
+            df: Pandas dataframe with covariates.
+            batch_size: Batch size passed calculation of g_preds.
+            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
+
+        Returns:
+            Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazards
+            estimates.
+        '''
+        if verbose:
+            warnings.warn('No verbose to show...')
+        if baseline_hazards_ is None:
+            bch = self.baseline_cumulative_hazards_
+        else:
+            bch = self.compute_baseline_cumulative_hazards(batch_size=batch_size, set_hazards=False,
+                                                           baseline_hazards_=baseline_hazards_)
+        if not hasattr(times, '__iter__'):
+            times = [times]
+        times_idx = search_sorted_idx(bch.index.values, times)
+        bch = bch.iloc[times_idx].values.reshape(-1, 1)
+        # expg = self.predict_expg(df, batch_size, return_numpy=True).reshape(1, -1)
+        expg = np.exp(self.predict(input, batch_size)).reshape(1, -1)
+        res = bch.dot(expg)
+        if return_df:
+            return pd.DataFrame(res, index=times)
+        return res
+
+    def predict_survival_at_times(self, times, input, batch_size=16448, return_df=True,
+                                  verbose=False, baseline_hazards_=None):
+        '''Predict survival function at given times.
+        Not very efficient!!!
+
+        Parameters:
+            times: Iterable with times.
+            df: Pandas dataframe with covariates.
+            batch_size: Batch size passed calculation of g_preds.
+            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
+            verbose: If we should print progress.
+            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
+
+        Returns:
+            Pandas dataframe (or numpy matrix) [len(times), len(df)] with survival estimates.
+        '''
+        return np.exp(-self.predict_cumulative_hazards_at_times(times, input, batch_size, return_df,
+                                                                verbose, baseline_hazards_))
+
+
+#--------------------------------------------------------------------
 
 class CoxBase(BaseModel):
     '''Base class for cox models.
@@ -176,16 +535,8 @@ class CoxBase(BaseModel):
 
     def fit_dataloader(self, dataloader, epochs=1, verbose=1, callbacks=None):
         '''Fit method for pytorch dataloader.'''
-        # self.fit_info = {'batches_per_epoch': len(dataloader)}
-
-        # self.log.verbose = verbose
-        # if callbacks is None:
-        #     callbacks = []
-        # self.callbacks = CallbacksList(callbacks + [self.log])
-        # self.callbacks.give_model(self)
         self._setup_train_info(dataloader, verbose, callbacks)
 
-        # self.callbacks.on_fit_start()
         stop_signal = self.callbacks.on_fit_start()
         if stop_signal:
             raise RuntimeError('Got stop_signal from callback before fit starts')
@@ -202,13 +553,11 @@ class CoxBase(BaseModel):
                 if stop_signal:
                     raise RuntimeError('Stop signal in before_step().')
                 self.optimizer.step()
-                # self.callbacks.on_batch_end()
                 stop_signal += self.callbacks.on_batch_end()
                 if stop_signal:
                     break
             else:
                 stop_signal += self.callbacks.on_epoch_end()
-            # stop_signal = self.callbacks.on_epoch_end()
             if stop_signal:
                 break
 
@@ -325,8 +674,6 @@ class CoxBase(BaseModel):
         base_haz = self._compute_baseline_hazards(df, max_duration, batch_size)
 
         if set_hazards:
-            # self.baseline_hazards_ = base_haz
-            # self.baseline_cumulative_hazards_ = self.compute_baseline_cumulative_hazards(baseline_hazards=base_haz)
             self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
 
         return base_haz
@@ -352,15 +699,8 @@ class CoxBase(BaseModel):
         if (df is not None) and (baseline_hazards_ is not None):
             raise ValueError('`df` and `baseline_hazards_` can not both be different from `None`.')
         if baseline_hazards_ is None:
-            # if df is None:
-                # raise ValueError('`df` and `baseline_hazards`\
-                #                  cannot both be `None`.')
             baseline_hazards_ = self.compute_baseline_hazards(df, max_duration, sample, batch_size,
                                                              set_hazards=False)
-        # else:
-            # if df is not None:
-            #     raise ValueError('Only one of `df` and `baseline_hazards`\
-            #                      can be different from None.')
         assert baseline_hazards_.index.is_monotonic_increasing,\
             'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
         bch = (baseline_hazards_
@@ -372,9 +712,6 @@ class CoxBase(BaseModel):
             self.baseline_cumulative_hazards_ = bch
 
         return bch
-        # return (baseline_hazards
-        #         .cumsum()
-        #         .rename('baseline_cumulative_hazards'))
     
     def predict_cumulative_hazards(self, df, max_duration=None, batch_size=16448, verbose=False, baseline_hazards_=None):
         '''Get cumulative hazards for dataset df.
@@ -397,7 +734,6 @@ class CoxBase(BaseModel):
         if baseline_hazards_ is None:
             if not hasattr(self, 'baseline_hazards_'):
                 raise ValueError('Need to compute baseline_hazards_.')
-            # assert self.baseline_hazards_ is not None, 'Need to compute baseline_hazards_'
             baseline_hazards_ = self.baseline_hazards_
         assert baseline_hazards_.index.is_monotonic_increasing,\
             'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
@@ -501,27 +837,6 @@ class CoxPH(CoxBase):
             If `None`: use default gpu if avaiable, else use cpu.
             If `string`: string is passed to torch.device(`string`).
     '''
-    # def set_hazards(self, df=None, batch_size=1028, compute_hazards=True):
-    #     '''Add attributes baseline_hazards_ and baseline_cumulative_hazards_ to self.
-
-    #     Parameters:
-    #         df: Pandas dataframe with covariates, duration, and events.
-    #             If None: use training data frame.
-    #         batch_size: Batch size passed calculation of g_preds.
-    #         compute_hazards: If False, set hazards to None.
-
-    #     Returns:
-    #         Nothing
-    #     '''
-    #     warnings.warn("I don't like this...")
-    #     if compute_hazards: 
-    #         self.baseline_hazards_ = self.compute_baseline_hazards(df, batch_size=batch_size)
-    #         self.baseline_cumulative_hazards_ =\
-    #             self.compute_baseline_cumulative_hazards(baseline_hazards=self.baseline_hazards_,
-    #                                                     batch_size=batch_size)
-    #     else:
-    #         self.baseline_hazards_, self.baseline_cumulative_hazards_ = None, None
-
     @staticmethod
     def make_dataloader(X, durations, at_risk_dict, n_control, batch_size, num_workers):
         assert X.dtype == np.float32, 'Need Xtr to be np.float32'
@@ -555,9 +870,6 @@ class CoxPH(CoxBase):
                 and back to train mode after that (only affects dropout and batchnorm).
                 If False, leaves the network modes as they are.
         '''
-        # if return_numpy is False:
-        #     raise NotImplementedError('Only implemented for numpy now.')
-        # return np.exp(self.predict_g(df, batch_size, return_numpy=True))
         X = df[self.x_columns].as_matrix().astype('float32')
         return self.predict_expg_numpy(X, batch_size, return_numpy, eval_)
 
@@ -592,8 +904,6 @@ class CoxPH(CoxBase):
             Pandas dataframe with duration, g_preds, and the
                 partial log-likelihood pll.
         '''
-        # if df is self._df:  # We use the trainig df
-        #     warnings.warn('Should make this more effective when we use training df')
         return (df
                 .assign(_g_preds=g_preds if g_preds is not None else self.predict_g(df, batch_size, True))
                 .sort_values(self.duration_col, ascending=False)
@@ -617,8 +927,6 @@ class CoxPH(CoxBase):
         Returns:
             Pandas series with baseline hazards. Index is duration_col.
         '''
-        # if max_duration is not None:
-        #     raise ValueError('Need `max_duration` = None. Not implemented for other values.')
         if max_duration is None:
             max_duration = np.inf
 
@@ -636,32 +944,6 @@ class CoxPH(CoxBase):
                 .loc[lambda x: x.index <= max_duration]
                 .rename('baseline_hazards'))
 
-    # def compute_baseline_cumulative_hazards(self, df=None, batch_size=1028, baseline_hazards=None):
-    #     '''Compute the baseline cumulative hazards of dataframe df or baseline_hazards.
-
-    #     Parameters:
-    #         df: Pandas dataframe with covariates, duration, and events.
-    #             If `None` use training data frame, or supplied baseline_hazards.
-    #         batch_size: Batch size passed calculation of g_preds.
-    #         baseline_hazards: Pandas series with baseline hazards.
-    #             If `None` use supplied df or training data frame.
-
-    #     Returns:
-    #         Pandas series with baseline cumulative hazards. Index is duration_col.
-    #     '''
-    #     if baseline_hazards is None:
-    #         if df is None:
-    #             raise ValueError('`df` and `baseline_hazards`\
-    #                              cannot both be `None`.')
-    #         baseline_hazards = self.compute_baseline_hazards(df, batch_size=batch_size)
-    #     else:
-    #         if df is not None:
-    #             raise ValueError('Only one of `df` and `baseline_hazards`\
-    #                              can be different from None.')
-    #     return (baseline_hazards
-    #             .cumsum()
-    #             .rename('baseline_cumulative_hazards'))
-
     def _predict_cumulative_hazards(self, df, max_duration, batch_size, verbose, baseline_hazards_):
         '''Get cumulative hazards for dataset df.
         H(x, t) = H0(t) exp(g(x))
@@ -674,12 +956,8 @@ class CoxPH(CoxBase):
             Pandas data frame with cumulative hazards. One columns for
             each individual in the df.
         '''
-        # if verbose:
-        #     warnings.warn('verbose has no effect here')
-        # assert hasattr(self, 'baseline_cumulative_hazards_'), 'Need to fit model first.'
         max_duration = np.inf if max_duration is None else max_duration
         if baseline_hazards_ is self.baseline_hazards_:
-            # bch = self.baseline_cumulative_hazards_.values.reshape(-1, 1)
             bch = self.baseline_cumulative_hazards_
         else:
             bch = self.compute_baseline_cumulative_hazards(set_hazards=False, 
@@ -689,23 +967,6 @@ class CoxPH(CoxBase):
         return pd.DataFrame(bch.values.reshape(-1, 1).dot(expg), columns=df.index,
                             index=bch.index)
 
-    # def _lookup_baseline_cumulative_hazards(self, time):
-    #     '''Search for baseline_cumulative_hazards at the times time.
-    #     Parameters:
-    #         time: Scalar or numpy array of times.
-    #     '''
-    #     warnings.warn('should do this better...')
-    #     bch_times = self.baseline_cumulative_hazards_.index.values
-    #     idx = np.searchsorted(bch_times, time)
-    #     exact = pd.Series(time).isin(bch_times).values
-    #     idx -= (1 - exact)
-    #     if any(idx < 0):
-    #         warnings.warn('Give time values smaller than firs event.')
-    #         idx[idx < 0] = 0
-    #     bch = self.baseline_cumulative_hazards_.iloc[idx]
-    #     return bch
-
-    # def predict_cumulative_hazards_at_times(self, times, df, batch_size=16448, return_df=True):
     def predict_cumulative_hazards_at_times(self, times, df, batch_size=16448, return_df=True,
                                             verbose=False, baseline_hazards_=None):
         '''Predict cumulative hazards H(x, t) = exp(- H0(t)*exp(g(x))), only at given times.
@@ -727,10 +988,8 @@ class CoxPH(CoxBase):
         else:
             bch = self.compute_baseline_cumulative_hazards(batch_size=batch_size, set_hazards=False,
                                                            baseline_hazards_=baseline_hazards_)
-        # assert hasattr(self, 'baseline_cumulative_hazards_'), 'Need to fit model first.'
         if not hasattr(times, '__iter__'):
             times = [times]
-        # bch = self._lookup_baseline_cumulative_hazards(times).values.reshape(-1, 1)
         times_idx = search_sorted_idx(bch.index.values, times)
         bch = bch.iloc[times_idx].values.reshape(-1, 1)
         expg = self.predict_expg(df, batch_size, return_numpy=True).reshape(1, -1)
@@ -793,28 +1052,6 @@ class CoxTime(CoxBase):
         # Returns:
         #     self, (with additional properties: hazards_)
         '''
-        # if event_col is None:
-        #     raise NotImplementedError('need to specify event_col')
-
-        # self._repeated_df = self._is_repeated_fit_df(df, duration_col, event_col)
-        # self.duration_col = duration_col
-        # self.event_col = event_col
-        # self._df = df
-
-        # # When fitting, we need to sort df by event time (for computational efficiency,
-        # # and the index of the dataframe to be reset.
-        # # This is because we remove cencored individuals, and need a continuous
-        # # index to map between a data frame and a numpy matrix.
-        # # cols = set(df.columns)
-        # self.df, self.old_index_name = (df.sort_values(self.duration_col)
-        #                                 .pipe(self._reset_idx_with_old_idx_name))
-        # if not self._repeated_df:
-        #     self._prepare_data_fit()
-        # dataloader = self.make_dataloader(self.Xtr, self.durations, self.at_risk_dict,
-        #                                   n_control, batch_size, n_workers)
-        # log = self.fit_dataloader(dataloader, epochs, verbose, callbacks)
-
-        # self.set_hazards(self.df, compute_hazards=compute_hazards)
         if compute_hazards:
             warnings.warn('''
             Computing hazards over the full trainingset might be very expensive.
@@ -846,7 +1083,6 @@ class CoxTime(CoxBase):
         '''
         cols = list(self.x_columns) + [self.duration_col]
         x = df[cols].as_matrix().astype('float32')
-        # return super(CoxPH, self).predict_g(x, batch_size, return_numpy, eval_)
         return self.predict_g_numpy(x, batch_size, return_numpy, eval_)
 
     def predict_expg(self, df, batch_size=512, return_numpy=True, eval_=True):
@@ -862,7 +1098,6 @@ class CoxTime(CoxBase):
         '''
         cols = list(self.x_columns) + [self.duration_col]
         x = df[cols].as_matrix().astype('float32')
-        # return super(CoxPH, self).predict_g(x, batch_size, return_numpy, eval_)
         return self.predict_expg_numpy(x, batch_size, return_numpy, eval_)
 
     def _compute_baseline_hazards(self, df, max_duration, batch_size):
@@ -883,8 +1118,6 @@ class CoxTime(CoxBase):
             return expg.flatten().sum()
 
         df = df.sort_values(self.duration_col).reset_index(drop=True)
-        # warnings.warn('check this...')
-        # self.baseline_hazards_df = df # Useful for e.g. integrated brier score
         times = (df
                  .loc[lambda x: x[self.event_col] != 0]
                  [self.duration_col]
@@ -919,14 +1152,6 @@ class CoxTime(CoxBase):
             Pandas data frame with cumulative hazards. One columns for
             each individual in the df.
         '''
-        # if baseline_hazards_ is None:
-        #     assert hasattr(self, 'baseline_hazards_'), 'Need to fit model first.'
-        #     assert self.baseline_hazards_ is not None, 'Need to compute baseline_hazards_'
-        #     baseline_hazards_ = self.baseline_hazards_
-        # assert baseline_hazards_.index.is_monotonic_increasing,\
-        #     'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
-
-
         def expg_at_time(t):
             return self.predict_expg(df.assign(**{self.duration_col: t}), batch_size).flatten()
 
@@ -958,7 +1183,6 @@ class CoxTime(CoxBase):
             Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazards
             estimates.
         '''
-        # assert hasattr(self, 'baseline_hazards_'), 'Need to fit model first.'
         if not hasattr(times, '__iter__'):
             times = [times]
         max_duration = max(times)
@@ -969,9 +1193,6 @@ class CoxTime(CoxBase):
         if return_df:
             return cum_haz
         return cum_haz.as_matrix()
-
-    # def concordance_index(self, df, g_preds=None, batch_size=256):
-    #     raise NotImplementedError()
 
     def partial_log_likelihood(self, df, batch_size=512):
         '''Calculate the partial log-likelihood for the events in datafram df.
@@ -1028,84 +1249,6 @@ def search_sorted_idx(array, values):
         warnings.warn('Given value smaller than first value')
         idx[idx < 0] = 0
     return idx
-
-
-
-# class CoxPHMLP(CoxPH):
-#     '''This class implements Cox's proportional hazards model:
-#     h(t|x) = h_0(t)*exp(g(x)), where g(x) = is an one-hidden-layer MLP with elu activation.
-
-#     Parameters:
-#         input_size: Size of x, i.e. number of covariates.
-#         hidden_size: Size of hidden layer.
-#         set_optim_func: Function for setting pytorch optimizer.
-#             If None optimizer is set to SGD with lr=0.01, and momentum=0.9.
-#             Function should take one argument (pytorch model) and return the optimizer.
-#             See Cox.set_optim_default as an example.
-#         device: Which device to compute on.
-#             Preferrably pass a torch.device object.
-#             If `None`: use default gpu if avaiable, else use cpu.
-#             If `string`: string is passed to torch.device(`string`).
-#     '''
-#     def __init__(self, input_size, hidden_size, set_optim_func=None, device=None):
-#         self.input_size = input_size
-#         self.hidden_size = hidden_size
-#         g_model = self._make_g_model(self.input_size, self.hidden_size)
-#         self.set_optim_func = set_optim_func
-#         if self.set_optim_func is None:
-#             self.set_optim_func = self.set_optim_default
-#         optimizer = self.set_optim_func(g_model)
-#         super().__init__(g_model, optimizer, device)
-
-#     @staticmethod
-#     def set_optim_default(g_model):
-#         return optim.SGD(g_model.parameters(), lr=0.01, momentum=0.9)
-
-#     def _make_g_model(self, input_size, hidden_size):
-#         return nn.Sequential(nn.Linear(input_size, hidden_size), nn.ELU(),
-#                              nn.Linear(hidden_size, 1, bias=False))
-
-#     def fit(self, df, duration_col, event_col=None, n_control=1, batch_size=64, epochs=500,
-#             n_workers=0, verbose=1, strata=None, callbacks=None, compute_hazards=True,
-#             early_stopping=True):
-#     # def fit(self, df, duration_col, event_col=None, batch_size=64, epochs=500,
-#     #         num_workers=0, n_control=1, verbose=1, strata=None, early_stopping=True,
-#     #         callbacks=None):
-#         '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
-#         are handled using Efron's tie-method.
-
-#         Parameters:
-#             df: A Pandas dataframe with necessary columns `duration_col` and
-#                 `event_col`, plus other covariates. `duration_col` refers to
-#                 the lifetimes of the subjects. `event_col` refers to whether
-#                 the 'death' events was observed: 1 if observed, 0 else (censored).
-#             duration_col: The column in dataframe that contains the subjects'
-#                 lifetimes.
-#             event_col: The column in dataframe that contains the subjects' death
-#                 observation. If left as None, assume all individuals are non-censored.
-#             n_control: Number of control samples.
-#             batch_size: Batch size.
-#             epochs: Number of epochs.
-#             n_workers: Number of workers for preparing data.
-#             strata: Specify a list of columns to use in stratification. This is useful if a
-#                 catagorical covariate does not obey the proportional hazards assumption. This
-#                 is used similar to the `strata` expression in R.
-#                 See http://courses.washington.edu/b515/l17.pdf.
-#             callbacks: List of callbacks.
-#             compute_hazards: If we should compute hazards when training has finished.
-#             early_stopping: Use prespesifed early stopping callback to stop when loss hasn't
-#                 imporved for last 5 epochs.
-
-#         # Returns:
-#         #     self, with additional properties: hazards_
-#         '''
-#         if callbacks is None:
-#             callbacks = []
-#         if early_stopping:
-#             callbacks.append(EarlyStoppingTrainLoss())
-#         return super().fit(df, duration_col, event_col, n_control, batch_size, epochs,
-#                            n_workers, verbose, strata, callbacks, compute_hazards)
-
 
 
 class CoxPHFunc(CoxPH):
