@@ -94,7 +94,22 @@ class CoxBase(Model):
         loss = loss_cox
         super().__init__(net, loss, optimizer, device)
 
-    def compute_loss(self, input, target):
+    # def compute_loss(self, input, target):
+    #     assert target is None, 'Need target to be none, input=(case, control)'
+    #     batch_size = input.lens().flatten().get_if_all_equal()
+    #     if batch_size is None:
+    #         raise RuntimeError("All elements in input does not have the same lenght.")
+    #     case, control = input # both are TupleTree
+    #     input_all = TupleLeaf((case,) + control).cat()
+    #     g_all = self.net(*input_all)
+    #     g_all = tuplefy(g_all).split(batch_size).flatten()
+    #     g_case = g_all[0]
+    #     g_control = g_all[1:]
+    #     return self.loss(g_case, g_control)
+
+    def compute_metrics(self, input, target, metrics):
+        if (self.loss is None) and (self.loss in metrics.values()):
+            raise RuntimeError(f"Need to specify a loss (self.loss). It's currently None")
         assert target is None, 'Need target to be none, input=(case, control)'
         batch_size = input.lens().flatten().get_if_all_equal()
         if batch_size is None:
@@ -105,7 +120,11 @@ class CoxBase(Model):
         g_all = tuplefy(g_all).split(batch_size).flatten()
         g_case = g_all[0]
         g_control = g_all[1:]
-        return self.loss(g_case, g_control)
+        # return self.loss(g_case, g_control)
+        res = {name: metric(g_case, g_control) for name, metric in metrics.items()}
+        return res
+
+
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         """Dataloader for prediction. The input is either the regular input, or a tuple
@@ -159,31 +178,31 @@ class CoxBase(Model):
 
     make_dataset = NotImplementedError
 
-    def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
-            num_workers=0, shuffle=True, n_control=1, compute_hazards=True):
-        """Fit  model with inputs and targets.
+    # def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
+    #         num_workers=0, shuffle=True, n_control=1, compute_hazards=True):
+    #     """Fit  model with inputs and targets.
         
-        Arguments:
-            input {np.array, tensor or tuple} -- Input (x) passed to net.
-            target {np.array, tensor or tuple} -- Target (y) passed to loss function.
+    #     Arguments:
+    #         input {np.array, tensor or tuple} -- Input (x) passed to net.
+    #         target {np.array, tensor or tuple} -- Target (y) passed to loss function.
         
-        Keyword Arguments:
-            batch_size {int} -- Elemets in each batch (default: {256})
-            epochs {int} -- Number of epochs (default: {1})
-            callbacks {list} -- list of callbacks (default: {None})
-            verbose {bool} -- Print progress (default: {True})
-            num_workers {int} -- Number of workers used in the dataloader (default: {0})
-            shuffle {bool} -- If we should shuffle the order of the dataset (default: {True})
+    #     Keyword Arguments:
+    #         batch_size {int} -- Elemets in each batch (default: {256})
+    #         epochs {int} -- Number of epochs (default: {1})
+    #         callbacks {list} -- list of callbacks (default: {None})
+    #         verbose {bool} -- Print progress (default: {True})
+    #         num_workers {int} -- Number of workers used in the dataloader (default: {0})
+    #         shuffle {bool} -- If we should shuffle the order of the dataset (default: {True})
     
-        Returns:
-            TrainingLogger -- Training log
-        """
-        log = super().fit(input, target, batch_size, epochs, callbacks, verbose, num_workers,
-                          shuffle, n_control=n_control)
-        del self.fit_info
-        if compute_hazards:
-            self.compute_baseline_hazards()
-        return log
+    #     Returns:
+    #         TrainingLogger -- Training log
+    #     """
+    #     log = super().fit(input, target, batch_size, epochs, callbacks, verbose, num_workers,
+    #                       shuffle, n_control=n_control)
+    #     del self.fit_info
+    #     if compute_hazards:
+    #         self.compute_baseline_hazards()
+    #     return log
 
     def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
         raise NotImplementedError
