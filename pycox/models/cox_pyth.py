@@ -15,7 +15,7 @@ from ..metrics import concordance_index, brier_score, integrated_brier_score
 # from .torch_models import FuncTorch, _Expg
 
 import pyth
-from pyth import Model, tuplefy, TupleLeaf
+from pyth import Model, tuplefy, TupleTree
 
 # from torch.utils import data
 from pycox.dataloader import sample_alive_from_dates
@@ -58,7 +58,7 @@ class CoxCCPrepare(torch.utils.data.Dataset):
         fails = self.durations.iloc[index]
         x_case = self.input.iloc[fails.index]
         control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
-        x_control = TupleLeaf(self.input.iloc[idx] for idx in control_idx.transpose())
+        x_control = TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
         return tuplefy(x_case, x_control).to_tensor(), None
 
     def __len__(self):
@@ -103,7 +103,7 @@ class CoxCCBase(Model):
         if batch_size is None:
             raise RuntimeError("All elements in input does not have the same lenght.")
         case, control = input # both are TupleTree
-        input_all = TupleLeaf((case,) + control).cat()
+        input_all = TupleTree((case,) + control).cat()
         g_all = self.net(*input_all)
         g_all = tuplefy(g_all).split(batch_size).flatten()
         g_case = g_all[0]
