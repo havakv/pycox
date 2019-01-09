@@ -348,8 +348,3 @@ class DeepSurv(CoxPHBase):
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
-
-    # def concordance_index(self, input, target):
-    #     preds = self.predict(input)
-    #     durations, events = target
-    #     return 1 - concordance_index(durations, preds, events)

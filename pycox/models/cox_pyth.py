@@ -42,7 +42,7 @@ def make_at_risk_dict(durations):
     return at_risk_dict
 
 
-class CoxPrepare(torch.utils.data.Dataset):
+class CoxCCPrepare(torch.utils.data.Dataset):
     def __init__(self, input, durations, events, n_control=1):
         df_train_target = pd.DataFrame(dict(duration=durations, event=events))
         self.durations = df_train_target.loc[lambda x: x['event'] == 1]['duration']
@@ -65,7 +65,7 @@ class CoxPrepare(torch.utils.data.Dataset):
         return len(self.durations)
 
 
-class CoxTimePrepare(CoxPrepare):
+class CoxTimePrepare(CoxCCPrepare):
     def __init__(self, input, durations, events, n_control=1):
         super().__init__(input, durations, events, n_control)
         self.durations_tensor = pyth.tuplefy(self.durations.values.reshape(-1, 1)).to_tensor()
@@ -80,7 +80,7 @@ class CoxTimePrepare(CoxPrepare):
         return tuplefy(case, control), None
 
 
-def loss_cox(g_case, g_control, clamp=(-3e+38, 88.)): 
+def loss_cox_cc(g_case, g_control, clamp=(-3e+38, 88.)): 
     control_sum = 0.
     for ctr in g_control:
         ctr = ctr - g_case
@@ -90,9 +90,9 @@ def loss_cox(g_case, g_control, clamp=(-3e+38, 88.)):
     return torch.mean(loss)
 
 
-class CoxBase(Model):
+class CoxCCBase(Model):
     def __init__(self, net, optimizer=None, device=None):
-        loss = loss_cox
+        loss = loss_cox_cc
         super().__init__(net, loss, optimizer, device)
 
     def compute_metrics(self, input, target, metrics):
@@ -346,8 +346,8 @@ class CoxBase(Model):
         return integrated_brier_score(prob_alive_func, durations, events, times_grid, n_grid_points)
 
 
-class CoxPH(CoxBase):
-    make_dataset = CoxPrepare
+class CoxCC(CoxCCBase):
+    make_dataset = CoxCCPrepare
 
     def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
         '''Computes the breslow estimates of the baseline hazards of dataframe df.
@@ -479,7 +479,7 @@ class CoxPH(CoxBase):
         return 1 - concordance_index(durations, g_preds, events)
 
 
-class CoxTime(CoxBase):
+class CoxTime(CoxCCBase):
     make_dataset = CoxTimePrepare
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
