@@ -116,6 +116,8 @@ class CoxBase(Model):
             Pandas data frame with cumulative hazards. One columns for
             each individual in the df.
         '''
+        if type(input) is pd.DataFrame:
+            input = self.df_to_input(input)
         if baseline_hazards_ is None:
             if not hasattr(self, 'baseline_hazards_'):
                 raise ValueError('Need to compute baseline_hazards_.')
@@ -178,6 +180,8 @@ class CoxBase(Model):
         Returns:
             Numpy array with brier scores.
         '''
+        if type(input) is pd.DataFrame:
+            input = self.df_to_input(input)
         prob_alive = self.predict_survival_at_times(times, input, batch_size, False)
         durations, events = target
         return brier_score(times, prob_alive, durations, events)
@@ -198,11 +202,139 @@ class CoxBase(Model):
                 in equidistant grid.
             batch_size: Batch size passed calculation of g_preds.
         '''
+        if type(input) is pd.DataFrame:
+            input = self.df_to_input(input)
         def prob_alive_func(times):
             return self.predict_survival_at_times(times, input, batch_size=batch_size, return_df=False)
 
         durations, events = target
         return integrated_brier_score(prob_alive_func, durations, events, times_grid, n_grid_points)
+
+    def df_to_input(self, df):
+        input = df[self.input_cols].values
+        return input
+    
+    def df_to_target(self, df):
+        target = (df[self.duration_col].values, df[self.event_col].values)
+        return tuplefy(target)
+
+    def fit_df(self, df, duration_col, event_col, batch_size=256, epochs=1, callbacks=None,
+               verbose=True, num_workers=0, shuffle=True, metrics=None, val_df=None,
+               val_batch_size=8224, n_control=1, **kwargs):
+        '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
+        are handled using Beslow's tie-method.
+
+        Parameters:
+            df: A Pandas dataframe with necessary columns `duration_col` and
+                `event_col`, plus other covariates. `duration_col` refers to
+                the lifetimes of the subjects. `event_col` refers to whether
+                the 'death' events was observed: 1 if observed, 0 else (censored).
+            duration_col: The column in dataframe that contains the subjects'
+                lifetimes.
+            event_col: The column in dataframe that contains the subjects' death
+                observation. 
+            batch_size: Batch size.
+            epochs: Number of epochs.
+            num_workers: Number of workers for preparing data.
+            verbose: Degree of verbose. If dict {'name': mm}, where mm is a MonitorMetric object,
+                this will be printed. 
+                Example: 
+                mm = MonitorCoxLoss(df_val, n_control=1, n_reps=4,)
+                cox.fit(..., verbose={'val_loss': mm}, callbacks=[mm])
+            callbacks: List of callbacks.
+            n_control: Number of control samples.
+            compute_hazards: If we should compute hazards when training has finished.
+
+        # Returns:
+        #     self, with additional properties: hazards_
+        '''
+        self.duration_col = duration_col
+        self.event_col = event_col
+        self.input_cols = df.columns.drop([self.duration_col, self.event_col]).values
+        input, target = self.df_to_input(df), self.df_to_target(df)
+        val_data = val_df
+        if val_data is not None:
+            val_data = self.df_to_input(val_data), self.df_to_target(val_data)
+        return self.fit(input, target, batch_size, epochs, callbacks, verbose, num_workers,
+                           shuffle, metrics, val_data, val_batch_size, n_control=n_control, **kwargs)
+
+    def compute_baseline_hazards_df(self, df=None, max_duration=None, sample=None, batch_size=8224,
+                                set_hazards=True):
+        '''Computes the breslow estimates of the baseline hazards of dataframe df.
+
+        Parameters:
+            # df: Pandas dataframe with covariates, duration, and events.
+            #     If None: use training data frame.
+            max_duration: Don't compute hazards for durations larger than max_time.
+            sample: Use sample of df. 
+                Sample proportion if 'sample' < 1, else sample number 'sample'.
+            batch_size: Batch size passed calculation of g_preds.
+            set_hazards: If we should store computed hazards in object.
+
+        Returns:
+            Pandas series with baseline hazards. Index is duration_col.
+        '''
+        input, target = None, None
+        if df is not None:
+            input, target = self.df_to_input(df), self.df_to_target
+        return self.compute_baseline_hazards_df(input, target, max_duration, sample, batch_size,
+                                set_hazards)
+
+    def compute_baseline_cumulative_hazards_df(self, df=None, max_duration=None, sample=None,
+                                            batch_size=8224, set_hazards=True, baseline_hazards_=None):
+        '''Compute the baseline cumulative hazards of dataframe df or baseline_hazards.
+
+        Parameters:
+            # df: Pandas dataframe with covariates, duration, and events.
+            #     If None: use training data frame.
+            max_duration: Don't compute hazards for durations larger than max_time.
+            sample: Use sample of df. 
+                Sample proportion if 'sample' < 1, else sample number 'sample'.
+            batch_size: Batch size passed calculation of g_preds.
+            set_hazards: If we should store computed hazards in object.
+            baseline_hazards: Pandas series with baseline hazards.
+                If `None` use supplied df or training data frame.
+
+        Returns:
+            Pandas series with baseline cumulative hazards. Index is duration_col.
+        '''
+        input, target = None, None
+        if df is not None:
+            input, target = self.df_to_input(df), self.df_to_target
+        return self.compute_baseline_cumulative_hazards(input, target, max_duration, sample,
+                                                        batch_size, set_hazards, baseline_hazards_)
+
+    def partial_log_likelihood_df(self, df, g_preds=None, batch_size=8224):
+        '''Calculate the partial log-likelihood for the events in datafram df.
+        This likelihood does not sample the controls.
+        Note that censored data (non events) does not have a partial log-likelihood.
+
+        Parameters:
+            df: Pandas dataframe with covariates, duration, and events.
+            g_preds: Exponent of proportional hazards (h = h0 * exp(g(x))).
+                If not supplied, it will be calculated.
+            batch_size: Batch size passed calculation of g_preds.
+
+        Returns:
+            Pandas dataframe with duration, g_preds, and the
+                partial log-likelihood pll.
+        '''
+        input, target = self.df_to_input(df), self.df_to_target
+        return self.partial_log_likelihood(input, target, g_preds, batch_size)
+
+    def concordance_index_df(self, df, g_preds=None, batch_size=256):
+        '''Concoradance index (from lifelines.utils).
+        If g_preds are not supplied (None), they will be calculated.
+            h = h0 * exp(g(x)).
+
+        Parameters:
+            df: Pandas dataframe with covariates, duration, and events.
+            g_preds: Exponent of proportional hazards (h = h0 * exp(g(x))).
+                If not supplied, it will be calculated.
+            batch_size: Batch size passed calculation of g_preds.
+        '''
+        input, target = self.df_to_input(df), self.df_to_target
+        return self.concordance_index(input, target, g_preds, batch_size)
 
 
 class CoxPHBase(CoxBase):
@@ -271,6 +403,8 @@ class CoxPHBase(CoxBase):
             Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazards
             estimates.
         '''
+        if type(input) is pd.DataFrame:
+            input = self.df_to_input(input)
         if verbose:
             print('No verbose to show...')
         if baseline_hazards_ is None:
