@@ -1,14 +1,9 @@
 
-'''
-File contains dataloaders.
-'''
 import numpy as np
-
+import pandas as pd
 import torch
-import torch.utils.data as data
-
-# from .utils.pytorch_dataloader import DataLoaderSlice
-from pyth.data import DataLoaderSlice
+from pyth import Model, tuplefy, make_dataloader, TupleTree
+from pyth.data import DatasetTuple
 
 
 def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
@@ -29,89 +24,92 @@ def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
         samp[it, :] = at_risk_dict[time][idx[:, it]]
     return samp
 
-
-class CoxPrepare(data.Dataset):
-    '''Torch Dataset for preparing Cox case controll.
+def make_at_risk_dict(durations):
+    '''Create dict(duration: indices) from sorted df.
 
     Parameters:
-    Xtr: np.array float32, with all training data.
-    durations: pd.Series with index corresponding to failures in Xtr
-        and values giving time of death (as int).
-    at_risk_dict: dict with
-            key: time of death
-            val: index (Xtr) of alive at time 'key'.
-    n_control: number of control samples.
+        df: A Pandas dataframe with covariates, sorted by duration_col.
+        duration_col: Column holding the durations.
+
+    Returns:
+        A dict mapping durations to indices (row number, not index in data frame).
+        For each time => index of all individual alive.
     '''
-    def __init__(self, Xtr, durations, at_risk_dict, n_control=1):
-        self.Xtr = Xtr
-        self.durations = durations
-        self.at_risk_dict = at_risk_dict
+    assert type(durations) is np.ndarray, 'Need durations to be a numpy array'
+    durations = pd.Series(durations)
+    assert durations.is_monotonic_increasing, 'Requires durations to be monotonic'
+    allidx = durations.index.values
+    keys = durations.drop_duplicates(keep='first')
+    at_risk_dict = dict()
+    for ix, t in keys.iteritems():
+        at_risk_dict[t] = allidx[ix:]
+    return at_risk_dict
+
+class DatasetDurationSorted(DatasetTuple):
+    def __getitem__(self, index):
+        batch = super().__getitem__(index)
+        input, (duration, event) = batch
+        idx_sort = duration.sort(descending=True)[1]
+        event = event.float()
+        batch = tuplefy(input, event).iloc[idx_sort]
+        return batch
+
+class CoxCCPrepare(torch.utils.data.Dataset):
+    def __init__(self, input, durations, events, n_control=1):
+        df_train_target = pd.DataFrame(dict(duration=durations, event=events))
+        self.durations = df_train_target.loc[lambda x: x['event'] == 1]['duration']
+        self.at_risk_dict = make_at_risk_dict(durations)
+
+        self.input = tuplefy(input)
+        assert type(self.durations) is pd.Series
         self.n_control = n_control
 
-    def get_case_control(self, index):
+    def __getitem__(self, index):
         if not hasattr(index, '__iter__'):
             index = [index]
         fails = self.durations.iloc[index]
-
-        x_case = self.Xtr[fails.index]
+        x_case = self.input.iloc[fails.index]
         control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
-        x_control = [self.Xtr[idx] for idx in control_idx.transpose()]
-        return x_case, np.stack(x_control)
-
-    def __getitem__(self, index):
-        x_case, x_control = self.get_case_control(index)
-        return torch.from_numpy(x_case), torch.from_numpy(x_control)
+        x_control = TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
+        return tuplefy(x_case, x_control).to_tensor(), None
 
     def __len__(self):
-        return self.durations.size
+        return len(self.durations)
 
 
-class CoxPrepareWithTime(CoxPrepare):
-    '''Same as CoxPrepare, but time included as a covariate.
+class CoxCCPrepare(torch.utils.data.Dataset):
+    def __init__(self, input, durations, events, n_control=1):
+        df_train_target = pd.DataFrame(dict(duration=durations, event=events))
+        self.durations = df_train_target.loc[lambda x: x['event'] == 1]['duration']
+        self.at_risk_dict = make_at_risk_dict(durations)
 
-    Parameters:
-    Xtr: np.array float32, with all training data.
-    time_fail: pd.Series with index corresponding to failures in Xtr
-        and values giving time of death (as int).
-    gr_alive: dict with
-            key: time of death
-            val: index (Xtr) of alive at time 'key'.
-    n_control: number of control samples.
-    '''
-    def _make_x_with_time(self, x, times, r, c):
-        x_new = np.empty((r, c+1), dtype='float32')
-        x_new[:, :c] = x
-        x_new[:, c] = times
-        return x_new
+        self.input = tuplefy(input)
+        assert type(self.durations) is pd.Series
+        self.n_control = n_control
 
-    def get_case_control(self, index):
-        x_case, x_control = super().get_case_control(index)
+    def __getitem__(self, index):
         if not hasattr(index, '__iter__'):
             index = [index]
         fails = self.durations.iloc[index]
-        r, c = len(index), self.Xtr.shape[1]
-        x_case = self._make_x_with_time(x_case, fails.values, r, c)
-        x_control = [self._make_x_with_time(x, fails.values, r, c)
-                     for x in x_control]
-        return x_case, np.stack(x_control)
-
-
-class NumpyTensorDataset(data.Dataset):
-    '''Turn np.array or list of np.array into a torch Dataset.
-    X: numpy array or list of numpy arrays.
-    '''
-    def __init__(self, X):
-        self.X = X
-        self.single = False if X.__class__ is list else True
-        if not self.single:
-            assert len(set([len(x) for x in self.X])) == 1,\
-                'All elements in X must have the same length.'
-
-    def __getitem__(self, index):
-        if self.single:
-            return torch.from_numpy(self.X[index])
-        return [torch.from_numpy(x[index]) for x in self.X]
+        x_case = self.input.iloc[fails.index]
+        control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
+        x_control = TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
+        return tuplefy(x_case, x_control).to_tensor(), None
 
     def __len__(self):
-        return self.X.shape[0]
+        return len(self.durations)
 
+
+class CoxTimePrepare(CoxCCPrepare):
+    def __init__(self, input, durations, events, n_control=1):
+        super().__init__(input, durations, events, n_control)
+        self.durations_tensor = tuplefy(self.durations.values.reshape(-1, 1)).to_tensor()
+
+    def __getitem__(self, index):
+        if not hasattr(index, '__iter__'):
+            index = [index]
+        durations = self.durations_tensor.iloc[index]
+        (case, control), _ = super().__getitem__(index)
+        case = case + durations
+        control = control.apply_nrec(lambda x: x + durations)
+        return tuplefy(case, control), None
