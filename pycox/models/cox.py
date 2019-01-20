@@ -1,3 +1,4 @@
+import os
 import warnings
 import numpy as np
 import pandas as pd
@@ -210,6 +211,49 @@ class CoxBase(Model):
         durations, events = target
         return integrated_brier_score(prob_alive_func, durations, events, times_grid, n_grid_points)
 
+    def save_net(self, path, **kwargs):
+        """
+        Save self.net and baseline hazards to file.
+
+        Arguments:
+            path {str} -- Path to file.
+            **kwargs are passed to torch.save
+
+        Returns:
+            None
+        """
+        path_list = path.split('.')
+        extension = 'pt'
+        if len(path_list) > 1:
+            path = path_list[0]
+            extension = path_list[1]
+        super().save_net(path+extension, **kwargs)
+        if hasattr(self, 'baseline_hazards_'):
+            self.baseline_hazards_.to_pickle(path+'_blh.pickle')
+
+    def load_net(self, path, **kwargs):
+        """
+        Load net and hazards from file.
+
+        Arguments:
+            path {str} -- Path to file.
+            **kwargs are passed to torch.load
+
+        Returns:
+            None
+        """
+        path_list = path.split('.')
+        extension = 'pt'
+        if len(path_list) > 1:
+            path = path_list[0]
+            extension = path_list[1]
+        extension = '.'+extension
+        super().load_net(path+extension, **kwargs)
+        blh_path = path+'_blh.pickle'
+        if os.path.isfile(blh_path):
+            self.baseline_hazards_ = pd.read_pickle(blh_path)
+            self.baseline_cumulative_hazards_ = self.baseline_hazards_.cumsum()
+
     def df_to_input(self, df):
         input = df[self.input_cols].values
         return input
@@ -355,7 +399,7 @@ class CoxPHBase(CoxBase):
         # Here we are computing when expg when there are no events.
         #   Could be made faster, by only computing when there are events.
         return (df_target
-                .assign(expg=np.exp(self.predict(input, batch_size, return_numpy=True)))
+                .assign(expg=np.exp(self.predict(input, batch_size, numpy=True)))
                 .groupby(self.duration_col)
                 .agg({'expg': 'sum', self.event_col: 'sum'})
                 .sort_index(ascending=False)
@@ -385,7 +429,7 @@ class CoxPHBase(CoxBase):
             bch = self.compute_baseline_cumulative_hazards(set_hazards=False, 
                                                            baseline_hazards_=baseline_hazards_)
         bch = bch.loc[lambda x: x.index <= max_duration]
-        expg = np.exp(self.predict(input, batch_size, return_numpy=True)).reshape(1, -1)
+        expg = np.exp(self.predict(input, batch_size, numpy=True)).reshape(1, -1)
         return pd.DataFrame(bch.values.reshape(-1, 1).dot(expg), 
                             index=bch.index)
 
@@ -416,7 +460,7 @@ class CoxPHBase(CoxBase):
             times = [times]
         times_idx = search_sorted_idx(bch.index.values, times)
         bch = bch.iloc[times_idx].values.reshape(-1, 1)
-        expg = np.exp(self.predict(input, batch_size, return_numpy=True)).reshape(1, -1)
+        expg = np.exp(self.predict(input, batch_size, numpy=True)).reshape(1, -1)
         res = bch.dot(expg)
         if return_df:
             return pd.DataFrame(res, index=times)
@@ -439,7 +483,7 @@ class CoxPHBase(CoxBase):
         '''
         df = self.target_to_df(target)
         if g_preds is None:
-            g_preds = self.predict(input, batch_size, return_numpy=True)
+            g_preds = self.predict(input, batch_size, numpy=True)
         return (df
                 .assign(_g_preds=g_preds)
                 .sort_values(self.duration_col, ascending=False)
@@ -465,7 +509,7 @@ class CoxPHBase(CoxBase):
         '''
         durations, events = target
         if g_preds is None:
-            g_preds = self.predict(input, batch_size, return_numpy=True).flatten()
+            g_preds = self.predict(input, batch_size, numpy=True).flatten()
         return 1 - concordance_index(durations, g_preds, events)
 
 
