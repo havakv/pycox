@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from lifelines.utils import concordance_index
+from torch import nn
 from pyth import Model, tuplefy, make_dataloader
 from pycox.metrics import brier_score, integrated_brier_score
 from pycox.dataloader import DatasetDurationSorted
@@ -25,6 +26,33 @@ def search_sorted_idx(array, values):
 class CoxBase(Model):
     duration_col = 'duration'
     event_col = 'event'
+
+    def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
+            num_workers=0, shuffle=True, metrics=None, val_data=None, val_batch_size=8224,
+            **kwargs):
+        """Fit  model with inputs and targets. Where 'input' is the covariates, and
+        'target' is a tuple with (durations, events).
+        
+        Arguments:
+            input {np.array, tensor or tuple} -- Input x passed to net.
+            target {np.array, tensor or tuple} -- Target [durations, events]. 
+        
+        Keyword Arguments:
+            batch_size {int} -- Elemets in each batch (default: {256})
+            epochs {int} -- Number of epochs (default: {1})
+            callbacks {list} -- list of callbacks (default: {None})
+            verbose {bool} -- Print progress (default: {True})
+            num_workers {int} -- Number of workers used in the dataloader (default: {0})
+            shuffle {bool} -- If we should shuffle the order of the dataset (default: {True})
+            **kwargs are passed to 'make_dataloader' method.
+    
+        Returns:
+            TrainingLogger -- Training log
+        """
+        self.training_data = tuplefy(input, target)
+        return super().fit(input, target, batch_size, epochs, callbacks, verbose,
+                           num_workers, shuffle, metrics, val_data, val_batch_size,
+                           **kwargs)
 
     def _compute_baseline_hazards(self, input, df, max_duration, batch_size):
         raise NotImplementedError

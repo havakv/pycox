@@ -26,6 +26,35 @@ class CoxCCBase(CoxBase):
         loss = loss_cox_cc
         super().__init__(net, loss, optimizer, device)
 
+    def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
+            num_workers=0, shuffle=True, metrics=None, val_data=None, val_batch_size=8224,
+            n_control=1, **kwargs):
+        """Fit  model with inputs and targets. Where 'input' is the covariates, and
+        'target' is a tuple with (durations, events).
+        
+        Arguments:
+            input {np.array, tensor or tuple} -- Input x passed to net.
+            target {np.array, tensor or tuple} -- Target [durations, events]. 
+        
+        Keyword Arguments:
+            batch_size {int} -- Elemets in each batch (default: {256})
+            epochs {int} -- Number of epochs (default: {1})
+            callbacks {list} -- list of callbacks (default: {None})
+            verbose {bool} -- Print progress (default: {True})
+            num_workers {int} -- Number of workers used in the dataloader (default: {0})
+            shuffle {bool} -- If we should shuffle the order of the dataset (default: {True})
+            n_control {int} -- Number of control samples.
+            **kwargs are passed to 'make_dataloader' method.
+    
+        Returns:
+            TrainingLogger -- Training log
+        """
+        input, target = self._sorted_input_target(input, target)
+        # self.training_data = TupleTree((input, target))
+        return super().fit(input, target, batch_size, epochs, callbacks, verbose,
+                           num_workers, shuffle, metrics, val_data, val_batch_size,
+                           n_control=n_control, **kwargs)
+
     def compute_metrics(self, input, target, metrics):
         if (self.loss is None) and (self.loss in metrics.values()):
             raise RuntimeError(f"Need to specify a loss (self.loss). It's currently None")
@@ -76,9 +105,9 @@ class CoxCCBase(CoxBase):
         Returns:
             dataloader -- Dataloader for training.
         """
-        data = tuplefy(data)
+        # data = tuplefy(data)
         input, target = self._sorted_input_target(*data)
-        self.training_data = TupleTree((input, target))
+        # self.training_data = TupleTree((input, target))
         durations, events = target
         dataset = self.make_dataset(input, durations, events, n_control)
         dataloader = pyth.data.DataLoaderSlice(dataset, batch_size=batch_size,
@@ -89,8 +118,10 @@ class CoxCCBase(CoxBase):
     def _sorted_input_target(input, target):
         durations, _ = target#.to_numpy()
         idx_sort = np.argsort(durations)
+        if (idx_sort == np.arange(0, len(idx_sort))).all():
+            return input, target
         input = tuplefy(input).iloc[idx_sort]
-        target = target.iloc[idx_sort]
+        target = tuplefy(target).iloc[idx_sort]
         return input, target
 
 
