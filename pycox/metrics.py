@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 import scipy
 import pandas as pd
+import numba
 
 from lifelines.utils import concordance_index
 from lifelines import KaplanMeierFitter
@@ -142,3 +143,114 @@ def binomial_log_likelihood(times, prob_alive, durations, events, eps=1e-7):
     scores = [compute_score(time_, km, pa)
               for time_, km, pa in zip(times, km_censor_at_times, prob_alive)]
     return np.array(scores)
+
+@numba.jit(nopython=True)
+def _is_comparable(t_i, t_j, d_i, d_j):
+    return ((t_i < t_j) & d_i) | ((t_i == t_j) & d_i & (d_j == 0))
+
+@numba.jit(nopython=True)
+def _is_concordant(s_i, s_j, t_i, t_j, d_i, d_j):
+    return (s_i < s_j) & _is_comparable(t_i, t_j, d_i, d_j)
+
+@numba.jit(nopython=True, parallel=True)
+def _sum_comparable(t, d):
+    n = t.shape[0]
+    count = 0
+    for i in numba.prange(n):
+        for j in range(n):
+            count += _is_comparable(t[i], t[j], d[i], d[j])
+    return count
+
+@numba.jit(nopython=True, parallel=True)
+def _sum_concordant(s, t, d):
+    n = len(t)
+    count = 0
+    for i in numba.prange(n):
+        for j in range(n):
+            count += _is_concordant(s[i, i], s[i, j], t[i], t[j], d[i], d[j])
+    return count
+
+def concordance_td(event_time, event, prob_alive):
+    """Time dependent concorance index from 
+    Antolini, L.; Boracchi, P.; and Biganzoli, E. 2005. A timedependent discrimination
+    index for survival data. Statistics in Medicine 24:3927–3944.
+
+    Arguments:
+        event_time {np.array[n]} -- Event times (or censoring times.)
+        event {np.array[n]} -- Event indicators (0 is censoring).
+        prob_alive {np.array[n, n]} -- Survival probabilities n x n matrix, s.t.
+            prob_alive[i, j] gives survial prob at event_time[i] for individual j.
+
+    Returns:
+        float -- Time dependent concordance index.
+    """
+    assert prob_alive.shape[0] == prob_alive.shape[1] == event_time.shape[0] == event.shape[0]
+    assert type(event_time) is type(event) is type(prob_alive) is np.ndarray
+    return _sum_concordant(prob_alive, event_time, event) / _sum_comparable(event_time, event)
+
+@numba.jit(nopython=True, parallel=True)
+def _sum_concordant_disc(s, t, d, s_idx):
+    n = len(t)
+    count = 0
+    for i in numba.prange(n):
+        idx = s_idx[i]
+        for j in range(n):
+            count += _is_concordant(s[idx, i], s[idx, j], t[i], t[j], d[i], d[j])
+    return count
+
+def concordance_td_disc(event_time, event, surv_func, surv_idx):
+    """Smaller memory (possibly) time dependent concorance index from 
+    Antolini, L.; Boracchi, P.; and Biganzoli, E. 2005. A timedependent discrimination
+    index for survival data. Statistics in Medicine 24:3927–3944.
+
+    This method works well when the number of distinct event times in the training set
+    is much smaller than in the test set. Instead of calculating all prob_alive
+    (as in concordance_td), we give and surv_idx used to get prob_alive form surv_func.
+
+    Arguments:
+        event_time {np.array[n]} -- Event times (or censoring times.)
+        event {np.array[n]} -- Event indicators (0 is censoring).
+        surv_func {np.array[n_train, n_test]} -- Survival probabilities n_train x n_test matrix, s.t.
+            prob_alive[surv_idx[i], j] gives survial prob at event_time[i] for individual j.
+        surv_idx {np.array[n_test]} -- Mapping of survival_func (see surv_func above).
+
+    Returns:
+        float -- Time dependent concordance index.
+    """
+    if surv_func.shape[0] > surv_func.shape[1]:
+        warnings.warn(f"consider using 'concordanace_td' when 'surv_func' has more rows than cols.")
+    assert event_time.shape[0] == surv_func.shape[1] == surv_idx.shape[0] == event.shape[0]
+    assert type(event_time) is type(event) is type(surv_func) is type(surv_idx) is np.ndarray
+    return (_sum_concordant_disc(surv_func, event_time, event, surv_idx) /
+            _sum_comparable(event_time, event))
+
+
+def partial_log_likelihood_ph(log_partial_hazards, durations, events, mean=True):
+    """Partial log-likelihood for PH models.
+    
+    Arguments:
+        log_partial_hazards {np.array} -- Log partial hazards (e.g. x^T beta).
+        durations {np.array} -- Durations.
+        events {np.array} -- Events.
+    
+    Keyword Arguments:
+        mean {bool} -- Return the mean. (default: {True})
+    
+    Returns:
+        pd.Series or float -- partial log-likelihood or mean.
+    """
+
+    df = pd.DataFrame(dict(duration=durations, event=events, lph=log_partial_hazards))
+    pll = (df
+           .sort_values('duration', ascending=False)
+           .assign(cum_ph=(lambda x: x['lph']
+                            .pipe(np.exp)
+                            .cumsum()
+                            .groupby(x['duration'])
+                            .transform('max')))
+           .loc[lambda x: x['event'] == 1]
+           .assign(pll=lambda x: x['lph'] - np.log(x['cum_ph']))
+           ['pll'])
+    if mean:
+        return pll.mean()
+    return pll
