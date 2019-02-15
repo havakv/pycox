@@ -9,12 +9,13 @@ from pycox.dataloader import CoxCCPrepare, CoxTimePrepare
 from lifelines.utils import concordance_index
 
 
-def loss_cox_cc(g_case, g_control, clamp=(-3e+38, 88.)): 
+def loss_cox_cc(g_case, g_control, clamp=(-3e+38, 80.)): 
     control_sum = 0.
     for ctr in g_control:
         ctr = ctr - g_case
-        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should find better way).
+        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
         control_sum += torch.exp(ctr)
+    #control_sum = torch.clamp(control_sum, -1e38, 1e38)
     loss = torch.log(1. + control_sum)
     return torch.mean(loss)
 
