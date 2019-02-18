@@ -60,6 +60,7 @@ class CoxCCBase(CoxBase):
         if (self.loss is None) and (self.loss in metrics.values()):
             raise RuntimeError(f"Need to specify a loss (self.loss). It's currently None")
         assert target is None, 'Need target to be none, input=(case, control)'
+        input = self._to_device(input)
         batch_size = input.lens().flatten().get_if_all_equal()
         if batch_size is None:
             raise RuntimeError("All elements in input does not have the same lenght.")
