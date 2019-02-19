@@ -232,6 +232,7 @@ class CoxTime(CoxCCBase):
             if verbose:
                 print(idx, 'of', len(baseline_hazards_))
             hazards[idx, :] = expg_at_time(t)
+        hazards[baseline_hazards_.values == 0] = 0.  # in case hazards are inf here
         hazards *= baseline_hazards_.values.reshape(-1, 1)
         return pd.DataFrame(hazards, index=baseline_hazards_.index).cumsum()
 
