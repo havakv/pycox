@@ -148,14 +148,15 @@ class CoxTime(CoxCCBase):
             if not hasattr(self, 'training_data'):
                 raise ValueError('Need to fit, or supply a input and target to this function.')
             input, target = self.training_data
-        else:
-            input, target = self._sorted_input_target(input, target)
+        # else:
+        #     input, target = self._sorted_input_target(input, target)
         df = self.target_to_df(target)#.sort_values(self.duration_col)
         if sample is not None:
             if sample >= 1:
                 df = df.sample(n=sample)
             else:
                 df = df.sample(frac=sample)
+            df = df.sort_values(self.durations_col)
         input = tuplefy(input).to_numpy().iloc[df.index.values]
         base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size)
         if set_hazards:
