@@ -148,9 +148,7 @@ class CoxTime(CoxCCBase):
             if not hasattr(self, 'training_data'):
                 raise ValueError('Need to fit, or supply a input and target to this function.')
             input, target = self.training_data
-        # else:
-        #     input, target = self._sorted_input_target(input, target)
-        df = self.target_to_df(target)#.sort_values(self.duration_col)
+        df = self.target_to_df(target)
         if sample is not None:
             if sample >= 1:
                 df = df.sample(n=sample)

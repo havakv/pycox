@@ -255,6 +255,7 @@ class CoxBase(Model):
         if len(path_list) > 1:
             path = path_list[0]
             extension = path_list[1]
+        extension = '.'+extension
         super().save_net(path+extension, **kwargs)
         if hasattr(self, 'baseline_hazards_'):
             self.baseline_hazards_.to_pickle(path+'_blh.pickle')
