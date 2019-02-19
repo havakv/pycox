@@ -150,7 +150,18 @@ class CoxTime(CoxCCBase):
             input, target = self.training_data
         else:
             input, target = self._sorted_input_target(input, target)
-        return super().compute_baseline_hazards(input, target, max_duration, sample, batch_size, set_hazards)
+        df = self.target_to_df(target)#.sort_values(self.duration_col)
+        if sample is not None:
+            if sample >= 1:
+                df = df.sample(n=sample)
+            else:
+                df = df.sample(frac=sample)
+        input = tuplefy(input).to_numpy().iloc[df.index.values]
+        base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size)
+        if set_hazards:
+            self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
+        return base_haz
+        # return super().compute_baseline_hazards(input, target, max_duration, sample, batch_size, set_hazards)
 
     def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
         '''Computes the breslow estimates of the baseline hazards of dataframe df.
