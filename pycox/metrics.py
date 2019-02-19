@@ -186,6 +186,8 @@ def concordance_td(event_time, event, prob_alive):
     """
     assert prob_alive.shape[0] == prob_alive.shape[1] == event_time.shape[0] == event.shape[0]
     assert type(event_time) is type(event) is type(prob_alive) is np.ndarray
+    if event.dtype in ('float', 'float32'):
+        event = event.astype('int32')
     return _sum_concordant(prob_alive, event_time, event) / _sum_comparable(event_time, event)
 
 @numba.jit(nopython=True, parallel=True)
@@ -221,6 +223,8 @@ def concordance_td_disc(event_time, event, surv_func, surv_idx):
         warnings.warn(f"consider using 'concordanace_td' when 'surv_func' has more rows than cols.")
     assert event_time.shape[0] == surv_func.shape[1] == surv_idx.shape[0] == event.shape[0]
     assert type(event_time) is type(event) is type(surv_func) is type(surv_idx) is np.ndarray
+    if event.dtype in ('float', 'float32'):
+        event = event.astype('int32')
     return (_sum_concordant_disc(surv_func, event_time, event, surv_idx) /
             _sum_comparable(event_time, event))
 
