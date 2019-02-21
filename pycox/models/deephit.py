@@ -14,10 +14,11 @@ class DeepHitSingle(Model):
     See paper (or make_loss_deephit function)
     
     Keyword Arguments:
-        alpha {float} -- Multiplied with rank loss (L2 in paper) (default: {1.})
+        alpha {float} -- Weighting (0, 1) likelihood and rank loss (L2 in paper).
+            1 gives only likelihood, and 0 gives only rank loss. (default: {0.5})
         sigma {float} -- from eta in rank loss (L2 in paper) (default: {0.1})
     """
-    def __init__(self, net, optimizer=None, device=None, alpha=1., sigma=0.1):
+    def __init__(self, net, optimizer=None, device=None, alpha=0.5, sigma=0.1):
         loss = make_loss_deephit(alpha, sigma)
         super().__init__(net, loss, optimizer, device)
 
@@ -41,6 +42,11 @@ class DeepHitSingle(Model):
 
 
 def make_loss_deephit(alpha, sigma):
+    """Loss for deephit (single risk) model.
+    Alpha is is weighting between likelihood and rank loss (so not like in paper):
+
+    loss = alpha * nll + (1 - alpha) rank_loss(sigma)
+    """
     rank_loss = make_rank_loss_deephit(sigma)
     # def loss(phi, y, d, not_e_c, rank_mat):
     def loss(phi, y, d, rank_mat):
@@ -48,7 +54,7 @@ def make_loss_deephit(alpha, sigma):
         pmf = phi.softmax(1)
         # r_loss = rank_loss(pmf, not_e_c, rank_mat)
         r_loss = rank_loss(pmf, y, rank_mat)
-        return nll + alpha * r_loss
+        return alpha * nll + (1. - alpha) * r_loss
     return loss
 
 def nll_pmf(phi, y, d, reduction='elementwise_mean', _epsilon=1e-7):
