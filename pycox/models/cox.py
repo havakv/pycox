@@ -568,8 +568,16 @@ class CoxPH(CoxPHBase):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
 
-def loss_cox_ph(risk, event):
+def loss_cox_ph(log_h, event, clamp=(-3e+38, 80.)):
+    """Requires the input to be sorted by descending duration time.
+    See DatasetDurationSorted.
+
+    We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
+    where h = exp(log_h) are the hazards and R is the risk set, and d is event.
+    """
     event = event.view(-1)
-    risk = risk.view(-1)
-    log_risk = risk.exp().cumsum(0).log()
-    return - risk.sub(log_risk).mul(event).sum().div(event.sum())
+    log_h = log_h.view(-1)
+    # log_cum_h = log_h.clamp(*clamp).exp().cumsum(0).log()
+    gamma = log_h.max()
+    log_cumsum_h = log_h.sub(gamma).clamp(*clamp).exp().cumsum(0).log().add(gamma)
+    return - log_h.sub(log_cumsum_h).mul(event).sum().div(event.sum())
