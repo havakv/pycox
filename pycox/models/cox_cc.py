@@ -12,7 +12,6 @@ from lifelines.utils import concordance_index
 def make_loss_cox_cc(shrink=0., clamp=(-3e+38, 80.)):
     def loss_cox_cc(g_case, g_control): 
         control_sum = 0.
-        shrink_zero = g_case.mean()
         shrink_control = 0.
         for ctr in g_control:
             shrink_control += ctr.mean()
@@ -20,8 +19,8 @@ def make_loss_cox_cc(shrink=0., clamp=(-3e+38, 80.)):
             ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
             control_sum += torch.exp(ctr)
         loss = torch.log(1. + control_sum)
-        shrink_zero = shrink * (shrink_zero + shrink_control/len(g_control)) / 2
-        return torch.mean(loss) + shrink_zero
+        shrink_zero = shrink * (g_case.mean() + shrink_control/len(g_control)) / 2
+        return torch.mean(loss) + shrink_zero.abs()
     return loss_cox_cc
 
 
