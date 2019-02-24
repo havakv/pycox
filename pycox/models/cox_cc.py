@@ -9,22 +9,28 @@ from pycox.dataloader import CoxCCPrepare, CoxTimePrepare
 from lifelines.utils import concordance_index
 
 
-def loss_cox_cc(g_case, g_control, clamp=(-3e+38, 80.)): 
-    control_sum = 0.
-    for ctr in g_control:
-        ctr = ctr - g_case
-        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
-        control_sum += torch.exp(ctr)
-    #control_sum = torch.clamp(control_sum, -1e38, 1e38)
-    loss = torch.log(1. + control_sum)
-    return torch.mean(loss)
+def make_loss_cox_cc(shrink=0., clamp=(-3e+38, 80.)):
+    def loss_cox_cc(g_case, g_control): 
+        control_sum = 0.
+        shrink_zero = g_case.mean()
+        shrink_control = 0.
+        for ctr in g_control:
+            shrink_control += ctr.mean()
+            ctr = ctr - g_case
+            ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
+            control_sum += torch.exp(ctr)
+        loss = torch.log(1. + control_sum)
+        shrink_zero = shrink * (shrink_zero + shrink_control/len(g_control)) / 2
+        return torch.mean(loss) + shrink_zero
+    return loss_cox_cc
 
 
 class CoxCCBase(CoxBase):
     make_dataset = NotImplementedError
 
-    def __init__(self, net, optimizer=None, device=None):
-        loss = loss_cox_cc
+    def __init__(self, net, optimizer=None, device=None, shrink=0.):
+        # loss = loss_cox_cc
+        loss = make_loss_cox_cc(shrink)
         super().__init__(net, loss, optimizer, device)
 
     def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
