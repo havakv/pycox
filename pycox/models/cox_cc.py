@@ -34,7 +34,7 @@ class CoxCCBase(CoxBase):
 
     def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
             num_workers=0, shuffle=True, metrics=None, val_data=None, val_batch_size=8224,
-            n_control=1, **kwargs):
+            n_control=1, shrink=None, **kwargs):
         """Fit  model with inputs and targets. Where 'input' is the covariates, and
         'target' is a tuple with (durations, events).
         
@@ -57,6 +57,8 @@ class CoxCCBase(CoxBase):
         """
         input, target = self._sorted_input_target(input, target)
         # self.training_data = TupleTree((input, target))
+        if shrink is not None:
+            self.loss = make_loss_cox_cc(shrink)
         return super().fit(input, target, batch_size, epochs, callbacks, verbose,
                            num_workers, shuffle, metrics, val_data, val_batch_size,
                            n_control=n_control, **kwargs)
