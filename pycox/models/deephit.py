@@ -33,10 +33,12 @@ class DeepHitSingle(Model):
 
     def predict_survival_function(self, input, batch_size=8224, eval_=True, to_cpu=False,
                                   num_workers=0):
+        """Mighht need to set to_cpu to true if too large dataset."""
         cdf = (self.predict(input, batch_size, False, eval_, to_cpu, num_workers)
                .softmax(1)
                [:, :-1]
                .cumsum(1)
+               .cpu()
                .numpy())
         return 1 - cdf.transpose()
 
@@ -149,7 +151,7 @@ def diff_cdf_at_time_i(pmf, y):
         torch.tensor -- R_ij = F_i(T_i) - F_j(T_i)
     """
     n = pmf.shape[0]
-    ones = torch.ones((n, 1))
+    ones = torch.ones((n, 1), device=pmf.device)
     # r = pmf.matmul(not_ec.transpose(0, 1))
     r = pmf.cumsum(1).matmul(y.transpose(0, 1))
     diag_r = r.diag().view(1, -1)
