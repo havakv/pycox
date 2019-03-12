@@ -144,6 +144,33 @@ def binomial_log_likelihood(times, prob_alive, durations, events, eps=1e-7):
               for time_, km, pa in zip(times, km_censor_at_times, prob_alive)]
     return np.array(scores)
 
+def integrated_binomial_log_likelihood_numpy(times_grid, prob_alive, durations, events):
+    '''Compute the integrated brier score (for survival).
+    This funcion takes pre-computed probabilities, while the function integrated_brier_score
+    takes a function and a grid instead.
+
+    For a specification on brier scores for survival data see e.g.:
+    "Assessment of evaluation criteria for survival prediction from
+    genomic data" by Bovelstad and Borgan.
+
+    Parameters:
+        times_grid: Iterable with times where to compute the brier scores.
+            Needs to be strictly increasing.
+        prob_alive: Numpy array [len(times_grid), len(durations)] with the estimated
+            probabilities of each individual to be alive at each time in `times_grid`.
+            Each row represets a time in input array `times_grid`.
+        durations: Numpy array with time of events.
+        events: Boolean numpy array indecating if dead/censored (True/False).
+    '''
+    assert pd.Series(times_grid).is_monotonic_increasing,\
+        'Need monotonic increasing times_grid.'
+    scores = binomial_log_likelihood(times_grid, prob_alive, durations, events)
+    is_finite = np.isfinite(scores)
+    scores = scores[is_finite]
+    times_grid = times_grid[is_finite]
+    integral = scipy.integrate.simps(scores, times_grid)
+    return integral / (times_grid[-1] - times_grid[0])
+
 @numba.jit(nopython=True)
 def _is_comparable(t_i, t_j, d_i, d_j):
     return ((t_i < t_j) & d_i) | ((t_i == t_j) & d_i & (d_j == 0))
