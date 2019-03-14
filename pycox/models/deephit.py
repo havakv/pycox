@@ -76,21 +76,22 @@ def nll_pmf(phi, y, d, reduction='elementwise_mean', _epsilon=1e-7):
     """
     # This is a more numerical stable version of:
     # 
-    # d.view(-1)
+    # d = d.view(-1)
     # f = phi.softmax(1)
     # s = 1. - f.cumsum(1)
     # part1 = f.mul(y).sum(1).log().mul(d)
     # part2 = s.mul(y).sum(1).log().mul(1. - d)
     # loss =  - part1.add(part2)
     # return loss.mean()
-    d.view(-1)
+    d = d.view(-1)
     gamma = phi.max(1)[0]
     cumsum = phi.sub(gamma.view(-1, 1)).exp().cumsum(1)
     sum_ = cumsum[:, -1]
     part1 = phi.mul(y).sum(1).sub(gamma).mul(d)
     part2 = - sum_.log()
     # part 3 should be replaced by a reverse sum as it is more stable
-    part3 = sum_.sub(cumsum.mul(y).sum(1)).add(_epsilon).log().mul(1. - d)
+    part3 = sum_.sub(cumsum.mul(y).sum(1)).relu().add(_epsilon).log().mul(1. - d)
+    # need relu() in part3 because cumsum on gpu has some bugs and we risk getting negative numbers.
     loss = - part1.add(part2).add(part3)
     if reduction == 'none':
         return loss
