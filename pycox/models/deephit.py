@@ -34,7 +34,7 @@ class DeepHitSingle(Model):
     def predict_survival_function(self, input, batch_size=8224, eval_=True, to_cpu=False,
                                   num_workers=0):
         """Mighht need to set to_cpu to true if too large dataset."""
-        cdf = (self.predict(input, batch_size, False, eval_, to_cpu, num_workers)
+        cdf = (self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
                .softmax(1)
                [:, :-1]
                .cumsum(1)
