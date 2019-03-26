@@ -495,7 +495,7 @@ class CoxPHBase(CoxBase):
             return pd.DataFrame(res, index=times)
         return res
 
-    def partial_log_likelihood(self, input, target, g_preds=None, batch_size=8224):
+    def partial_log_likelihood(self, input, target, g_preds=None, batch_size=8224, eps=1e-7):
         '''Calculate the partial log-likelihood for the events in datafram df.
         This likelihood does not sample the controls.
         Note that censored data (non events) does not have a partial log-likelihood.
@@ -522,7 +522,7 @@ class CoxPHBase(CoxBase):
                                     .groupby(x[self.duration_col])
                                     .transform('max')))
                 .loc[lambda x: x[self.event_col] == 1]
-                .assign(pll=lambda x: x['_g_preds'] - np.log(x['_cum_exp_g']))
+                .assign(pll=lambda x: x['_g_preds'] - np.log(x['_cum_exp_g'] + eps))
                 ['pll'])
 
     def concordance_index(self, input, target, g_preds=None, batch_size=256):
