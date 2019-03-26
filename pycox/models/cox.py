@@ -568,7 +568,7 @@ class CoxPH(CoxPHBase):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
 
-def loss_cox_ph(log_h, event, clamp=(-3e+38, 80.)):
+def loss_cox_ph(log_h, event, eps=1e-7):
     """Requires the input to be sorted by descending duration time.
     See DatasetDurationSorted.
 
@@ -577,7 +577,8 @@ def loss_cox_ph(log_h, event, clamp=(-3e+38, 80.)):
     """
     event = event.view(-1)
     log_h = log_h.view(-1)
-    # log_cum_h = log_h.clamp(*clamp).exp().cumsum(0).log()
     gamma = log_h.max()
-    log_cumsum_h = log_h.sub(gamma).clamp(*clamp).exp().cumsum(0).log().add(gamma)
+    # log_cumsum_h = log_h.sub(gamma).clamp(*clamp).exp().cumsum(0).log().add(gamma)
+    log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(eps).log().add(gamma)
     return - log_h.sub(log_cumsum_h).mul(event).sum().div(event.sum())
+
