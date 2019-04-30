@@ -173,34 +173,58 @@ def integrated_binomial_log_likelihood_numpy(times_grid, prob_alive, durations, 
 
 @numba.jit(nopython=True)
 def _is_comparable(t_i, t_j, d_i, d_j):
-    return ((t_i < t_j) & d_i) | ((t_i == t_j) & d_i & (d_j == 0))
+    #return ((t_i < t_j) & d_i) | ((t_i == t_j) & d_i & (d_j == 0))  # original
+    return ((t_i < t_j) & d_i) | ((t_i == t_j) & (d_i | d_j))  # modified
 
 @numba.jit(nopython=True)
 def _is_concordant(s_i, s_j, t_i, t_j, d_i, d_j):
-    return (s_i < s_j) & _is_comparable(t_i, t_j, d_i, d_j)
+    """ In the paper by Antolini et al. (2005), they only consider the part below
+    marked as '# original'. We have added the other parts to ensure KM gives 0.5.
+    """
+    # return (s_i < s_j) & _is_comparable(t_i, t_j, d_i, d_j)  # original (with original '_is_comparable')
+    conc = 0.
+    if t_i < t_j:
+        conc = (s_i < s_j) + (s_i == s_j) * 0.5
+    elif t_i == t_j: 
+        if d_i & d_j:
+            conc = 1. - (s_i != s_j) * 0.5
+        elif d_i:
+            conc = (s_i < s_j) + (s_i == s_j) * 0.5  # different from RSF paper.
+        elif d_j:
+            conc = (s_i > s_j) + (s_i == s_j) * 0.5  # different from RSF paper.
+    return conc * _is_comparable(t_i, t_j, d_i, d_j)
 
 @numba.jit(nopython=True, parallel=True)
 def _sum_comparable(t, d):
     n = t.shape[0]
-    count = 0
+    count = 0.
     for i in numba.prange(n):
         for j in range(n):
-            count += _is_comparable(t[i], t[j], d[i], d[j])
+            # count += _is_comparable(t[i], t[j], d[i], d[j])
+            if j != i:
+                count += _is_comparable(t[i], t[j], d[i], d[j])
     return count
 
 @numba.jit(nopython=True, parallel=True)
 def _sum_concordant(s, t, d):
     n = len(t)
-    count = 0
+    count = 0.
     for i in numba.prange(n):
         for j in range(n):
-            count += _is_concordant(s[i, i], s[i, j], t[i], t[j], d[i], d[j])
+            # count += _is_concordant(s[i, i], s[i, j], t[i], t[j], d[i], d[j])
+            if j != i:
+                count += _is_concordant(s[i, i], s[i, j], t[i], t[j], d[i], d[j])
     return count
 
 def concordance_td(event_time, event, prob_alive):
     """Time dependent concorance index from 
     Antolini, L.; Boracchi, P.; and Biganzoli, E. 2005. A timedependent discrimination
     index for survival data. Statistics in Medicine 24:3927–3944.
+
+    We have made a small modification for ties in predictions and event times.
+    We have followed step 3. in Sec 5.1. in Random Survial Forests paper, except for the last
+    point with "T_i = T_j, bu not both are deaths", as that doesn't make much sense.
+    See '_is_concordant'.
 
     Arguments:
         event_time {np.array[n]} -- Event times (or censoring times.)
@@ -224,7 +248,9 @@ def _sum_concordant_disc(s, t, d, s_idx):
     for i in numba.prange(n):
         idx = s_idx[i]
         for j in range(n):
-            count += _is_concordant(s[idx, i], s[idx, j], t[i], t[j], d[i], d[j])
+            # count += _is_concordant(s[idx, i], s[idx, j], t[i], t[j], d[i], d[j])
+            if j != i:
+                count += _is_concordant(s[idx, i], s[idx, j], t[i], t[j], d[i], d[j])
     return count
 
 def concordance_td_disc(event_time, event, surv_func, surv_idx):
@@ -235,6 +261,11 @@ def concordance_td_disc(event_time, event, surv_func, surv_idx):
     This method works well when the number of distinct event times in the training set
     is much smaller than in the test set. Instead of calculating all prob_alive
     (as in concordance_td), we give and surv_idx used to get prob_alive form surv_func.
+
+    We have made a small modification for ties in predictions and event times.
+    We have followed step 3. in Sec 5.1. in Random Survial Forests paper, except for the last
+    point with "T_i = T_j, bu not both are deaths", as that doesn't make much sense.
+    See '_is_concordant'.
 
     Arguments:
         event_time {np.array[n]} -- Event times (or censoring times.)
