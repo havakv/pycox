@@ -246,6 +246,8 @@ def concordance_td_disc(event_time, event, surv_func, surv_idx):
     Returns:
         float -- Time dependent concordance index.
     """
+    if np.isfortran(surv_func):
+        surv_func = np.array(surv_func, order='C')
     if surv_func.shape[0] > surv_func.shape[1]:
         warnings.warn(f"consider using 'concordanace_td' when 'surv_func' has more rows than cols.")
     assert event_time.shape[0] == surv_func.shape[1] == surv_idx.shape[0] == event.shape[0]
