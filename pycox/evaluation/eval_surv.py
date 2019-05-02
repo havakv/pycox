@@ -47,8 +47,6 @@ class EvalSurv:
 
     def idx_at_times(self, times):
         return idx_at_times(self.index_surv, times)
-        # idx = np.searchsorted(self.surv_idx, times)
-        # return idx.clip(0, len(self.surv_idx)-1)
 
     def duration_idx(self):
         return self.idx_at_times(self.durations)
