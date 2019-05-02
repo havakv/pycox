@@ -34,6 +34,17 @@ class EvalSurv:
         self.censor_surv = censor_surv
         return self
 
+    @property
+    def _constructor(self):
+        return EvalSurv
+
+    def __getitem__(self, index):
+        surv = self.surv.iloc[:, index]
+        durations = self.durations[index]
+        events = self.events[index]
+        censor_surv = self.censor_surv.surv.iloc[:, index] if self.censor_surv is not None else None
+        return self._constructor(surv, durations, events, censor_surv)
+
     def idx_at_times(self, times):
         return idx_at_times(self.index_surv, times)
         # idx = np.searchsorted(self.surv_idx, times)
