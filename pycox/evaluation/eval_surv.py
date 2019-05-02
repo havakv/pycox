@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+from lifelines import KaplanMeierFitter
 from pycox.evaluation.inverce_censor_weight import binomial_log_likelihood, brier_score,\
     integrated_binomial_log_likelihood, integrated_brier_score
 from pycox.evaluation.concordance import concordance_td
@@ -16,6 +17,13 @@ class EvalSurv:
         surv {pd.DataFrame} -- Survival preidictions.
         durations {np.array} -- Durations of test set.
         events {np.array} -- Events of test set.
+
+    Keyword Arguments:
+        censor_surv {str, pd.DataFrame, EvalSurv} -- Censoring distribution.
+            If provided data frame (survival function for censoring) or EvalSurv object,
+            this will be used. 
+            If 'km', we will fit a Kaplan-Meier to the dataset.
+            (default: {None})
     """
     def __init__(self, surv, durations, events, censor_surv=None):
         assert (type(durations) == type(events) == np.ndarray)
@@ -23,7 +31,9 @@ class EvalSurv:
         self.durations = durations
         self.events = events
         self.censor_surv = censor_surv
-        if self.censor_surv is not None:
+        if self.censor_surv == 'km':
+            self.add_km_censor()
+        elif self.censor_surv is not None:
             self.add_censor_est(self.censor_surv)
         self.index_surv = self.surv.index.values
         assert pd.Series(self.index_surv).is_monotonic
@@ -33,6 +43,12 @@ class EvalSurv:
             censor_surv = EvalSurv(censor_surv, self.durations, 1-self.events)
         self.censor_surv = censor_surv
         return self
+
+    def add_km_censor(self):
+        km = KaplanMeierFitter().fit(self.durations, self.events).survival_function_['KM_estimate']
+        surv = pd.DataFrame(np.repeat(km.values.reshape(-1, 1), len(self.durations), axis=1),
+                            index=km.index)
+        return self.add_censor_est(surv)
 
     @property
     def _constructor(self):
@@ -97,7 +113,8 @@ class EvalSurv:
 
     def brier_score(self, time_grid, max_weight=np.inf):
         if self.censor_surv is None:
-            raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
+            raise ValueError("""Need to add censor_surv to compute briser score. Use 'add_censor_est'
+            or 'add_km_censor' for Kaplan-Meier""")
         bs = brier_score(time_grid, self.durations, self.events, self.surv.values,
                          self.censor_surv.surv.values, self.index_surv,
                          self.censor_surv.index_surv, max_weight)
@@ -110,7 +127,8 @@ class EvalSurv:
 
     def mbll(self, time_grid, max_weight=np.inf):
         if self.censor_surv is None:
-            raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
+            raise ValueError("""Need to add censor_surv to compute briser score. Use 'add_censor_est'
+            or 'add_km_censor' for Kaplan-Meier""")
         bs = binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
                                      self.censor_surv.surv.values, self.index_surv,
                                      self.censor_surv.index_surv, max_weight)
