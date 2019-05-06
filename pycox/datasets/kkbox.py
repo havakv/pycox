@@ -13,6 +13,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         self.path_train = self._path_dir / 'train.feather'
         self.path_test = self._path_dir / 'test.feather'
         self.path_val = self._path_dir / 'val.feather'
+        self.path_survival = self._path_dir / 'survival_data.feather'
         self.log_cols = ['actual_amount_paid', 'days_between_subs', 'days_since_reg_init',
                          'payment_plan_days', 'plan_list_price']
 
@@ -35,7 +36,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         elif subset == 'val':
             path = self.path_val
         elif subset == 'survival':
-            path = self._path_dir / 'survival_data.feather'
+            path = self.path_survival
         else:
             raise ValueError(f"Need 'subset' to be 'train', 'val', or 'test'. Got {subset}")
         
@@ -250,10 +251,12 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                 .pipe(as_int, ['time'])
                 .pipe(as_category, ['new_start', 'churn_type']))
 
-        indivs.reset_index(drop=True).to_feather(self._path_dir / 'survival_data.feather')
+        # indivs.reset_index(drop=True).to_feather(self._path_dir / 'survival_data.feather')
+        indivs.reset_index(drop=True).to_feather(self.path_survival)
 
     def _make_survival_covariates(self):
-        individs = pd.read_feather(self._path_dir / 'survival_data.feather')
+        # individs = pd.read_feather(self._path_dir / 'survival_data.feather')
+        individs = pd.read_feather(self.path_survival)
         members = pd.read_feather(self._path_dir / 'members.feather')
         trans = (individs
                  .merge(pd.read_feather(self._path_dir / 'transactions.feather'), 
@@ -365,5 +368,5 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                 warnings.warn(f"Encountered directory in {self._path_dir}")
     
     def delete_local_copy(self):
-        for path in [self.path_train, self.path_test, self.path_val]:
+        for path in [self.path_train, self.path_test, self.path_val, self.path_survival]:
             path.unlink()
