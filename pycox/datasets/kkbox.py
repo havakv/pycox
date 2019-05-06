@@ -6,10 +6,6 @@ from pycox.datasets._dataset_loader import _DatasetLoader, _PATH_DATA
 
 class _DatasetKKBoxChurn(_DatasetLoader):
     """KKBox churn data set
-
-    To make it identical to the data set in Kvamme et al. (2019) we need apply the log transfrom 
-    'z = log(x - min(x) + 1)' to the variables
-    ['actual_amount_paid', 'days_between_subs', 'days_since_reg_init', 'payment_plan_days', 'plan_list_price'].
     """
     name = 'kkbox'
     def __init__(self):
@@ -90,14 +86,6 @@ class _DatasetKKBoxChurn(_DatasetLoader):
     def _setup_download_dir(self):
         if self._path_dir.exists():
             self._clean_up()
-            # if self._path_dir.is_dir():
-            #     for file in self._path_dir.iterdir():
-            #         try:
-            #             file.unlink()
-            #         except IsADirectoryError:
-            #             warnings.warn(f"Encountered directory in {self._path_dir}")
-            # else:
-            #     raise OSError(f"'{self._path_dir}' allready exists and is not a directory. Something wrong.'")
         else:
             self._path_dir.mkdir()
 
@@ -112,8 +100,6 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             https://github.com/Kaggle/kaggle-api#api-credentials.
             """
             )
-        # files =  ['train.csv.7z', 'transactions.csv.7z', 'members_v3.csv.7z']
-        # files =  ['train.csv.7z']
         files =  ['train', 'transactions', 'members_v3']
         print('Downloading from kaggle...')
         for file in files:
@@ -124,7 +110,6 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             subprocess.check_output(['7z',  'x', str(self._path_dir / (file + '.csv.7z')),
                                      f"-o{self._path_dir}"])
             print(f"Finished extracting '{file}'.")
-        # subprocess.check_output(['mv',  path_dir / 'members_v3.csv', path_dir / 'members.csv'])
 
     def _csv_to_feather_with_types(self):
         print("Making feather data frames...")
