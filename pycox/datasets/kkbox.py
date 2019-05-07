@@ -5,7 +5,61 @@ import pandas as pd
 from pycox.datasets._dataset_loader import _DatasetLoader, _PATH_DATA
 
 class _DatasetKKBoxChurn(_DatasetLoader):
-    """KKBox churn data set
+    """KKBox churn data set obtained from Kaggle (WSDM - KKBox's Churn Prediction Challenge 2017).
+    https://www.kaggle.com/c/kkbox-churn-prediction-challenge/data
+    This is the version of the data set presented by Kvamme et al. (2019).
+
+    Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api), 
+    with credentials (https://github.com/Kaggle/kaggle-api).
+
+    The data set contains churn information from KKBox, an Asian music streaming service. Churn is
+    defined by a customer failiing to obtain a new valid service subscription within 30 days after
+    the current membership expires.
+    This version of the data set only consider part of the information made available in the challenge,
+    as it is intended to compare survival methods, and not compete in the challenge.
+
+    The data set is split in train, test and validations, based on an individua's id ('msno').
+
+    Variables:
+        msno:
+            Identifier for individual. An individual might churn multiple times.
+        event:
+            Churn indicator, 1: churn, 0: censoring.
+        n_prev_churns:
+            Number of previous churns by the individual.
+        (log_)days_between_subs:
+            Number of days between this and the last subscription (log-transformed), if previously
+            churned.
+        duration:
+            Durations until churn or censoring.
+        (log_)days_since_reg_init:
+            Number of days since first registration (log-transformed).
+        (log_)payment_plan_days:
+            Number of days until current subscription expires (log-transformed).
+        (log_)plan_list_price:
+            Listed price of current subscription (log-transformed).
+        (log_)actual_amount_paid:
+            The amount payed for the subscription (log-transformed).
+        is_auto_renew:
+            Not explained in competition https://www.kaggle.com/c/kkbox-churn-prediction-challenge/data
+        is_cancel:
+            If the customer has canceled the subscription. Subscription cancellation does not imply the
+            user has churned. A user may cancel service subscription due to change of service plans or
+            other reasons. 
+        city:
+            City of customer.
+        gender:
+            Gender of customer.
+        registered_via:
+            Registration method.
+        age_at_start:
+            Age at beginning of subscription.
+        strange_age:
+            Indicator for strange ages.
+        nan_days_since_reg_init:
+            Indicator that we don't know when the customer first subscribed.
+        no_prev_churns:
+            Indicator if the individual has not previously churned.
     """
     name = 'kkbox'
     def __init__(self):
@@ -19,15 +73,19 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
 
     def read_df(self, subset='train', log_trans=True):
-        """Get train, test, val or survival dataset.
+        """Get train, test, val or general survival data set.
 
         The columns: 'duration' and 'event' gives the duration time and event indicator.
 
-        The survival dataset contrains no covariates, but can be useful for extending
+        The survival data set contrains no covariates, but can be useful for extending
         the dataset with more covariates from Kaggle.
-
-        If 'log_trans' is True, the columns in 'kkbox.log_cols' are log-transformed with 
-        'z = log(x - min(x) + 1)'.
+    
+        Keyword Arguments:
+            subset {str} -- Which subset to use ('train', 'val', 'test').
+                Can also set 'survival' which will give df with surival information without
+                covariates. (default: {'train'})
+            log_trans {bool} -- If covariates in 'kkbox.log_cols' (from Kvamme paper) should be
+                transformed with 'z = log(x - min(x) + 1)'. (default: {True})
         """
         if subset == 'train':
             path = self.path_train
