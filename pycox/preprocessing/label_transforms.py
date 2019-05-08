@@ -83,6 +83,7 @@ class LabTransDiscreteSurv:
             cuts = ('equidistant', cuts)
         elif hasattr(cuts, '__iter__'):
             if (type(cuts[0]) is not str):
+                self.idu = IdxDiscUnknownC(cuts)
                 self._predefinded_cuts = True
         self._cuts = cuts
         self.min_ = min_
@@ -97,12 +98,12 @@ class LabTransDiscreteSurv:
 
     def fit_transform(self, durations, events):
         self.fit(durations, events)
-        t_idx, events = self.transform(durations, events)
-        return t_idx, events
+        idx_durations, events = self.transform(durations, events)
+        return idx_durations, events
 
     def transform(self, durations, events):
         durations = _values_if_series(durations)
         events = _values_if_series(events)
-        t_idx, events = self.idu.transform(durations, events)
-        return t_idx, events.astype('float32')
+        idx_durations, events = self.idu.transform(durations, events)
+        return idx_durations, events.astype('float32')
 
