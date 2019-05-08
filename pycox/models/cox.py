@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 from lifelines.utils import concordance_index
 from torch import nn
-from pyth import Model, tuplefy, make_dataloader
-from pycox.metrics import brier_score, integrated_brier_score
+from torchtuples import Model, tuplefy, make_dataloader
 from pycox.dataloader import DatasetDurationSorted
 
 def search_sorted_idx(array, values):
@@ -198,47 +197,6 @@ class CoxBase(Model):
         return np.exp(-self.predict_cumulative_hazards_at_times(times, input, batch_size, return_df,
                                                                 verbose, baseline_hazards_))
 
-    def brier_score(self, times, input, target, batch_size=8224):
-        '''Gives brier scores for `times`.
-
-        Parameters:
-            times: Number or iterable with times where to compute the score.
-            df: Pandas dataframe with covariates, events, and durations.
-            batch_size: Batch size passed calculation of g_preds.
-
-        Returns:
-            Numpy array with brier scores.
-        '''
-        if type(input) is pd.DataFrame:
-            input = self.df_to_input(input)
-        prob_alive = self.predict_survival_at_times(times, input, batch_size, False)
-        durations, events = target
-        return brier_score(times, prob_alive, durations, events)
-
-    def integrated_brier_score(self, input, target, times_grid=None, n_grid_points=100,
-                               batch_size=8224):
-        '''Compute the integrated brier score (for survival) of df.
-
-        For a specification on brier scores for survival data see e.g.:
-        "Assessment of evaluation criteria for survival prediction from
-        genomic data" by Bovelstad and Borgan.
-
-        Parameters:
-            df: Pandas dataframe with covariates, events, and durations.
-            times_grid: Specified time grid for integration. If None: use equidistant between
-                smallest and largest value times of durations.
-            n_grid_points: Only apply if grid is None. Gives number of grid poinst used
-                in equidistant grid.
-            batch_size: Batch size passed calculation of g_preds.
-        '''
-        if type(input) is pd.DataFrame:
-            input = self.df_to_input(input)
-        def prob_alive_func(times):
-            return self.predict_survival_at_times(times, input, batch_size=batch_size, return_df=False)
-
-        durations, events = target
-        return integrated_brier_score(prob_alive_func, durations, events, times_grid, n_grid_points)
-
     def save_net(self, path, **kwargs):
         """
         Save self.net and baseline hazards to file.
@@ -395,20 +353,6 @@ class CoxBase(Model):
         input, target = self.df_to_input(df), self.df_to_target
         return self.partial_log_likelihood(input, target, g_preds, batch_size)
 
-    def concordance_index_df(self, df, g_preds=None, batch_size=256):
-        '''Concoradance index (from lifelines.utils).
-        If g_preds are not supplied (None), they will be calculated.
-            h = h0 * exp(g(x)).
-
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            g_preds: Exponent of proportional hazards (h = h0 * exp(g(x))).
-                If not supplied, it will be calculated.
-            batch_size: Batch size passed calculation of g_preds.
-        '''
-        input, target = self.df_to_input(df), self.df_to_target
-        return self.concordance_index(input, target, g_preds, batch_size)
-
 
 class CoxPHBase(CoxBase):
     def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size):
@@ -525,22 +469,6 @@ class CoxPHBase(CoxBase):
                 .assign(pll=lambda x: x['_g_preds'] - np.log(x['_cum_exp_g'] + eps))
                 ['pll'])
 
-    def concordance_index(self, input, target, g_preds=None, batch_size=256):
-        '''Concoradance index (from lifelines.utils).
-        If g_preds are not supplied (None), they will be calculated.
-            h = h0 * exp(g(x)).
-
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            g_preds: Exponent of proportional hazards (h = h0 * exp(g(x))).
-                If not supplied, it will be calculated.
-            batch_size: Batch size passed calculation of g_preds.
-        '''
-        durations, events = target
-        if g_preds is None:
-            g_preds = self.predict(input, batch_size, numpy=True).flatten()
-        return 1 - concordance_index(durations, g_preds, events)
-
 
 class CoxPH(CoxPHBase):
     """Cox proportional hazards model parameterized with a neural net.
@@ -551,8 +479,8 @@ class CoxPH(CoxPHBase):
         net {torch.nn.Module} -- A pytorch net.
     
     Keyword Arguments:
-        optimizer {torch or pyth optimizer} -- Optimizer (default: {None})
-        device {string, int, or torch.device} -- See pyth.Model (default: {None})
+        optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
+        device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
     """
     def __init__(self, net, optimizer=None, device=None):
         loss = loss_cox_ph
@@ -567,6 +495,7 @@ class CoxPH(CoxPHBase):
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
+
 
 def loss_cox_ph(log_h, event, eps=1e-7):
     """Requires the input to be sorted by descending duration time.

@@ -2,11 +2,10 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
-import pyth
-from pyth import TupleTree, tuplefy
+import torchtuples
+from torchtuples import TupleTree, tuplefy
 from .cox import CoxBase, CoxPHBase, search_sorted_idx
 from pycox.dataloader import CoxCCPrepare, CoxTimePrepare
-from lifelines.utils import concordance_index
 
 
 # def make_loss_cox_cc(shrink=0., clamp=(-3e+38, 80.)):
@@ -133,7 +132,7 @@ class CoxCCBase(CoxBase):
         # self.training_data = TupleTree((input, target))
         durations, events = target
         dataset = self.make_dataset(input, durations, events, n_control)
-        dataloader = pyth.data.DataLoaderSlice(dataset, batch_size=batch_size,
+        dataloader = torchtuples.data.DataLoaderSlice(dataset, batch_size=batch_size,
                                                shuffle=shuffle, num_workers=num_workers)
         return dataloader
 

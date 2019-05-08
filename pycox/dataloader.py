@@ -2,8 +2,8 @@
 import numpy as np
 import pandas as pd
 import torch
-from pyth import Model, tuplefy, make_dataloader, TupleTree
-from pyth.data import DatasetTuple
+from torchtuples import Model, tuplefy, make_dataloader, TupleTree
+from torchtuples.data import DatasetTuple
 
 
 def sample_alive_from_dates(dates, at_risk_dict, n_control=1):

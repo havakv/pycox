@@ -4,12 +4,12 @@
 import numpy as np
 import numba
 import torch
-from pyth import Model, tuplefy
-from pyth.data import DatasetTuple
+from torchtuples import Model, tuplefy
+from torchtuples.data import DatasetTuple
 
 
 class DeepHitSingle(Model):
-    """Essentailly same as pyth.Model, but instead of specifying a loss function,
+    """Essentailly same as torchtuples.Model, but instead of specifying a loss function,
     we now specify 'alpha' and 'simga'.
     See paper (or make_loss_deephit function)
     
