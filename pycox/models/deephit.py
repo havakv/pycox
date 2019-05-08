@@ -13,11 +13,10 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     See make_y for a better understanding of labeling scheeme.
     
     Arguments:
-        phi {torch.tensor} -- estimates in (-inf, inf), where hazard = sigmoid(phi).
-        # y {torch.tensor} -- Event labels (both events and censorings), same
-        #     shape as phi.
-        # d {torch.tensor} -- Indicator of event (1.) or censoring (0.).
-        #     Same lenght as phi.shape[0].
+        phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
+        idx_durations {torch.tensor} -- Event times represented as indexes.
+        events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
+            Same lenght as 'idx_durations'.
         reduction {string} -- How to reduce the loss.
             'none': No reduction.
             'mean': Mean of tensor.
@@ -55,9 +54,9 @@ def _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction='mean'):
     
     Arguments:
         pmf {torch.tensor} -- Matrix with probability mass function pmf_ij = f_i(t_j)
-        y {torch.tensor} -- Matrix with indicator of duration/censoring time. 
+        y {torch.tensor} -- Matrix with indicator of duration and censoring time. 
         rank_mat {torch.tensor} -- See pair_rank_mat function.
-        sigma {float} -- Sigma from paper, choosen by you.
+        sigma {float} -- Sigma from DeepHit paper, choosen by you.
     
     Returns:
         torch.tensor -- loss
@@ -74,9 +73,13 @@ def _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction='mean'):
 
 class LossDeepHitSingle(torch.nn.Module):
     """Loss for deephit (single risk) model.
-    Alpha is is weighting between likelihood and rank loss (so not like in paper):
+    Alpha is  weighting between likelihood and rank loss (so not like in paper):
 
     loss = alpha * nll + (1 - alpha) rank_loss(sigma)
+    
+    Arguments:
+        alpha {float} -- Weighting between likelihood and rank loss.
+        sigma {float} -- Part of rank loss (see DeepHit paper)
     """
     def __init__(self, alpha, sigma):
         super().__init__()
