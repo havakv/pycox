@@ -8,41 +8,43 @@ from .cox import CoxBase, CoxPHBase, search_sorted_idx
 from pycox.dataloader import CoxCCPrepare, CoxTimePrepare
 
 
-# def make_loss_cox_cc(shrink=0., clamp=(-3e+38, 80.)):
-#     def loss_cox_cc(g_case, g_control): 
-#         control_sum = 0.
-#         shrink_control = 0.
-#         for ctr in g_control:
-#             shrink_control += ctr.mean()
-#             ctr = ctr - g_case
-#             ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
-#             control_sum += torch.exp(ctr)
-#         loss = torch.log(1. + control_sum)
-#         shrink_zero = shrink * (g_case.mean() + shrink_control/len(g_control)) / 2
-#         return torch.mean(loss) + shrink_zero.abs()
-#     return loss_cox_cc
+def loss_cox_cc(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
+    control_sum = 0.
+    shrink_control = 0.
+    for ctr in g_control:
+        shrink_control += ctr.abs().mean()
+        ctr = ctr - g_case
+        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
+        control_sum += torch.exp(ctr)
+    loss = torch.log(1. + control_sum)
+    shrink_zero = shrink * (g_case.abs().mean() + shrink_control) / len(g_control)
+    return torch.mean(loss) + shrink_zero.abs()
 
-def make_loss_cox_cc(shrink=0., clamp=(-3e+38, 80.)):
-    def loss_cox_cc(g_case, g_control): 
-        control_sum = 0.
-        shrink_control = 0.
-        for ctr in g_control:
-            shrink_control += ctr.abs().mean()
-            ctr = ctr - g_case
-            ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
-            control_sum += torch.exp(ctr)
-        loss = torch.log(1. + control_sum)
-        shrink_zero = shrink * (g_case.abs().mean() + shrink_control) / len(g_control)
-        return torch.mean(loss) + shrink_zero.abs()
-    return loss_cox_cc
 
+class LossCoxCC(torch.nn.Module):
+    def __init__(self, shrink=0., clamp=(-3e+38, 80.)):
+        super().__init__()
+        self.shrink = shrink
+        self.clamp = clamp
+
+    @property
+    def shrink(self):
+        return self._shrink
+    
+    @shrink.setter
+    def shrink(self, shrink):
+        assert shrink >= 0, f"Need shrink to be non-negative, got {shrink}"
+        self._shrink = shrink
+
+    def forward(self, g_case, g_control):
+        return loss_cox_cc(g_case, g_control, self.shrink, self.clamp)
+    
 
 class CoxCCBase(CoxBase):
     make_dataset = NotImplementedError
 
     def __init__(self, net, optimizer=None, device=None, shrink=0.):
-        # loss = loss_cox_cc
-        loss = make_loss_cox_cc(shrink)
+        loss = LossCoxCC(shrink)
         super().__init__(net, loss, optimizer, device)
 
     def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
@@ -69,9 +71,8 @@ class CoxCCBase(CoxBase):
             TrainingLogger -- Training log
         """
         input, target = self._sorted_input_target(input, target)
-        # self.training_data = TupleTree((input, target))
         if shrink is not None:
-            self.loss = make_loss_cox_cc(shrink)
+            self.loss.shrink = shrink
         return super().fit(input, target, batch_size, epochs, callbacks, verbose,
                            num_workers, shuffle, metrics, val_data, val_batch_size,
                            n_control=n_control, **kwargs)
@@ -127,9 +128,7 @@ class CoxCCBase(CoxBase):
         Returns:
             dataloader -- Dataloader for training.
         """
-        # data = tuplefy(data)
         input, target = self._sorted_input_target(*data)
-        # self.training_data = TupleTree((input, target))
         durations, events = target
         dataset = self.make_dataset(input, durations, events, n_control)
         dataloader = torchtuples.data.DataLoaderSlice(dataset, batch_size=batch_size,
@@ -180,7 +179,6 @@ class CoxTime(CoxCCBase):
         if set_hazards:
             self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
         return base_haz
-        # return super().compute_baseline_hazards(input, target, max_duration, sample, batch_size, set_hazards)
 
     def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
         '''Computes the breslow estimates of the baseline hazards of dataframe df.
