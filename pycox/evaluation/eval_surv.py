@@ -1,4 +1,5 @@
 
+import warnings
 import numpy as np
 import pandas as pd
 from lifelines import KaplanMeierFitter
@@ -97,16 +98,19 @@ class EvalSurv:
                               self.duration_idx(), method)
 
     def brier_score_km(self, time_grid):
+        warnings.warn("brier_score_km' will be removed. Use 'add_km_censor' and 'brier_score' instaead.", FutureWarning)
         prob_alive = self.prob_alive(time_grid)
         bs = brier_score_km(time_grid, prob_alive, self.durations, self.events)
         return pd.Series(bs, index=time_grid).rename('brier_score_km')
     
     def mbll_km(self, time_grid):
+        warnings.warn("mbll_km' will be removed. Use 'add_km_censor' and 'mbll_km' instaead.", FutureWarning)
         prob_alive = self.prob_alive(time_grid)
         mbll = binomial_log_likelihood_km(time_grid, prob_alive, self.durations, self.events)
         return pd.Series(mbll, index=time_grid).rename('mbll_km')
 
     def integrated_brier_score_km(self, time_grid):
+        warnings.warn("integrated_brier_score_km' will be removed. Use 'add_km_censor' and 'integrated_brier_score' instaead.", FutureWarning)
         prob_alive = self.prob_alive(time_grid)
         bs = integrated_brier_score_km_numpy(time_grid, prob_alive, self.durations, self.events)
         return bs
@@ -121,6 +125,7 @@ class EvalSurv:
         return pd.Series(bs, index=time_grid).rename('brier_score')
 
     def integrated_mbll_km(self, time_grid):
+        warnings.warn("integrated_mbll_km' will be removed. Use 'add_km_censor' and 'integrated_mbll_km' instaead.", FutureWarning)
         prob_alive = self.prob_alive(time_grid)
         score = integrated_binomial_log_likelihood_km_numpy(time_grid, prob_alive, self.durations, self.events)
         return score
