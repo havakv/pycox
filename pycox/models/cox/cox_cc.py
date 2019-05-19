@@ -1,11 +1,10 @@
-import warnings
 import numpy as np
 import pandas as pd
 import torch
 import torchtuples
 from torchtuples import TupleTree, tuplefy
-from .cox import CoxBase, CoxPHBase, search_sorted_idx
-from pycox.dataloader import CoxCCPrepare, CoxTimePrepare
+from pycox.models.cox.cox import CoxBase, CoxPHBase, search_sorted_idx
+from pycox.models.cox.data import CoxCCPrepare, CoxTimePrepare
 
 
 def loss_cox_cc(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):

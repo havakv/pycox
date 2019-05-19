@@ -2,10 +2,8 @@ import os
 import warnings
 import numpy as np
 import pandas as pd
-from lifelines.utils import concordance_index
-from torch import nn
 from torchtuples import Model, tuplefy, make_dataloader
-from pycox.dataloader import DatasetDurationSorted
+from pycox.models.cox.data import DatasetDurationSorted
 
 def search_sorted_idx(array, values):
     '''For sorted array, get index of values.

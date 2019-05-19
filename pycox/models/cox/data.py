@@ -45,6 +45,7 @@ def make_at_risk_dict(durations):
         at_risk_dict[t] = allidx[ix:]
     return at_risk_dict
 
+
 class DatasetDurationSorted(DatasetTuple):
     def __getitem__(self, index):
         batch = super().__getitem__(index)
@@ -54,28 +55,6 @@ class DatasetDurationSorted(DatasetTuple):
         batch = tuplefy(input, event).iloc[idx_sort]
         return batch
 
-class CoxCCPrepare(torch.utils.data.Dataset):
-    def __init__(self, input, durations, events, n_control=1):
-        df_train_target = pd.DataFrame(dict(duration=durations, event=events))
-        self.durations = df_train_target.loc[lambda x: x['event'] == 1]['duration']
-        self.at_risk_dict = make_at_risk_dict(durations)
-
-        self.input = tuplefy(input)
-        assert type(self.durations) is pd.Series
-        self.n_control = n_control
-
-    def __getitem__(self, index):
-        if not hasattr(index, '__iter__'):
-            index = [index]
-        fails = self.durations.iloc[index]
-        x_case = self.input.iloc[fails.index]
-        control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
-        x_control = TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
-        return tuplefy(x_case, x_control).to_tensor(), None
-
-    def __len__(self):
-        return len(self.durations)
-
 
 class CoxCCPrepare(torch.utils.data.Dataset):
     def __init__(self, input, durations, events, n_control=1):
@@ -88,7 +67,7 @@ class CoxCCPrepare(torch.utils.data.Dataset):
         self.n_control = n_control
 
     def __getitem__(self, index):
-        if not hasattr(index, '__iter__'):
+        if (not hasattr(index, '__iter__')) and (type(index) is not slice):
             index = [index]
         fails = self.durations.iloc[index]
         x_case = self.input.iloc[fails.index]
