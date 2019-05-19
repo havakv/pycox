@@ -503,11 +503,13 @@ def loss_cox_ph(log_h, event, eps=1e-7):
 
     We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
     where h = exp(log_h) are the hazards and R is the risk set, and d is event.
+
+    We just compute a cumulative sum, and not the true Risk sets. This is a
+    limitiation, but simple and fast.
     """
     event = event.view(-1)
     log_h = log_h.view(-1)
     gamma = log_h.max()
-    # log_cumsum_h = log_h.sub(gamma).clamp(*clamp).exp().cumsum(0).log().add(gamma)
     log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(eps).log().add(gamma)
     return - log_h.sub(log_cumsum_h).mul(event).sum().div(event.sum())
 
