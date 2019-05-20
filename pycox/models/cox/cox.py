@@ -146,7 +146,7 @@ class CoxBase(Model):
             input = self.df_to_input(input)
         if baseline_hazards_ is None:
             if not hasattr(self, 'baseline_hazards_'):
-                raise ValueError('Need to compute baseline_hazards_.')
+                raise ValueError('Need to compute baseline_hazards_. E.g run `model.compute_baseline_hazards()`')
             baseline_hazards_ = self.baseline_hazards_
         assert baseline_hazards_.index.is_monotonic_increasing,\
             'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
