@@ -12,6 +12,8 @@ class _DatasetDeepSurv(_DatasetLoader):
         'metabric': "metabric/metabric_IHC4_clinical_train_test.h5",
         'gbsg': "gbsg/gbsg_cancer_train_test.h5",
     }
+    col_duration = 'duration'
+    col_event = 'event'
     def _download(self):
         url = self._dataset_url + self._datasets[self.name]
         path = self.path.parent / f"{self.name}.h5"

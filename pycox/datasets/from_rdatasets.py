@@ -47,10 +47,10 @@ class _Flchain(_DatasetRdatasetsSurvival):
             serum creatinine.
         mgus:
             1 if the subject had been diagnosed with monoclonal gammapothy (MGUS).
-        futime:
+        futime: (duration)
             days from enrollment until death. Note that there are 3 subjects whose sample
             was obtained on their death date.
-        death:
+        death: (event)
             0=alive at last contact date, 1=dead.
         chapter:
             for those who died, a grouping of their primary cause of death by chapter headings
@@ -58,6 +58,8 @@ class _Flchain(_DatasetRdatasetsSurvival):
     
     """
     name = 'flchain'
+    col_duration = 'futime'
+    col_event = 'death'
     def read_df(self, processed=True):
         """Get dataset.
 
@@ -83,3 +85,62 @@ class _Flchain(_DatasetRdatasetsSurvival):
                 df[col] = df[col].astype('float32')
         return df
 
+
+class _Nwtco(_DatasetRdatasetsSurvival):
+    """Data from the National Wilm's Tumor Study (NWTCO)
+    Obtained from Rdatasets (https://github.com/vincentarelbundock/Rdatasets).
+
+    Measurement error example. Tumor histology predicts survival, but prediction is stronger
+    with central lab histology than with the local institution determination.
+
+    For details see http://vincentarelbundock.github.io/Rdatasets/doc/survival/nwtco.html
+
+    Variables:
+        seqno:
+            id number
+        instit:
+            histology from local institution
+        histol:
+            histology from central lab
+        stage:
+            disease stage
+        study:
+            study
+        rel: (event)
+            indicator for relapse
+        edrel: (duration)
+            time to relapse
+        age:
+            age in months
+        in.subcohort:
+            included in the subcohort for the example in the paper
+
+    References
+        NE Breslow and N Chatterjee (1999), Design and analysis of two-phase studies with binary
+        outcome applied to Wilms tumour prognosis. Applied Statistics 48, 457–68.
+    """
+    name = 'nwtco'
+    col_duration = 'edrel'
+    col_event = 'rel'
+    def read_df(self, processed=True):
+        """Get dataset.
+
+        If 'processed' is False, return the raw data set.
+        See the code for processing.
+        
+        Keyword Arguments:
+            processed {bool} -- If 'False' get raw data, else get processed (see '??nwtco.read_df').
+                (default: {True})
+        """
+        df = super().read_df()
+        if processed:
+            df = (df
+                  .assign(instit_2=df['instit'] - 1,
+                          histol_2=df['histol'] - 1,
+                          study_4=df['study'] - 3,
+                          stage=df['stage'].astype('category'))
+                  .drop(['Unnamed: 0', 'seqno', 'instit', 'histol', 'study'], axis=1))
+            for col in df.columns.drop('stage'):
+                df[col] = df[col].astype('float32')
+            df = self._label_cols_at_end(df)
+        return df

@@ -17,7 +17,9 @@ class _DatasetLoader:
             print(f"Dataset '{self.name}' not locally available. Downloading...")
             self._download()
             print(f"Done")
-        return pd.read_feather(self.path)
+        df = pd.read_feather(self.path)
+        df = self._label_cols_at_end(df)
+        return df
     
     def _download(self):
         raise NotImplementedError
@@ -26,3 +28,9 @@ class _DatasetLoader:
         if not self.path.exists():
             raise RuntimeError("File does not exists.")
         self.path.unlink()
+
+    def _label_cols_at_end(self, df):
+        if hasattr(self, 'col_duration') and hasattr(self, 'col_event'):
+            col_label = [self.col_duration, self.col_event]
+            df = df[list(df.columns.drop(col_label)) + col_label]
+        return df
