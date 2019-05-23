@@ -40,13 +40,22 @@ class EvalSurv:
         assert pd.Series(self.index_surv).is_monotonic
 
     def add_censor_est(self, censor_surv):
+        """Add censoring estimates so one can use invece censoring weighting.
+        `censor_surv` are the suvival estimes trainied on (durations, 1-events),
+        
+        Arguments:
+            censor_surv {pd.DataFrame} -- Censor survival curves.
+        """
         if type(censor_surv) is not EvalSurv:
             censor_surv = EvalSurv(censor_surv, self.durations, 1-self.events)
         self.censor_surv = censor_surv
         return self
 
     def add_km_censor(self):
-        km = KaplanMeierFitter().fit(self.durations, self.events).survival_function_['KM_estimate']
+        """Add censoring estimates obtaind by Kaplan-Meier on the test set
+        (durations, 1-events).
+        """
+        km = KaplanMeierFitter().fit(self.durations, 1-self.events).survival_function_['KM_estimate']
         surv = pd.DataFrame(np.repeat(km.values.reshape(-1, 1), len(self.durations), axis=1),
                             index=km.index)
         return self.add_censor_est(surv)
@@ -120,6 +129,12 @@ class EvalSurv:
     #     bs = integrated_brier_score_km_numpy(time_grid, prob_alive, self.durations, self.events)
     #     return bs
 
+    # def integrated_mbll_km(self, time_grid):
+    #     warnings.warn("integrated_mbll_km' will be removed. Use 'add_km_censor' and 'integrated_mbll_km' instaead.", FutureWarning)
+    #     prob_alive = self.prob_alive(time_grid)
+    #     score = integrated_binomial_log_likelihood_km_numpy(time_grid, prob_alive, self.durations, self.events)
+    #     return score
+
     def brier_score(self, time_grid, max_weight=np.inf):
         """Brier score weighted by the inverce censoring distibution.
         
@@ -137,12 +152,6 @@ class EvalSurv:
                          self.censor_surv.surv.values, self.index_surv,
                          self.censor_surv.index_surv, max_weight)
         return pd.Series(bs, index=time_grid).rename('brier_score')
-
-    # def integrated_mbll_km(self, time_grid):
-    #     warnings.warn("integrated_mbll_km' will be removed. Use 'add_km_censor' and 'integrated_mbll_km' instaead.", FutureWarning)
-    #     prob_alive = self.prob_alive(time_grid)
-    #     score = integrated_binomial_log_likelihood_km_numpy(time_grid, prob_alive, self.durations, self.events)
-    #     return score
 
     def mbll(self, time_grid, max_weight=np.inf):
         """Mean binomial log-likelihood weighted by the inverce censoring distribution.
