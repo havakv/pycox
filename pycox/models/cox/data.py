@@ -9,11 +9,8 @@ from torchtuples.data import DatasetTuple
 def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
     '''Sample index from living at time given in dates.
     dates: np.array of times (or pd.Series).
-    gr_alive: dict with gr_alive[time] = <array with index of alive in X matrix>.
+    at_risk_dict: dict with at_risk_dict[time] = <array with index of alive in X matrix>.
     n_control: number of samples.
-
-    !!!! This is now with replacement!!!!!
-
     '''
     lengths = np.array([at_risk_dict[x].shape[0] for x in dates])  # Can be moved outside
     idx = (np.random.uniform(size=(n_control, dates.size)) * lengths).astype('int')
@@ -25,16 +22,13 @@ def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
     return samp
 
 def make_at_risk_dict(durations):
-    '''Create dict(duration: indices) from sorted df.
-
-    Parameters:
-        df: A Pandas dataframe with covariates, sorted by duration_col.
-        duration_col: Column holding the durations.
-
-    Returns:
-        A dict mapping durations to indices (row number, not index in data frame).
-        For each time => index of all individual alive.
-    '''
+    """Create dict(duration: indices) from sorted df.
+    A dict mapping durations to indices.
+    For each time => index of all individual alive.
+    
+    Arguments:
+        durations {np.arrary} -- durations.
+    """
     assert type(durations) is np.ndarray, 'Need durations to be a numpy array'
     durations = pd.Series(durations)
     assert durations.is_monotonic_increasing, 'Requires durations to be monotonic'
@@ -47,6 +41,11 @@ def make_at_risk_dict(durations):
 
 
 class DatasetDurationSorted(DatasetTuple):
+    """We assume the dataset contrain `(input, durations, events)`, and 
+    sort the batch based on descending `durations`.
+
+    See `torchtuples.data.DatasetTuple`.
+    """
     def __getitem__(self, index):
         batch = super().__getitem__(index)
         input, (duration, event) = batch

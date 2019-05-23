@@ -61,20 +61,23 @@ class CoxBase(Model):
 
     def compute_baseline_hazards(self, input=None, target=None, max_duration=None, sample=None, batch_size=8224,
                                 set_hazards=True):
-        '''Computes the breslow estimates of the baseline hazards of dataframe df.
+        """Computes the Breslow estimates form the data definded by `input` and `target`
+        (if `None` use traning data).
 
-        Parameters:
-            # df: Pandas dataframe with covariates, duration, and events.
-            #     If None: use training data frame.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            sample: Use sample of df. 
-                Sample proportion if 'sample' < 1, else sample number 'sample'.
-            batch_size: Batch size passed calculation of g_preds.
-            set_hazards: If we should store computed hazards in object.
-
+        Typically call
+        model.compute_baseline_hazards() after fitting.
+        
+        Keyword Arguments:
+            input  -- Input data (train input) (default: {None})
+            target  -- Taget data (train target) (default: {None})
+            max_duration {float} -- Don't compute estimates for duration higher (default: {None})
+            sample {float or int} -- Compute estimates of subsample of data (default: {None})
+            batch_size {int} -- Batch size (default: {8224})
+            set_hazards {bool} -- Set hazards in model object, or just return hazards. (default: {True})
+        
         Returns:
-            Pandas series with baseline hazards. Index is duration_col.
-        '''
+            pd.Series -- Pandas series with baseline hazards. Index is duration_col.
+        """
         if (input is None) and (target is None):
             if not hasattr(self, 'training_data'):
                 raise ValueError("Need to give a 'input' and 'target' to this function.")
@@ -93,22 +96,7 @@ class CoxBase(Model):
 
     def compute_baseline_cumulative_hazards(self, input=None, target=None, max_duration=None, sample=None,
                                             batch_size=8224, set_hazards=True, baseline_hazards_=None):
-        '''Compute the baseline cumulative hazards of dataframe df or baseline_hazards.
-
-        Parameters:
-            # df: Pandas dataframe with covariates, duration, and events.
-            #     If None: use training data frame.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            sample: Use sample of df. 
-                Sample proportion if 'sample' < 1, else sample number 'sample'.
-            batch_size: Batch size passed calculation of g_preds.
-            set_hazards: If we should store computed hazards in object.
-            baseline_hazards: Pandas series with baseline hazards.
-                If `None` use supplied df or training data frame.
-
-        Returns:
-            Pandas series with baseline cumulative hazards. Index is duration_col.
-        '''
+        """See `compute_bseline_hazards. This is the cumulative version."""
         if ((input is not None) or (target is not None)) and (baseline_hazards_ is not None):
             raise ValueError("'input', 'target' and 'baseline_hazards_' can not both be different from 'None'.")
         if baseline_hazards_ is None:
@@ -125,23 +113,7 @@ class CoxBase(Model):
         return bch
 
     def predict_cumulative_hazards(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None):
-        '''Get cumulative hazards for dataset df.
-        H(x, t) = sum [h0(t) exp(g(x, t))]
-        or
-        H(x, t) = sum [h0(t) exp(g(x))]
-
-        Parameters:
-            # df: Pandas dataframe with covariates.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            batch_size: Batch size passed calculation of g_preds.
-            verbose: If we should print progress.
-            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
-                If None, use baseline_hazards_ of model.
-
-        Returns:
-            Pandas data frame with cumulative hazards. One columns for
-            each individual in the df.
-        '''
+        """See `predict_survival_function`."""
         if type(input) is pd.DataFrame:
             input = self.df_to_input(input)
         if baseline_hazards_ is None:
@@ -156,48 +128,44 @@ class CoxBase(Model):
         raise NotImplementedError
 
     def predict_survival_function(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None):
-        '''Predict survival function for dataset df.
-        S(x, t) = exp(-H(x, t))
+        """Predict survival function for `input`. S(x, t) = exp(-H(x, t))
+        Require compueted baseline hazards.
 
-        Parameters:
-            # df: Pandas dataframe with covariates.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            batch_size: Batch size passed calculation of g_preds.
-            verbose: If we should print progress.
-            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
+        Arguments:
+            input {np.array, tensor or tuple} -- Input x passed to net.
+
+        Keyword Arguments:
+            max_duration {float} -- Don't compute estimates for duration higher (default: {None})
+            batch_size {int} -- Batch size (default: {8224})
+            baseline_hazards_ {pd.Series} -- Baseline hazards. If `None` used `model.baseline_hazards_` (default: {None})
 
         Returns:
-            Pandas data frame with survival functions. One columns for
-            each individual in the df.
-        '''
+            pd.DataFrame -- Survival esimates. One columns for each individual.
+        """
         return np.exp(-self.predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_))
 
     def predict_cumulative_hazards_at_times(self, times, input, batch_size=8224, return_df=True,
                                             verbose=False, baseline_hazards_=None):
+        """NOTE: Don't know if this still works!!!!
+
+        See `predict_cumulative_hazards`
+        """
         raise NotImplementedError
 
     def predict_survival_at_times(self, times, input, batch_size=8224, return_df=True,
                                   verbose=False, baseline_hazards_=None):
-        '''Predict survival function at given times.
-        Not very efficient!!!
+        """NOTE: Don't know if this still works!!!!
+        
+        Predict survival function for `input` at five time points. S(x, t) = exp(-H(x, t))
+        Require compueted baseline hazards.
 
-        Parameters:
-            times: Iterable with times.
-            df: Pandas dataframe with covariates.
-            batch_size: Batch size passed calculation of g_preds.
-            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
-            verbose: If we should print progress.
-            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
-
-        Returns:
-            Pandas dataframe (or numpy matrix) [len(times), len(df)] with survival estimates.
-        '''
+        See `predict_survival_function`
+        """
         return np.exp(-self.predict_cumulative_hazards_at_times(times, input, batch_size, return_df,
                                                                 verbose, baseline_hazards_))
 
     def save_net(self, path, **kwargs):
-        """
-        Save self.net and baseline hazards to file.
+        """Save self.net and baseline hazards to file.
 
         Arguments:
             path {str} -- Path to file.
@@ -217,8 +185,7 @@ class CoxBase(Model):
             self.baseline_hazards_.to_pickle(path+'_blh.pickle')
 
     def load_net(self, path, **kwargs):
-        """
-        Load net and hazards from file.
+        """Load net and hazards from file.
 
         Arguments:
             path {str} -- Path to file.
@@ -250,7 +217,9 @@ class CoxBase(Model):
     def fit_df(self, df, duration_col, event_col, batch_size=256, epochs=1, callbacks=None,
                verbose=True, num_workers=0, shuffle=True, metrics=None, val_df=None,
                val_batch_size=8224, n_control=1, **kwargs):
-        '''Fit the Cox Propertional Hazards model to a dataset. Tied survival times
+        """NOTE: Don't know if this still works. Use `fit` instead.
+
+        Fit the Cox Propertional Hazards model to a dataset. Tied survival times
         are handled using Beslow's tie-method.
 
         Parameters:
@@ -276,7 +245,7 @@ class CoxBase(Model):
 
         # Returns:
         #     self, with additional properties: hazards_
-        '''
+        """
         self.duration_col = duration_col
         self.event_col = event_col
         self.input_cols = df.columns.drop([self.duration_col, self.event_col]).values
@@ -289,20 +258,7 @@ class CoxBase(Model):
 
     def compute_baseline_hazards_df(self, df=None, max_duration=None, sample=None, batch_size=8224,
                                 set_hazards=True):
-        '''Computes the breslow estimates of the baseline hazards of dataframe df.
-
-        Parameters:
-            # df: Pandas dataframe with covariates, duration, and events.
-            #     If None: use training data frame.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            sample: Use sample of df. 
-                Sample proportion if 'sample' < 1, else sample number 'sample'.
-            batch_size: Batch size passed calculation of g_preds.
-            set_hazards: If we should store computed hazards in object.
-
-        Returns:
-            Pandas series with baseline hazards. Index is duration_col.
-        '''
+        """See `compute_baeline_hazards`"""
         input, target = None, None
         if df is not None:
             input, target = self.df_to_input(df), self.df_to_target
@@ -311,22 +267,7 @@ class CoxBase(Model):
 
     def compute_baseline_cumulative_hazards_df(self, df=None, max_duration=None, sample=None,
                                             batch_size=8224, set_hazards=True, baseline_hazards_=None):
-        '''Compute the baseline cumulative hazards of dataframe df or baseline_hazards.
-
-        Parameters:
-            # df: Pandas dataframe with covariates, duration, and events.
-            #     If None: use training data frame.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            sample: Use sample of df. 
-                Sample proportion if 'sample' < 1, else sample number 'sample'.
-            batch_size: Batch size passed calculation of g_preds.
-            set_hazards: If we should store computed hazards in object.
-            baseline_hazards: Pandas series with baseline hazards.
-                If `None` use supplied df or training data frame.
-
-        Returns:
-            Pandas series with baseline cumulative hazards. Index is duration_col.
-        '''
+        """See `compute_baseline_cumulative_hazards`."""
         input, target = None, None
         if df is not None:
             input, target = self.df_to_input(df), self.df_to_target
@@ -334,7 +275,9 @@ class CoxBase(Model):
                                                         batch_size, set_hazards, baseline_hazards_)
 
     def partial_log_likelihood_df(self, df, g_preds=None, batch_size=8224):
-        '''Calculate the partial log-likelihood for the events in datafram df.
+        '''See `partial_log_likelihood`.
+
+        Calculate the partial log-likelihood for the events in datafram df.
         This likelihood does not sample the controls.
         Note that censored data (non events) does not have a partial log-likelihood.
 
@@ -354,16 +297,6 @@ class CoxBase(Model):
 
 class CoxPHBase(CoxBase):
     def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size):
-        '''Computes the breslow estimates of the baseline hazards of dataframe df.
-
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            max_duration: Has no computational effect here.
-            batch_size: Batch size passed calculation of g_preds.
-
-        Returns:
-            Pandas series with baseline hazards. Index is duration_col.
-        '''
         if max_duration is None:
             max_duration = np.inf
 
@@ -382,17 +315,6 @@ class CoxPHBase(CoxBase):
                 .rename('baseline_hazards'))
 
     def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_):
-        '''Get cumulative hazards for dataset df.
-        H(x, t) = H0(t) exp(g(x))
-
-        Parameters:
-            df: Pandas dataframe with covariates.
-            batch_size: Batch size passed calculation of g_preds.
-
-        Returns:
-            Pandas data frame with cumulative hazards. One columns for
-            each individual in the df.
-        '''
         max_duration = np.inf if max_duration is None else max_duration
         if baseline_hazards_ is self.baseline_hazards_:
             bch = self.baseline_cumulative_hazards_
@@ -406,18 +328,6 @@ class CoxPHBase(CoxBase):
 
     def predict_cumulative_hazards_at_times(self, times, input, batch_size=8224, return_df=True,
                                             verbose=False, baseline_hazards_=None):
-        '''Predict cumulative hazards H(x, t) = exp(- H0(t)*exp(g(x))), only at given times.
-
-        Parameters:
-            times: Number or iterable with times.
-            df: Pandas dataframe with covariates.
-            batch_size: Batch size passed calculation of g_preds.
-            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
-
-        Returns:
-            Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazards
-            estimates.
-        '''
         if type(input) is pd.DataFrame:
             input = self.df_to_input(input)
         if verbose:
@@ -470,9 +380,13 @@ class CoxPHBase(CoxBase):
 
 class CoxPH(CoxPHBase):
     """Cox proportional hazards model parameterized with a neural net.
-    This is essentailly DeepSurv, but with less restrictions than in the
-    original paper (more flexible structure, and batching.)
-    
+    This is essentailly the DeepSurv method by Katzman et al. (2018)
+    https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1
+
+    The loss function is not quite the parial log-likelihood, but close.    
+    The difference is that for tied events, we use a random order instead of 
+    including all individuals that had an event at that point in time.
+
     Arguments:
         net {torch.nn.Module} -- A pytorch net.
     

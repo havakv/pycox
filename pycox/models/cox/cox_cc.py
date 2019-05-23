@@ -8,6 +8,20 @@ from pycox.models.cox.data import CoxCCPrepare, CoxTimePrepare
 
 
 def loss_cox_cc(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
+    """Torch loss functin for the Cox case-control models.
+    
+    Arguments:
+        g_case {torch.Tensor} -- Resulat of net(input_case)
+        g_control {torch.Tensor} -- Results of [net(input_ctrl1), net(input_ctrl2), ...]
+    
+    Keyword Arguments:
+        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
+            closer to zero (a regularizer in a sense). (default: {0.})
+        clamp {tuple} -- See code (default: {(-3e+38, 80.)})
+    
+    Returns:
+        [type] -- [description]
+    """
     control_sum = 0.
     shrink_control = 0.
     for ctr in g_control:
@@ -21,6 +35,16 @@ def loss_cox_cc(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
 
 
 class LossCoxCC(torch.nn.Module):
+    """Torch loss functin for the Cox case-control models.
+
+    loss_func = LossCoxCC()
+    loss = loss_func(g_case, g_control)
+    
+    Keyword Arguments:
+        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
+            closer to zero (a regularizer in a sense). (default: {0.})
+        clamp {tuple} -- See code (default: {(-3e+38, 80.)})
+    """
     def __init__(self, shrink=0., clamp=(-3e+38, 80.)):
         super().__init__()
         self.shrink = shrink
@@ -146,10 +170,31 @@ class CoxCCBase(CoxBase):
 
 
 class CoxCC(CoxCCBase, CoxPHBase):
+    """Cox proportional hazards model parameterized with a neural net and
+    trained with case-control sampling.
+    This is similar to DeepSurv, but use an approximation of the loss function.
+    
+    Arguments:
+        net {torch.nn.Module} -- A pytorch net.
+    
+    Keyword Arguments:
+        optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
+        device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
+    """
     make_dataset = CoxCCPrepare
 
 
 class CoxTime(CoxCCBase):
+    """A Cox model that does not have proportional hazards, trained with case-control sampling.
+    Se paper for explanation.
+    
+    Arguments:
+        net {torch.nn.Module} -- A pytorch net.
+    
+    Keyword Arguments:
+        optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
+        device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
+    """
     make_dataset = CoxTimePrepare
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
@@ -180,16 +225,6 @@ class CoxTime(CoxCCBase):
         return base_haz
 
     def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
-        '''Computes the breslow estimates of the baseline hazards of dataframe df.
-
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            max_duration: Don't compute hazards for durations larger than max_time.
-            batch_size: Batch size passed calculation of g_preds.
-
-        Returns:
-            Pandas series with baseline hazards. Index is duration_col.
-        '''
         if max_duration is None:
             max_duration = np.inf
         def compute_expg_at_risk(ix, t):
@@ -223,19 +258,6 @@ class CoxTime(CoxCCBase):
         return base_haz
 
     def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_):
-        '''Get cumulative hazards for dataset df.
-        H(x, t) = sum [h0(t) exp(g(x, t))]
-
-        Parameters:
-            df: Pandas dataframe with covariates.
-            batch_size: Batch size passed calculation of g_preds.
-            verbose: If we should print progress.
-            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
-
-        Returns:
-            Pandas data frame with cumulative hazards. One columns for
-            each individual in the df.
-        '''
         def expg_at_time(t):
             t = np.repeat(t, n_cols).reshape(-1, 1).astype('float32')
             return np.exp(self.predict((input, t), batch_size)).flatten()
@@ -255,21 +277,6 @@ class CoxTime(CoxCCBase):
 
     def predict_cumulative_hazards_at_times(self, times, input, batch_size=16448, return_df=True,
                                            verbose=False, baseline_hazards_=None):
-        '''Predict cumulative hazards only at given times. This is not as efficient as
-        for the proportional hazards models.
-
-        Parameters:
-            times: Number or iterable with times.
-            df: Pandas dataframe with covariates.
-            batch_size: Batch size passed calculation of g_preds.
-            return_df: Whether or not to return a pandas dataframe or a numpy matrix.
-            verbose: If we should print progress.
-            baseline_hazards_: Pandas series with index: time, and values: baseline hazards.
-
-        Returns:
-            Pandas dataframe (or numpy matrix) [len(times), len(df)] with cumulative hazards
-            estimates.
-        '''
         if not hasattr(times, '__iter__'):
             times = [times]
         max_duration = max(times)
@@ -282,17 +289,6 @@ class CoxTime(CoxCCBase):
         return cum_haz.as_matrix()
 
     def partial_log_likelihood(self, input, target, batch_size=512):
-        '''Calculate the partial log-likelihood for the events in datafram df.
-        This likelihood does not sample the controls.
-        Note that censored data (non events) does not have a partial log-likelihood.
-
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            batch_size: Batch size passed calculation of g_preds.
-
-        Returns:
-            Pandas series with partial likelihood.
-        '''
         def expg_sum(t, i):
             sub = input_sorted.iloc[i:]
             n = sub.lens().flatten().get_if_all_equal()
