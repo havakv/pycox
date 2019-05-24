@@ -32,8 +32,11 @@ class EvalSurv:
         self.durations = durations
         self.events = events
         self.censor_surv = censor_surv
-        if self.censor_surv == 'km':
-            self.add_km_censor()
+        if type(self.censor_surv) is str:
+            if self.censor_surv == 'km':
+                self.add_km_censor()
+            else:
+                raise ValueError(f"censor_surv cannot be {self.censor_surv}.")
         elif self.censor_surv is not None:
             self.add_censor_est(self.censor_surv)
         self.index_surv = self.surv.index.values
