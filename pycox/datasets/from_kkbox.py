@@ -61,7 +61,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         no_prev_churns:
             Indicator if the individual has not previously churned.
     """
-    name = 'kkbox'
+    name = 'kkbox_v1'
     def __init__(self):
         self._path_dir = _PATH_DATA / self.name
         self.path_train = self._path_dir / 'train.feather'
@@ -95,6 +95,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             path = self.path_val
         elif subset == 'survival':
             path = self.path_survival
+            return pd.read_feather(path)
         else:
             raise ValueError(f"Need 'subset' to be 'train', 'val', or 'test'. Got {subset}")
         
@@ -188,7 +189,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
          .to_feather(self._path_dir / f"{file}.feather"))
 
     def _make_survival_data(self):
-        """Comine the downloaded files and create a survival data sets
+        """Combine the downloaded files and create a survival data sets
         (more or less without covariates).
 
         A customer is considered churned if one of the following is true:
