@@ -9,6 +9,8 @@ from pycox.models.cox.data import CoxCCPrepare, CoxTimePrepare
 
 def loss_cox_cc(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
     """Torch loss functin for the Cox case-control models.
+    TODO:
+        For only one control we should instead use the softplus function.
     
     Arguments:
         g_case {torch.Tensor} -- Resulat of net(input_case)
