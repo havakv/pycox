@@ -2,12 +2,12 @@
 import warnings
 import numpy as np
 import pandas as pd
-from pycox.evaluation.inverce_censor_weight import binomial_log_likelihood, brier_score,\
-    integrated_binomial_log_likelihood, integrated_brier_score
+# from pycox.evaluation.inverce_censor_weight import binomial_log_likelihood, brier_score,\
+#     integrated_binomial_log_likelihood, integrated_brier_score
 from pycox.evaluation.concordance import concordance_td
-from pycox.evaluation.km_inverce_censor_weight import binomial_log_likelihood_km, brier_score_km,\
-    integrated_binomial_log_likelihood_km_numpy, integrated_brier_score_km_numpy
-from pycox.evaluation import utils
+# from pycox.evaluation.km_inverce_censor_weight import binomial_log_likelihood_km, brier_score_km,\
+#     integrated_binomial_log_likelihood_km_numpy, integrated_brier_score_km_numpy
+from pycox.evaluation import utils, ipcw
 
 
 class EvalSurv:
@@ -116,11 +116,11 @@ class EvalSurv:
         return concordance_td(self.durations, self.events, self.surv.values,
                               self._duration_idx(), method)
 
-    def brier_score_km(self, time_grid):
-        warnings.warn("brier_score_km' will be removed. Use 'add_km_censor' and 'brier_score' instaead.", FutureWarning)
-        prob_alive = self.prob_alive(time_grid)
-        bs = brier_score_km(time_grid, prob_alive, self.durations, self.events)
-        return pd.Series(bs, index=time_grid).rename('brier_score_km')
+    # def brier_score_km(self, time_grid):
+    #     warnings.warn("brier_score_km' will be removed. Use 'add_km_censor' and 'brier_score' instaead.", FutureWarning)
+    #     prob_alive = self.prob_alive(time_grid)
+    #     bs = brier_score_km(time_grid, prob_alive, self.durations, self.events)
+    #     return pd.Series(bs, index=time_grid).rename('brier_score_km')
     
     # def mbll_km(self, time_grid):
     #     warnings.warn("mbll_km' will be removed. Use 'add_km_censor' and 'mbll_km' instaead.", FutureWarning)
@@ -128,11 +128,11 @@ class EvalSurv:
     #     mbll = binomial_log_likelihood_km(time_grid, prob_alive, self.durations, self.events)
     #     return pd.Series(mbll, index=time_grid).rename('mbll_km')
 
-    def integrated_brier_score_km(self, time_grid):
-        warnings.warn("integrated_brier_score_km' will be removed. Use 'add_km_censor' and 'integrated_brier_score' instaead.", FutureWarning)
-        prob_alive = self.prob_alive(time_grid)
-        bs = integrated_brier_score_km_numpy(time_grid, prob_alive, self.durations, self.events)
-        return bs
+    # def integrated_brier_score_km(self, time_grid):
+    #     warnings.warn("integrated_brier_score_km' will be removed. Use 'add_km_censor' and 'integrated_brier_score' instaead.", FutureWarning)
+    #     prob_alive = self.prob_alive(time_grid)
+    #     bs = integrated_brier_score_km_numpy(time_grid, prob_alive, self.durations, self.events)
+    #     return bs
 
     # def integrated_mbll_km(self, time_grid):
     #     warnings.warn("integrated_mbll_km' will be removed. Use 'add_km_censor' and 'integrated_mbll_km' instaead.", FutureWarning)
@@ -153,9 +153,9 @@ class EvalSurv:
         if self.censor_surv is None:
             raise ValueError("""Need to add censor_surv to compute briser score. Use 'add_censor_est'
             or 'add_km_censor' for Kaplan-Meier""")
-        bs = brier_score(time_grid, self.durations, self.events, self.surv.values,
-                         self.censor_surv.surv.values, self.index_surv,
-                         self.censor_surv.index_surv, max_weight)
+        bs = ipcw.brier_score(time_grid, self.durations, self.events, self.surv.values,
+                              self.censor_surv.surv.values, self.index_surv,
+                              self.censor_surv.index_surv, max_weight)
         return pd.Series(bs, index=time_grid).rename('brier_score')
 
     def mbll(self, time_grid, max_weight=np.inf):
@@ -171,9 +171,9 @@ class EvalSurv:
         if self.censor_surv is None:
             raise ValueError("""Need to add censor_surv to compute briser score. Use 'add_censor_est'
             or 'add_km_censor' for Kaplan-Meier""")
-        bs = binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
-                                     self.censor_surv.surv.values, self.index_surv,
-                                     self.censor_surv.index_surv, max_weight)
+        bs = ipcw.binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
+                                          self.censor_surv.surv.values, self.index_surv,
+                                          self.censor_surv.index_surv, max_weight)
         return pd.Series(bs, index=time_grid).rename('mbll')
 
     def integrated_brier_score(self, time_grid, max_weight=np.inf):
@@ -189,9 +189,9 @@ class EvalSurv:
         """
         if self.censor_surv is None:
             raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
-        return integrated_brier_score(time_grid, self.durations, self.events, self.surv.values,
-                                      self.censor_surv.surv.values, self.index_surv,
-                                      self.censor_surv.index_surv, max_weight)
+        return ipcw.integrated_brier_score(time_grid, self.durations, self.events, self.surv.values,
+                                           self.censor_surv.surv.values, self.index_surv,
+                                           self.censor_surv.index_surv, max_weight)
 
     def integrated_mbll(self, time_grid, max_weight=np.inf):
         """Integrated mean binomial log-likelihood weighted by the inverce censoring distribution.
@@ -206,6 +206,6 @@ class EvalSurv:
         """
         if self.censor_surv is None:
             raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
-        return integrated_binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
-                                                  self.censor_surv.surv.values, self.index_surv,
-                                                  self.censor_surv.index_surv, max_weight)
+        return ipcw.integrated_binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
+                                                       self.censor_surv.surv.values, self.index_surv,
+                                                       self.censor_surv.index_surv, max_weight)
