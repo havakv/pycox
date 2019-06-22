@@ -12,23 +12,29 @@ from setuptools import setup, find_packages
 #     history = history_file.read()
 
 requirements = [
-    # TODO: Put package requirements here
+    'scipy<=1.2.1,>=1.0' # needed <=1.2.1 for lifelines
+    'lifelines>=0.21.3',
+    'feather-format>=0.4.0',
+    'h5py>=2.9.0',
+    'numba>=0.44',
+    'scikit-learn>=0.21.2',
+    'requests>=2.22.0',
 ]
 
-setup_requirements = [
-    'pytest-runner',
-    # TODO(havakv): Put setup requirements (distutils extensions, etc.) here
-]
+# setup_requirements = [
+#     'pytest-runner',
+#     # TODO(havakv): Put setup requirements (distutils extensions, etc.) here
+# ]
 
-test_requirements = [
-    'pytest',
+# test_requirements = [
+    # 'pytest',
     # TODO: Put package test requirements here
-]
+# ]
 
 setup(
     name='pycox',
-    version='0.0.0',
-    description="Cox regression with pytorch",
+    version='0.0.1',
+    description="Survival analysis with pytorch",
     #long_description=readme + '\n\n' + history,
     author="Haavard Kvamme",
     author_email='haavard.kvamme@gmail.com',
@@ -44,14 +50,9 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
-        "Programming Language :: Python :: 2",
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
-    test_suite='tests',
-    tests_require=test_requirements,
-    setup_requires=setup_requirements,
+    # test_suite='tests',
+    # tests_require=test_requirements,
+    # setup_requires=setup_requirements,
 )
