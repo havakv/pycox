@@ -1,5 +1,6 @@
 # pycox
 
+# NEED TO REWRITE
 
 [![Build Status](https://img.shields.io/travis/havakv/pycox.svg?branch=master)](https://travis-ci.org/havakv/pycox)
 [![PyPI - License](https://img.shields.io/pypi/l/Django.svg)](./LICENSE)
@@ -40,9 +41,13 @@ For more detailed examples, see notebooks in [examples](./examples).
 
 ## Installation
 
-The package only works for python 3.5+.
+The package only works for python 3.6+.
 
-Before installing pycox, please install [pytorch](https://pytorch.org/). We now only support pytorch 0.4.
+Before installing pycox, please install [PyTorch](https://pytorch.org/). We now only support pytorch 1.1.
+
+```sh
+pip install git+git://github.com/havakv/pycox.git git+git://github.com/havakv/torchtuples.git
+```
 
 In addition, we require the following packages:
 
