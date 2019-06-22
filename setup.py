@@ -12,8 +12,6 @@ from setuptools import setup, find_packages
 #     history = history_file.read()
 
 requirements = [
-    'scipy<=1.2.1,>=1.0' # needed <=1.2.1 for lifelines
-    'lifelines>=0.21.3',
     'feather-format>=0.4.0',
     'h5py>=2.9.0',
     'numba>=0.44',

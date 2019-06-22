@@ -8,7 +8,6 @@ TODO:
 import numpy as np
 import scipy
 import pandas as pd
-from lifelines import KaplanMeierFitter
 
 def brier_score_km(times, prob_alive, durations, events):
     '''Compute the brier scores (for survival) at given times.
@@ -28,6 +27,7 @@ def brier_score_km(times, prob_alive, durations, events):
     Returns:
         Numpy array with brier scores.
     '''
+    from lifelines import KaplanMeierFitter
     if not hasattr(times, '__iter__'):
         times = [times]
     assert prob_alive.__class__ is np.ndarray, 'Need numpy array'
@@ -120,6 +120,7 @@ def binomial_log_likelihood_km(times, prob_alive, durations, events, eps=1e-7):
     Returns:
         Numpy array with brier scores.
     '''
+    from lifelines import KaplanMeierFitter
     if not hasattr(times, '__iter__'):
         times = [times]
     assert prob_alive.__class__ is np.ndarray, 'Need numpy array'
