@@ -1,6 +1,6 @@
 # pycox
 
-[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://github.com/havakv/torchtuples/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://github.com/havakv/pycox/blob/master/LICENSE)
 
 Time-to-event prediction (survival analysis) with with [PyTorch](https://pytorch.org).
 
