@@ -43,16 +43,16 @@ def kaplan_meier(durations, events, start_duration=0):
     ni = n - ni.cumsum()
     ni[1:] = ni[:-1]
     ni[0] = n
-    haz = 1 - di / ni
-    zero_haz = haz == 0
-    if zero_haz.any():
-        i = np.argmax(zero_haz)
-        surv = np.zeros_like(haz)
-        surv[:i] = np.exp(np.log(haz[:i]).cumsum())
-        surv[i:] = surv[i-1]
+    survive = 1 - di / ni
+    zero_survive = survive == 0
+    if zero_survive.any():
+        i = np.argmax(zero_survive)
+        surv = np.zeros_like(survive)
+        surv[:i] = np.exp(np.log(survive[:i]).cumsum())
+        # surv[i:] = surv[i-1]
+        surv[i:] = 0.
     else:
         surv = np.exp(np.log(1 - di / ni).cumsum())
-    # surv = np.exp(np.log(1 - di / ni).cumsum())
     if start_duration != surv_idx.min():
         tmp = np.ones(len(surv)+ 1, dtype=surv.dtype)
         tmp[1:] = surv

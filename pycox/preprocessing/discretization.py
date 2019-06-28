@@ -2,12 +2,10 @@ import numpy as np
 import pandas as pd
 
 
-def make_cuts(cuts, durations, events, min_=0.):
+def make_cuts(cuts, durations, events, min_=0., dtype='float64'):
     if type(cuts) is tuple:
         if cuts[0] == 'equidistant':
-            cuts = cuts_equidistant(durations.max(), cuts[1], min_)
-        # elif cuts[0] == 'km_equi_prob':
-        #     cuts = cuts_km_equi_prob(durations, events, cuts[1], min_)
+            cuts = cuts_equidistant(durations.max(), cuts[1], min_, dtype)
         else:
             raise RuntimeError("Need cuts to be e.g. ('equidistant', 100)")
     if (np.diff(cuts) == 0).any():
@@ -19,7 +17,7 @@ def _values_if_series(x):
         return x.values
     return x
 
-def cuts_equidistant(max_, num, min_=0., dtype='float32'):
+def cuts_equidistant(max_, num, min_=0., dtype='float64'):
     return np.linspace(min_, max_, num, dtype=dtype)
 
 def _is_monotonic_increasing(x):

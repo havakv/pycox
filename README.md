@@ -1,42 +1,26 @@
 # pycox
 
-# NEED TO REWRITE
+[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://github.com/havakv/torchtuples/blob/master/LICENSE)
 
-[![Build Status](https://img.shields.io/travis/havakv/pycox.svg?branch=master)](https://travis-ci.org/havakv/pycox)
-[![PyPI - License](https://img.shields.io/pypi/l/Django.svg)](./LICENSE)
-[![Read the Docs](https://img.shields.io/readthedocs/pip.svg)](https://pycox.readthedocs.io/en/latest/?badge=latest)
-
-
-
-Time-to-event prediction (survival analysis) with Cox regression in pytorch. 
-
-This is an implementation of \<link to paper\> in pytorch.
-In short, we train relative risk models with neural networks to model the event times of future events.
-
+Time-to-event prediction (survival analysis) with with [PyTorch](https://pytorch.org).
 
 <img src="./figures/time-to-event.svg" width="40%">
 
+## Content
 
-------------------
-## Quick-start
+The package contains implementations for 
 
-A quick example of Cox prortional hazards model parameterized by a 2 layer MLP:
-```python
-from pycox.models.high_level import CoxPHReluNet
+Methods:
+- [Cox-Time](https://github.com/havakv/pycox/examples/cox_models_1_introduction.ipynb)
+- [Cox-CC](https://github.com/havakv/pycox/examples/cox_models_1_introduction.ipynb)
+- [DeepSurv](https://github.com/havakv/pycox/examples/cox_models_1_introduction.ipynb) [paper link](https://doi.org/10.1186/s12874-018-0482-1)
+- [DeepHit](https://github.com/havakv/pycox/examples/deephit.ipynb) (only single event cause) [paper link](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)
 
-# df_train, df_val, and df_test are pandas dataframes
-# with covariates, event times, and event indicators.
+Evaluation metrics:
+- Time-dependent concordance index
+- Brier score (IPCW)
+- Binomial log-likelihood (IPCW)
 
-cox_mlp = CoxPHReluNet(input_size, n_layers=2, n_nodes=32, dropout=False, batch_norm=True)
-log = cox_mlp.fit(df_train, 'time', 'event', df_val=df_val, epochs=10, verbose=True)
-
-# Get survival predictions
-surv_preds = cox_mlp.predict_survival_function(df_test)
-```
-
-For more detailed examples, see notebooks in [examples](./examples).
-
-----------------
 
 
 ## Installation
@@ -48,39 +32,4 @@ Before installing pycox, please install [PyTorch](https://pytorch.org/). We now 
 ```sh
 pip install git+git://github.com/havakv/pycox.git git+git://github.com/havakv/torchtuples.git
 ```
-
-In addition, we require the following packages:
-
-- numpy
-- scipy
-- pandas
-- matplotlib
-- scikit-learn
-- lifelines
-- [sklearn-pandas](https://github.com/scikit-learn-contrib/sklearn-pandas)
-
-
-**Then install pycox from the GitHub source:**
-
-First, clone pycox using `git`:
-
-```sh
-git clone https://github.com/havakv/pycox.git
-```
-
- Then, `cd` to the pycox folder and run the install command:
-```sh
-cd pycox
-sudo python setup.py install
-```
-------------------
-## Citation
-
-ADD BIBTEX
-
-------------------
-
-## Credits
-
-This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the [audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template.
 

@@ -68,31 +68,45 @@ class LabTransDiscreteSurv:
 
     The discretization learned from fitting to data will move censorings to the left cut point,
     and events to right cut point.
-    
-    Keyword Arguments:
+
+    Arguments:
         cuts {int, tuple, array} -- Defining cut points.
             If 'int' we create an equidistant grid with 'cuts' cut points,
             if 'array' we used these defined cut points,
             if 'tuple' with ('str', int) we call 'pycox.preprocessing.discretization.make_cuts'
             on trainig data set. (deafult: {20})
+    
+    Keyword Arguments:
         min_ {float} -- Starting duration (default: {0.})
+        dtype {str, dtype} -- dtype of discretization.
     """
-    def __init__(self, cuts=20, min_=0.):
-        self._predefinded_cuts = False
+    def __init__(self, cuts, min_=0., dtype=None):
+        self._predefined_cuts = False
         if type(cuts) is int:
             cuts = ('equidistant', cuts)
         elif hasattr(cuts, '__iter__'):
             if (type(cuts[0]) is not str):
                 self.idu = IdxDiscUnknownC(cuts)
-                self._predefinded_cuts = True
+                assert dtype is None, "Need dtype to be None for spesified cuts"
+                self.dtype = type(cuts[0])
+                self._dtype = self.dtype
+                self._predefined_cuts = True
         self._cuts = cuts
         self.min_ = min_
+        self._dtype = dtype
 
     def fit(self, durations, events):
-        if self._predefinded_cuts:
+        if self._predefined_cuts:
             warnings.warn("Calling fit method, when 'cuts' are allready definded. Leaving cuts unchanges.")
             return self
-        self.cuts = make_cuts(self._cuts, durations, events, self.min_)
+        self.dtype = self._dtype
+        if self.dtype is None:
+            if isinstance(durations[0], np.floating):
+                self.dtype = durations.dtype
+            else:
+                self.dtype = np.dtype('float64')
+        durations = durations.astype(self.dtype)
+        self.cuts = make_cuts(self._cuts, durations, events, self.min_, self.dtype)
         self.idu = IdxDiscUnknownC(self.cuts)
         return self
 
@@ -103,6 +117,7 @@ class LabTransDiscreteSurv:
 
     def transform(self, durations, events):
         durations = _values_if_series(durations)
+        durations = durations.astype(self.dtype)
         events = _values_if_series(events)
         idx_durations, events = self.idu.transform(durations, events)
         return idx_durations, events.astype('float32')

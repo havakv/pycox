@@ -2,11 +2,7 @@
 import warnings
 import numpy as np
 import pandas as pd
-# from pycox.evaluation.inverce_censor_weight import binomial_log_likelihood, brier_score,\
-#     integrated_binomial_log_likelihood, integrated_brier_score
 from pycox.evaluation.concordance import concordance_td
-# from pycox.evaluation.km_inverce_censor_weight import binomial_log_likelihood_km, brier_score_km,\
-#     integrated_binomial_log_likelihood_km_numpy, integrated_brier_score_km_numpy
 from pycox.evaluation import utils, ipcw
 
 
@@ -14,7 +10,7 @@ class EvalSurv:
     """Class for evaluating predictions.
     
     Arguments:
-        surv {pd.DataFrame} -- Survival preidictions.
+        surv {pd.DataFrame} -- Survival predictions.
         durations {np.array} -- Durations of test set.
         events {np.array} -- Events of test set.
 
@@ -57,6 +53,7 @@ class EvalSurv:
         """Add censoring estimates obtaind by Kaplan-Meier on the test set
         (durations, 1-events).
         """
+        # from lifelines import KaplanMeierFitter
         # km = KaplanMeierFitter().fit(self.durations, 1-self.events).survival_function_['KM_estimate']
         # surv = pd.DataFrame(np.repeat(km.values.reshape(-1, 1), len(self.durations), axis=1),
         #                     index=km.index)
@@ -115,30 +112,6 @@ class EvalSurv:
         """
         return concordance_td(self.durations, self.events, self.surv.values,
                               self._duration_idx(), method)
-
-    # def brier_score_km(self, time_grid):
-    #     warnings.warn("brier_score_km' will be removed. Use 'add_km_censor' and 'brier_score' instaead.", FutureWarning)
-    #     prob_alive = self.prob_alive(time_grid)
-    #     bs = brier_score_km(time_grid, prob_alive, self.durations, self.events)
-    #     return pd.Series(bs, index=time_grid).rename('brier_score_km')
-    
-    # def mbll_km(self, time_grid):
-    #     warnings.warn("mbll_km' will be removed. Use 'add_km_censor' and 'mbll_km' instaead.", FutureWarning)
-    #     prob_alive = self.prob_alive(time_grid)
-    #     mbll = binomial_log_likelihood_km(time_grid, prob_alive, self.durations, self.events)
-    #     return pd.Series(mbll, index=time_grid).rename('mbll_km')
-
-    # def integrated_brier_score_km(self, time_grid):
-    #     warnings.warn("integrated_brier_score_km' will be removed. Use 'add_km_censor' and 'integrated_brier_score' instaead.", FutureWarning)
-    #     prob_alive = self.prob_alive(time_grid)
-    #     bs = integrated_brier_score_km_numpy(time_grid, prob_alive, self.durations, self.events)
-    #     return bs
-
-    # def integrated_mbll_km(self, time_grid):
-    #     warnings.warn("integrated_mbll_km' will be removed. Use 'add_km_censor' and 'integrated_mbll_km' instaead.", FutureWarning)
-    #     prob_alive = self.prob_alive(time_grid)
-    #     score = integrated_binomial_log_likelihood_km_numpy(time_grid, prob_alive, self.durations, self.events)
-    #     return score
 
     def brier_score(self, time_grid, max_weight=np.inf):
         """Brier score weighted by the inverce censoring distibution.
