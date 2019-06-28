@@ -4,17 +4,15 @@
 
 Time-to-event prediction (survival analysis) with with [PyTorch](https://pytorch.org).
 
-<img src="./figures/time-to-event.svg" width="40%">
-
 ## Content
 
 The package contains implementations for 
 
 Methods:
-- [Cox-Time](https://github.com/havakv/pycox/examples/cox_models_1_introduction.ipynb)
-- [Cox-CC](https://github.com/havakv/pycox/examples/cox_models_1_introduction.ipynb)
-- [DeepSurv](https://github.com/havakv/pycox/examples/cox_models_1_introduction.ipynb) [paper link](https://doi.org/10.1186/s12874-018-0482-1)
-- [DeepHit](https://github.com/havakv/pycox/examples/deephit.ipynb) (only single event cause) [paper link](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)
+- [Cox-Time](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)
+- [Cox-CC](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)
+- [DeepSurv](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb) \[[paper](https://doi.org/10.1186/s12874-018-0482-1)\]
+- [DeepHit](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb) for single event cause \[[paper](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)\]
 
 Evaluation metrics:
 - Time-dependent concordance index
