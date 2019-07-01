@@ -4,7 +4,7 @@
 
 Time-to-event prediction (survival analysis) with [PyTorch](https://pytorch.org).
 
-This python package contains inplementations of various survival models, and some useful evaluation metrics. 
+This python package contains implementations of various survival models, and some useful evaluation metrics. 
 
 ## Content
 
