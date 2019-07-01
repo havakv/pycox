@@ -28,12 +28,12 @@ Evaluation metrics:
 The package only works for python 3.6+.
 
 Before installing pycox, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
-Then run
+You can then run the following command to install the package, but we recommend to instead install from source (see below)
 ```sh
-pip install git+git://github.com/havakv/pycox.git git+git://github.com/havakv/torchtuples.git
+pip install -e git+git://github.com/havakv/pycox.git#egg=pycox git+git://github.com/havakv/torchtuples.git
 ```
 
-### From source
+### Install from source
 
 Installation from source depends on [PyTorch](https://pytorch.org/get-started/locally/), in addition to [torchtuples](https://github.com/havakv/torchtuples) which can be installed with
 ```sh
