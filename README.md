@@ -18,7 +18,7 @@ Methods:
 
 Evaluation metrics:
 - Time-dependent concordance index \[[paper](https://doi.org/10.1002/sim.2427)\]
-- Brier score (IPCW) \[[paper1](https://doi.org/10.1002/(SICI)1097-0258()18:17/18%3C2529::AID-SIM274%3E3.0.CO;2-5)\] \[[paper2](https://onlinelibrary.wiley.com/doi/abs/10.1002/bimj.200610301?sid=nlm%3Apubmed)\]
+- Brier score (IPCW) \[[paper1](https://onlinelibrary.wiley.com/doi/abs/10.1002/%28SICI%291097-0258%2819990915/30%2918%3A17/18%3C2529%3A%3AAID-SIM274%3E3.0.CO%3B2-5)\] \[[paper2](https://onlinelibrary.wiley.com/doi/abs/10.1002/bimj.200610301?sid=nlm%3Apubmed)\]
 - Binomial log-likelihood (IPCW)
 
 
