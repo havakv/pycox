@@ -11,14 +11,14 @@ This python package contains implementations of various survival models, and som
 The package contains implementations for 
 
 Methods:
-- [Cox-Time](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb):  a non-proportional relative risk model.
-- [Cox-CC](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb): a Cox-PH model
+- [Cox-Time](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb):  a non-proportional relative risk model \[[paper](https://arxiv.org/abs/1907.00825)\]
+- [Cox-CC](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb): a Cox-PH model \[[paper](https://arxiv.org/abs/1907.00825)\]
 - [DeepSurv](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb): a Cox-PH model \[[paper](https://doi.org/10.1186/s12874-018-0482-1)\]
-- [DeepHit](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb) (single event): a discrete time model \[[paper](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)\].
+- [DeepHit](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb) (single event): a discrete time model \[[paper](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)\]
 
 Evaluation metrics:
-- Time-dependent concordance index
-- Brier score (IPCW)
+- Time-dependent concordance index \[[paper](https://doi.org/10.1002/sim.2427)\]
+- Brier score (IPCW) \[[paper1](https://doi.org/10.1002/(SICI)1097-0258()18:17/18%3C2529::AID-SIM274%3E3.0.CO;2-5)\] \[[paper2](https://onlinelibrary.wiley.com/doi/abs/10.1002/bimj.200610301?sid=nlm%3Apubmed)\]
 - Binomial log-likelihood (IPCW)
 
 
