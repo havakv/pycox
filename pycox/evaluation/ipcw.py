@@ -34,7 +34,8 @@ def _inv_cens_scores(func, time_grid, durations, events, surv, censor_surv, idx_
 def _inverse_censoring_weighted_metric(func):
     if type(func) is not numba.targets.registry.CPUDispatcher:
         raise ValueError("Need to provide nuba combiled function")
-    def metric(time_grid, durations, events, surv, censor_surv, index_surv, index_censor, max_weight=np.inf, reduce=True):
+    def metric(time_grid, durations, events, surv, censor_surv, index_surv, index_censor, max_weight=np.inf,
+               reduce=True, steps='post'):
         if not hasattr(time_grid, '__iter__'):
             time_grid = np.array([time_grid])
         assert (type(time_grid) is type(durations) is type(events) is type(surv) is type(censor_surv) is
@@ -43,9 +44,9 @@ def _inverse_censoring_weighted_metric(func):
         n_indiv = len(durations)
         scores = np.zeros((n_times, n_indiv))
         weights = np.zeros((n_times, n_indiv))
-        idx_ts_surv = idx_at_times(index_surv, time_grid, assert_sorted=True)
-        idx_ts_censor = idx_at_times(index_censor, time_grid, assert_sorted=True)
-        idx_tt_censor = idx_at_times(index_censor, durations, assert_sorted=True)
+        idx_ts_surv = idx_at_times(index_surv, time_grid, steps, assert_sorted=True)
+        idx_ts_censor = idx_at_times(index_censor, time_grid, steps, assert_sorted=True)
+        idx_tt_censor = idx_at_times(index_censor, durations, steps, assert_sorted=True)
         _inv_cens_scores(func, time_grid, durations, events, surv, censor_surv, idx_ts_surv, idx_ts_censor,
                          idx_tt_censor, scores, weights, n_times, n_indiv, max_weight)
         if reduce is True:
@@ -75,8 +76,10 @@ brier_score = _inverse_censoring_weighted_metric(_brier_score)
 binomial_log_likelihood = _inverse_censoring_weighted_metric(_binomial_log_likelihood)
 
 def _itegrated_inverce_censoring_weighed_metric(func):
-    def metric(time_grid, durations, events, surv, censor_surv, index_surv, index_censor, max_weight=np.inf):
-        scores = func(time_grid, durations, events, surv, censor_surv, index_surv, index_censor, max_weight)
+    def metric(time_grid, durations, events, surv, censor_surv, index_surv, index_censor,
+               max_weight=np.inf, steps='post'):
+        scores = func(time_grid, durations, events, surv, censor_surv, index_surv, index_censor,
+                      max_weight, True, steps)
         integral = scipy.integrate.simps(scores, time_grid)
         return integral / (time_grid[-1] - time_grid[0])
     return metric

@@ -20,58 +20,116 @@ class EvalSurv:
             this will be used. 
             If 'km', we will fit a Kaplan-Meier to the dataset.
             (default: {None})
+        steps {str} -- For durations between values of `surv.index` choose the higher index 'pre'
+            or lower index 'post'. For a visualization see `help(EvalSurv.steps)`. (default: {'pre'})
     """
-    def __init__(self, surv, durations, events, censor_surv=None):
+    def __init__(self, surv, durations, events, censor_surv=None, steps='pre'):
         assert (type(durations) == type(events) == np.ndarray)
         self.surv = surv
         self.durations = durations
         self.events = events
         self.censor_surv = censor_surv
-        if type(self.censor_surv) is str:
-            if self.censor_surv == 'km':
-                self.add_km_censor()
-            else:
-                raise ValueError(f"censor_surv cannot be {self.censor_surv}.")
-        elif self.censor_surv is not None:
-            self.add_censor_est(self.censor_surv)
-        self.index_surv = self.surv.index.values
+        self.steps = steps
         assert pd.Series(self.index_surv).is_monotonic
 
-    def add_censor_est(self, censor_surv):
+    @property
+    def censor_surv(self):
+        """Estimated survival for censorings. 
+        Also an EvalSurv object.
+        """
+        return self._censor_surv
+
+    @censor_surv.setter
+    def censor_surv(self, censor_surv):
+        if isinstance(censor_surv, EvalSurv):
+            self._censor_surv = censor_surv
+        elif type(censor_surv) is str:
+            if censor_surv == 'km':
+                self.add_km_censor()
+            else:
+                raise ValueError(f"censor_surv cannot be {self.censor_surv}. Use e.g. 'km'")
+        elif censor_surv is not None:
+            self.add_censor_est(self.censor_surv)
+        else:
+            self._censor_surv = None
+
+    @property
+    def index_surv(self):
+        return self.surv.index.values
+
+    @property
+    def steps(self):
+        """How to handle predictions that are between two indexes in `index_surv`.
+
+        For a visualization, run the following:
+            ev = EvalSurv(pd.DataFrame(np.linspace(1, 0, 7)), np.empty(7), np.ones(7), steps='pre')
+            ax = ev[0].plot_surv()
+            ev.steps = 'post'
+            ev[0].plot_surv(ax=ax, style='--')
+            ax.legend(['pre', 'post'])
+        """
+        return self._steps
+
+    @steps.setter
+    def steps(self, steps):
+        vals = ['post', 'pre']
+        if steps not in vals:
+            raise ValueError(f"`steps` needs to be {vals}, got {steps}")
+        self._steps = steps
+
+    def add_censor_est(self, censor_surv, steps='post'):
         """Add censoring estimates so one can use invece censoring weighting.
         `censor_surv` are the suvival estimes trainied on (durations, 1-events),
         
         Arguments:
             censor_surv {pd.DataFrame} -- Censor survival curves.
+
+    Keyword Arguments:
+        round {str} -- For durations between values of `surv.index` choose the higher index 'pre'
+            or lower index 'post'. If `None` use `self.steps` (default: {None})
         """
-        if type(censor_surv) is not EvalSurv:
-            censor_surv = EvalSurv(censor_surv, self.durations, 1-self.events)
+        if not isinstance(censor_surv, EvalSurv):
+            censor_surv = self._constructor(censor_surv, self.durations, 1-self.events, None, steps)
         self.censor_surv = censor_surv
         return self
 
-    def add_km_censor(self):
+    def add_km_censor(self, steps='post'):
         """Add censoring estimates obtaind by Kaplan-Meier on the test set
         (durations, 1-events).
+
+        Here `steps` doesn't matter as the Kaplan-Meier curve use the exact durations,
+        and so there is no rounding.
         """
-        # from lifelines import KaplanMeierFitter
-        # km = KaplanMeierFitter().fit(self.durations, 1-self.events).survival_function_['KM_estimate']
-        # surv = pd.DataFrame(np.repeat(km.values.reshape(-1, 1), len(self.durations), axis=1),
-        #                     index=km.index)
         km = utils.kaplan_meier(self.durations, 1-self.events)
         surv = pd.DataFrame(np.repeat(km.values.reshape(-1, 1), len(self.durations), axis=1),
                             index=km.index)
-        return self.add_censor_est(surv)
+        return self.add_censor_est(surv, steps)
 
     @property
     def _constructor(self):
         return EvalSurv
 
     def __getitem__(self, index):
+        if not (hasattr(index, '__iter__') or type(index) is slice) :
+            index = [index]
         surv = self.surv.iloc[:, index]
         durations = self.durations[index]
         events = self.events[index]
-        censor_surv = self.censor_surv.surv.iloc[:, index] if self.censor_surv is not None else None
-        return self._constructor(surv, durations, events, censor_surv)
+        # censor_surv = self.censor_surv.surv.iloc[:, index] if self.censor_surv is not None else None
+        new = self._constructor(surv, durations, events, None, self.steps)
+        if self.censor_surv is not None:
+            new.censor_surv = self.censor_surv[index]
+        return new
+
+    def plot_surv(self, **kwargs):
+        """Plot survival estimates. 
+        kwargs are passed to `self.surv.plot`.
+        """
+        if len(self.durations) > 50:
+            raise RuntimeError("We don't allow to plot more than 50 lines. Use e.g. `ev[1:5].plot()`")
+        if 'drawstyle' in kwargs:
+            raise RuntimeError(f"`drawstyle` is set by `self.steps`. Remove from **kwargs")
+        return self.surv.plot(drawstyle=f"steps-{self.steps}", **kwargs)
 
     def idx_at_times(self, times):
         """Get the index (iloc) of the `surv.index` closest to `times`.
@@ -79,7 +137,7 @@ class EvalSurv:
 
         Useful for finding predictions at given durations.
         """
-        return utils.idx_at_times(self.index_surv, times)
+        return utils.idx_at_times(self.index_surv, times, self.steps)
 
     def _duration_idx(self):
         return self.idx_at_times(self.durations)
@@ -128,7 +186,7 @@ class EvalSurv:
             or 'add_km_censor' for Kaplan-Meier""")
         bs = ipcw.brier_score(time_grid, self.durations, self.events, self.surv.values,
                               self.censor_surv.surv.values, self.index_surv,
-                              self.censor_surv.index_surv, max_weight)
+                              self.censor_surv.index_surv, max_weight, True, self.steps)
         return pd.Series(bs, index=time_grid).rename('brier_score')
 
     def mbll(self, time_grid, max_weight=np.inf):
@@ -146,7 +204,7 @@ class EvalSurv:
             or 'add_km_censor' for Kaplan-Meier""")
         bs = ipcw.binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
                                           self.censor_surv.surv.values, self.index_surv,
-                                          self.censor_surv.index_surv, max_weight)
+                                          self.censor_surv.index_surv, max_weight, True, self.steps)
         return pd.Series(bs, index=time_grid).rename('mbll')
 
     def integrated_brier_score(self, time_grid, max_weight=np.inf):
@@ -164,7 +222,7 @@ class EvalSurv:
             raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
         return ipcw.integrated_brier_score(time_grid, self.durations, self.events, self.surv.values,
                                            self.censor_surv.surv.values, self.index_surv,
-                                           self.censor_surv.index_surv, max_weight)
+                                           self.censor_surv.index_surv, max_weight, self.steps)
 
     def integrated_mbll(self, time_grid, max_weight=np.inf):
         """Integrated mean binomial log-likelihood weighted by the inverce censoring distribution.
@@ -181,4 +239,4 @@ class EvalSurv:
             raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
         return ipcw.integrated_binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
                                                        self.censor_surv.surv.values, self.index_surv,
-                                                       self.censor_surv.index_surv, max_weight)
+                                                       self.censor_surv.index_surv, max_weight, self.steps)
