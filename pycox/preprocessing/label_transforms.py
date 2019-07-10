@@ -52,7 +52,7 @@ class LabTransCoxTime:
         return durations, events
 
     def transform(self, durations, events):
-        duration = durations.astype('float32')
+        durations = durations.astype('float32')
         events = events.astype('float32')
         if self.log_duration:
             durations = np.log1p(durations)
