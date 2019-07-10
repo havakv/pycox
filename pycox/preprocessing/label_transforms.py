@@ -42,7 +42,7 @@ class LabTransCoxTime:
 
     def fit_transform(self, durations, events):
         train_durations = durations
-        duration = durations.astype('float32')
+        durations = durations.astype('float32')
         events = events.astype('float32')
         if self.log_duration:
             durations = np.log1p(durations)
