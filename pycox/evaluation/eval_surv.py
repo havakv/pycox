@@ -21,9 +21,9 @@ class EvalSurv:
             If 'km', we will fit a Kaplan-Meier to the dataset.
             (default: {None})
         steps {str} -- For durations between values of `surv.index` choose the higher index 'pre'
-            or lower index 'post'. For a visualization see `help(EvalSurv.steps)`. (default: {'pre'})
+            or lower index 'post'. For a visualization see `help(EvalSurv.steps)`. (default: {'post'})
     """
-    def __init__(self, surv, durations, events, censor_surv=None, steps='pre'):
+    def __init__(self, surv, durations, events, censor_surv=None, steps='post'):
         assert (type(durations) == type(events) == np.ndarray)
         self.surv = surv
         self.durations = durations
