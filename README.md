@@ -4,30 +4,30 @@
 
 Time-to-event prediction (survival analysis) with [PyTorch](https://pytorch.org).
 
-This python package contains implementations of various survival models, and some useful evaluation metrics. 
+The python package contains implementations of various survival models, some useful evaluation metrics, and a collection of [event-time datasets](https://github.com/havakv/pycox/tree/master/datasets).
 
 ## Content
 
 The package contains implementations for 
 
-Methods:
-- Cox-Time:  a non-proportional relative risk model. \[1\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
+**Methods:**
+- **Cox-Time**:  a non-proportional relative risk model. \[1\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
 
-- Cox-CC: a Cox-PH model. \[1\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
+- **Cox-CC**: a Cox-PH model. \[1\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
 
-- DeepSurv: a Cox-PH model. \[2\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
+- **DeepSurv**: a Cox-PH model. \[2\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
 
-- DeepHit (single event): a discrete time model. \[3\] \[[example](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb)\]
+- **DeepHit** (single event): a discrete time model. \[3\] \[[example](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb)\]
 
-Evaluation metrics:
+**Evaluation metrics:**
 - Time-dependent concordance index. \[4\]
 
 - Brier score IPCW (inverse probability of censoring weighting). \[5\] \[6\]
 
 - Binomial log-likelihood IPCW.
 
-Datasets:
-- For available data sets see [datasets](https://github.com/havakv/pycox/tree/master/datasets) of module `pycox.datasets`.
+**Datasets:**
+- For available data sets see [datasets](https://github.com/havakv/pycox/tree/master/datasets) or the module `pycox.datasets`.
 
 
 ## Installation
