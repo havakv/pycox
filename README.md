@@ -11,16 +11,23 @@ This python package contains implementations of various survival models, and som
 The package contains implementations for 
 
 Methods:
-- [Cox-Time](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb):  a non-proportional relative risk model \[[paper](https://arxiv.org/abs/1907.00825)\]
-- [Cox-CC](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb): a Cox-PH model \[[paper](https://arxiv.org/abs/1907.00825)\]
-- [DeepSurv](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb): a Cox-PH model \[[paper](https://doi.org/10.1186/s12874-018-0482-1)\]
-- [DeepHit](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb) (single event): a discrete time model \[[paper](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)\]
+- Cox-Time:  a non-proportional relative risk model. \[1\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
+
+- Cox-CC: a Cox-PH model. \[1\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
+
+- DeepSurv: a Cox-PH model. \[2\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
+
+- DeepHit (single event): a discrete time model. \[3\] \[[example](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb)\]
 
 Evaluation metrics:
-- Time-dependent concordance index \[[paper](https://doi.org/10.1002/sim.2427)\]
-- Brier score (IPCW) \[[paper1](https://onlinelibrary.wiley.com/doi/abs/10.1002/%28SICI%291097-0258%2819990915/30%2918%3A17/18%3C2529%3A%3AAID-SIM274%3E3.0.CO%3B2-5)\] \[[paper2](https://onlinelibrary.wiley.com/doi/abs/10.1002/bimj.200610301?sid=nlm%3Apubmed)\]
-- Binomial log-likelihood (IPCW)
+- Time-dependent concordance index. \[4\]
 
+- Brier score IPCW (inverse probability of censoring weighting). \[5\] \[6\]
+
+- Binomial log-likelihood IPCW.
+
+Datasets:
+- For available data sets see [datasets](https://github.com/havakv/pycox/tree/master/datasets) of module `pycox.datasets`.
 
 
 ## Installation
@@ -46,4 +53,16 @@ cd pycox
 python setup.py install
 ```
 
+## References
 
+  \[1\] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel. Time-to-event prediction with neural networks and Cox regression. *arXiv preprint arXiv:1907.00825*, 2019. \[[paper](https://arxiv.org/abs/1907.00825)\]
+
+  \[2\] Jared L. Katzman, Uri Shaham, Alexander Cloninger, Jonathan Bates, Tingting Jiang, and Yuval Kluger. Deepsurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. *BMC Medical Research Methodology*, 18(1), 2018. \[[paper](https://doi.org/10.1186/s12874-018-0482-1)\]
+
+  \[3\] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning approach to survival analysis with competing risks. *In Thirty-Second AAAI Conference on Artificial Intelligence*, 2018. \[[paper](http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit)\]
+  
+  \[4\] Laura Antolini, Patrizia Boracchi, and Elia Biganzoli. A time-dependent discrimination index for survival data. *Statistics in Medicine*, 24(24):3927–3944, 2005. \[[paper](https://doi.org/10.1002/sim.2427)\]
+
+  \[5\] Erika Graf, Claudia Schmoor, Willi Sauerbrei, and Martin Schumacher. Assessment and comparison of prognostic classification schemes for survival data. *Statistics in Medicine*, 18(17-18):2529–2545, 1999. \[[paper](https://onlinelibrary.wiley.com/doi/abs/10.1002/%28SICI%291097-0258%2819990915/30%2918%3A17/18%3C2529%3A%3AAID-SIM274%3E3.0.CO%3B2-5)\]
+
+  \[6\] Thomas A. Gerds and Martin Schumacher. Consistent estimation of the expected brier score in general survival models with right-censored event times. *Biometrical Journal*, 48 (6):1029–1040, 2006. \[[paper](https://onlinelibrary.wiley.com/doi/abs/10.1002/bimj.200610301?sid=nlm%3Apubmed)\]
