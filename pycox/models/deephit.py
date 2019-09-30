@@ -369,13 +369,27 @@ class DeepHit(Model):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
 
-    def predict_survival_function(self, input, batch_size=8224, eval_=True, to_cpu=False,
-                                  num_workers=0):
-        """Might need to set to_cpu to true if too large dataset."""
+    def predict_cif(self, input, batch_size=8224, eval_=True, to_cpu=False, num_workers=0,
+                    numpy=None):
         pmf = self.predict_pmf(input, batch_size, eval_, to_cpu, num_workers, False)
-        surv = 1. - pmf.cumsum(1)
-        if tuplefy(input).type() is np.ndarray:
-            surv = surv.cpu().numpy()
+        cif = pmf.cumsum(1)
+        if numpy is None:
+            if tuplefy(input).type() is np.ndarray:
+                cif = cif.cpu().numpy()
+        elif numpy is True:
+                cif = cif.cpu().numpy()
+        return cif
+
+    def predict_survival_function(self, input, batch_size=8224, eval_=True, to_cpu=False,
+                                  num_workers=0, numpy=None):
+        """Might need to set to_cpu to true if too large dataset."""
+        cif = self.predict_cif(input, batch_size, eval_, to_cpu, num_workers, False)
+        surv = 1. - cif.sum(0)
+        if numpy is None:
+            if tuplefy(input).type() is np.ndarray:
+                surv = surv.cpu().numpy()
+        elif numpy is True:
+                surv = surv.cpu().numpy()
         return surv
 
     def predict_pmf(self, input, batch_size=8224, eval_=True, to_cpu=False, num_workers=0,
