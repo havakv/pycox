@@ -373,7 +373,7 @@ class DeepHit(Model):
                                   num_workers=0):
         """Might need to set to_cpu to true if too large dataset."""
         pmf = self.predict_pmf(input, batch_size, eval_, to_cpu, num_workers, False)
-        surv = 1 - pmf.cumsum(0)
+        surv = 1. - pmf.cumsum(1)
         if tuplefy(input).type() is np.ndarray:
             surv = surv.cpu().numpy()
         return surv
