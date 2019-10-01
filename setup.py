@@ -15,7 +15,7 @@ requirements = [
 
 setup(
     name='pycox',
-    version='0.0.1',
+    version='0.0.2',
     description="Survival analysis with pytorch",
     author="Haavard Kvamme",
     author_email='haavard.kvamme@gmail.com',

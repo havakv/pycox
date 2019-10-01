@@ -17,7 +17,7 @@ The package contains implementations for
 
 - **DeepSurv**: a Cox-PH model. \[2\] \[[example](https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb)\]
 
-- **DeepHit** (single event): a discrete time model. \[3\] \[[example](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb)\]
+- **DeepHit** (single event or competing risks): a discrete time model for improved ranking. \[3\] \[[example](https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb)\] 
 
 **Evaluation metrics:**
 - Time-dependent concordance index. \[4\]

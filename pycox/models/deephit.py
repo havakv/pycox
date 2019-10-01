@@ -371,6 +371,8 @@ class DeepHit(Model):
 
     def predict_cif(self, input, batch_size=8224, eval_=True, to_cpu=False, num_workers=0,
                     numpy=None):
+        """Predict the cumulative incidence function.
+        """
         pmf = self.predict_pmf(input, batch_size, eval_, to_cpu, num_workers, False)
         cif = pmf.cumsum(1)
         if numpy is None:
@@ -382,7 +384,9 @@ class DeepHit(Model):
 
     def predict_survival_function(self, input, batch_size=8224, eval_=True, to_cpu=False,
                                   num_workers=0, numpy=None):
-        """Might need to set to_cpu to true if too large dataset."""
+        """Predict survival function (survive all of the event types).
+        Might need to set to_cpu to true if too large dataset.
+        """
         cif = self.predict_cif(input, batch_size, eval_, to_cpu, num_workers, False)
         surv = 1. - cif.sum(0)
         if numpy is None:
