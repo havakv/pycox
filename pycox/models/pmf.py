@@ -6,9 +6,9 @@ from pycox.models.utils import array_or_tensor, pad_col
 class _PMFBase(models.base._SurvModelBase):
     """Base class for PMF methods.
     """
-    def __init__(self, net, optimizer=None, device=None, duration_index=None):
+    def __init__(self, net, loss=None, optimizer=None, device=None, duration_index=None):
         self.duration_index = duration_index
-        super().__init__(net, optimizer, device)
+        super().__init__(net, loss, optimizer, device)
 
     @property
     def duration_index(self):
@@ -49,7 +49,7 @@ class _PMFBase(models.base._SurvModelBase):
             num_workers {int} -- Number of workes in created dataloader (default: {0})
         
         Returns:
-            [TupleTree, np.ndarray or tensor] -- Predictions
+            [np.ndarray or tensor] -- Predictions
         """
         preds = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
         pmf = pad_col(preds).softmax(1)[:, :-1].transpose(0, 1)
@@ -80,7 +80,9 @@ class PMF(_PMFBase):
         duration_index {list, np.array} -- Array of durations that defineds the discrete times.
             This is used to set the index of the DataFrame in `predict_surv_df`.
     """
-    @property
-    def _loss(self):
+    def __init__(self, net, optimizer=None, device=None, duration_index=None):
+        super().__init__(net, self.make_loss(), optimizer, device, duration_index)
+
+    def make_loss(self):
         return models.loss.NLLPMFLoss()
 

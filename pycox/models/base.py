@@ -4,11 +4,10 @@ import torchtuples as tt
 class _SurvModelBase(tt.Model):
     """Essentailly same as torchtuples.Model, 
     """
-    def __init__(self, net, optimizer=None, device=None):
-        super().__init__(net, self._loss, optimizer, device)
+    def __init__(self, net, loss=None, optimizer=None, device=None):
+        super().__init__(net, loss, optimizer, device)
 
-    @property
-    def _loss(self):
+    def _make_loss(self):
         raise NotImplementedError
 
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True,
