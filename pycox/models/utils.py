@@ -2,14 +2,18 @@ import numpy as np
 import torch
 import torchtuples as tt
 
-def pad_col(phi, val=0):
-    """Addes a column of `val` at the end of phi"""
-    if len(phi.shape) != 2:
+def pad_col(input, val=0, where='end'):
+    """Addes a column of `val` at the start of end of `input`."""
+    if len(input.shape) != 2:
         raise ValueError(f"Only works for `phi` tensor that is 2-D.")
-    phi_mp1 = torch.zeros_like(phi[:, :1])
+    pad = torch.zeros_like(input[:, :1])
     if val != 0:
-        phi_mp1 = phi_mp1 + val
-    return torch.cat([phi, phi_mp1], dim=1)
+        pad = pad + val
+    if where == 'end':
+        return torch.cat([input, pad], dim=1)
+    elif where == 'start':
+        return torch.cat([pad, input], dim=1)
+    raise ValueError(f"Need `where` to be 'start' or 'end', got {where}")
 
 def array_or_tensor(tensor, numpy, input):
     """Returs a tensor if numpy is False or input is tensor.
@@ -20,3 +24,18 @@ def array_or_tensor(tensor, numpy, input):
     if (numpy is True) or (tt.tuplefy(input).type() is np.ndarray):
         tensor = tensor.cpu().numpy()
     return tensor
+
+def make_subgrid(grid, sub=1):
+    """When calling `predict_surv` with sub != 1 this can help with
+    creating the duration index of the survival estimates.
+
+    E.g.
+    sub = 5
+    surv = model.predict_surv(test_input, sub=sub)
+    grid = model.make_subgrid(cuts, sub)
+    surv = pd.DataFrame(surv, index=grid)
+    """
+    subgrid = tt.TupleTree(np.linspace(start, end, num=sub+1)[:-1]
+                        for start, end in zip(grid[:-1], grid[1:]))
+    subgrid = subgrid.apply(lambda x: tt.TupleTree(x)).flatten() + (grid[-1],)
+    return subgrid

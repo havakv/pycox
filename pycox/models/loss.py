@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from pycox.models.utils import pad_col
 
 
@@ -11,14 +12,12 @@ def _reduction(loss, reduction='mean'):
         return loss.sum()
     raise ValueError(f"`reduction` = {reduction} is not valid. Use 'none', 'mean' or 'sum'.")
 
-
-def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
+def nll_logistic_hazard(phi, idx_durations, events, reduction='mean'):
     """Negative log-likelihood of the hazard parametrization model.
-    See make_y for a better understanding of labeling scheeme.
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
-        idx_durations {torch.tensor} -- Event times represented as indexes.
+        idx_durations {torch.tensor} -- Event times represented as indices.
         events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
             Same lenght as 'idx_durations'.
         reduction {string} -- How to reduce the loss.
@@ -27,7 +26,30 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
             'sum: sum.
     
     Returns:
-        torch.tensor -- Retruns mean negative log-likelihood.
+        torch.tensor -- The negative log-likelihood.
+    """
+    events = events.view(-1, 1)
+    idx_durations = idx_durations.view(-1, 1)
+    y_bce = torch.zeros_like(phi).scatter(1, idx_durations, events)
+    bce = F.binary_cross_entropy_with_logits(phi, y_bce, reduction='none')
+    loss = bce.cumsum(1).gather(1, idx_durations).view(-1)
+    return _reduction(loss, reduction)
+
+def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
+    """Negative log-likelihood for the pmf parametrized model.
+    
+    Arguments:
+        phi {torch.tensor} -- Estimates in (-inf, inf), where pmf = somefunc(phi).
+        idx_durations {torch.tensor} -- Event times represented as indices.
+        events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
+            Same lenght as 'idx_durations'.
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The negative log-likelihood.
     """
     if (idx_durations.max()) >= phi.shape[1]:
         raise ValueError("""'t_idx' too large. Probably need to increase output size of net.""")
@@ -196,6 +218,11 @@ class _Loss(torch.nn.Module):
     def __init__(self, reduction='mean'):
         super().__init__()
         self.reduction = reduction
+
+
+class NLLLogistiHazardLoss(_Loss):
+    def forward(self, phi, idx_durations, events):
+        return nll_logistic_hazard(phi, idx_durations, events, self.reduction)
 
 
 class NLLPMFLoss(_Loss):

@@ -38,10 +38,10 @@ def test_rank_loss_deephit_cr_equals_single(seed, m, sigma):
     assert (r1 - r2).abs() < 1e-6
 
 
-@pytest.mark.parametrize('seed', [0, 1, 2])
+@pytest.mark.parametrize('seed', [0, 1])
 @pytest.mark.parametrize('m', [1, 8])
-@pytest.mark.parametrize('sigma', [0.1, 0.2, 1.])
-@pytest.mark.parametrize('alpha', [1, 0.5, 0.1, 0.])
+@pytest.mark.parametrize('sigma', [0.1, 1.])
+@pytest.mark.parametrize('alpha', [1, 0.5, 0.])
 def test_loss_deephit_cr_equals_single(seed, m, sigma, alpha):
     torch.manual_seed(seed)
     n_risk = 1
