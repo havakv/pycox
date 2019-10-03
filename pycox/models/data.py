@@ -2,8 +2,9 @@
 import numpy as np
 import pandas as pd
 import torch
-from torchtuples import Model, tuplefy, make_dataloader, TupleTree
-from torchtuples.data import DatasetTuple
+# from torchtuples import Model, tuplefy, make_dataloader, TupleTree
+# from torchtuples.data import DatasetTuple
+import torchtuples as tt
 
 
 def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
@@ -40,7 +41,7 @@ def make_at_risk_dict(durations):
     return at_risk_dict
 
 
-class DatasetDurationSorted(DatasetTuple):
+class DurationSortedDataset(tt.data.DatasetTuple):
     """We assume the dataset contrain `(input, durations, events)`, and 
     sort the batch based on descending `durations`.
 
@@ -51,17 +52,17 @@ class DatasetDurationSorted(DatasetTuple):
         input, (duration, event) = batch
         idx_sort = duration.sort(descending=True)[1]
         event = event.float()
-        batch = tuplefy(input, event).iloc[idx_sort]
+        batch = tt.tuplefy(input, event).iloc[idx_sort]
         return batch
 
 
-class CoxCCPrepare(torch.utils.data.Dataset):
+class CoxCCDataset(torch.utils.data.Dataset):
     def __init__(self, input, durations, events, n_control=1):
         df_train_target = pd.DataFrame(dict(duration=durations, event=events))
         self.durations = df_train_target.loc[lambda x: x['event'] == 1]['duration']
         self.at_risk_dict = make_at_risk_dict(durations)
 
-        self.input = tuplefy(input)
+        self.input = tt.tuplefy(input)
         assert type(self.durations) is pd.Series
         self.n_control = n_control
 
@@ -71,17 +72,17 @@ class CoxCCPrepare(torch.utils.data.Dataset):
         fails = self.durations.iloc[index]
         x_case = self.input.iloc[fails.index]
         control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
-        x_control = TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
-        return tuplefy(x_case, x_control).to_tensor(), None
+        x_control = tt.TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
+        return tt.tuplefy(x_case, x_control).to_tensor(), None
 
     def __len__(self):
         return len(self.durations)
 
 
-class CoxTimePrepare(CoxCCPrepare):
+class CoxTimeDataset(CoxCCDataset):
     def __init__(self, input, durations, events, n_control=1):
         super().__init__(input, durations, events, n_control)
-        self.durations_tensor = tuplefy(self.durations.values.reshape(-1, 1)).to_tensor()
+        self.durations_tensor = tt.tuplefy(self.durations.values.reshape(-1, 1)).to_tensor()
 
     def __getitem__(self, index):
         if not hasattr(index, '__iter__'):
@@ -90,4 +91,4 @@ class CoxTimePrepare(CoxCCPrepare):
         (case, control), _ = super().__getitem__(index)
         case = case + durations
         control = control.apply_nrec(lambda x: x + durations)
-        return tuplefy(case, control), None
+        return tt.tuplefy(case, control), None

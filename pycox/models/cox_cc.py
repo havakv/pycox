@@ -1,13 +1,12 @@
 import numpy as np
 import pandas as pd
 import torchtuples as tt
-from pycox.models.cox.cox import CoxBase, CoxPHBase, search_sorted_idx
-from pycox.models.cox.data import CoxCCPrepare, CoxTimePrepare
+# from pycox.models.cox import CoxBase, CoxPHBase, search_sorted_idx
 from pycox.preprocessing.label_transforms import LabTransCoxTime
 from pycox import models
 
 
-class CoxCCBase(CoxBase):
+class _CoxCCBase(models.cox._CoxBase):
     make_dataset = NotImplementedError
 
     def __init__(self, net, optimizer=None, device=None, shrink=0.):
@@ -115,7 +114,7 @@ class CoxCCBase(CoxBase):
         return input, target
 
 
-class CoxCC(CoxCCBase, CoxPHBase):
+class CoxCC(_CoxCCBase, models.cox._CoxPHBase):
     """Cox proportional hazards model parameterized with a neural net and
     trained with case-control sampling.
     This is similar to DeepSurv, but use an approximation of the loss function.
@@ -127,10 +126,10 @@ class CoxCC(CoxCCBase, CoxPHBase):
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
         device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
     """
-    make_dataset = CoxCCPrepare
+    make_dataset = models.data.CoxCCDataset
 
 
-class CoxTime(CoxCCBase):
+class CoxTime(_CoxCCBase):
     """A Cox model that does not have proportional hazards, trained with case-control sampling.
     Se paper for explanation http://jmlr.org/papers/volume20/18-424/18-424.pdf
     
@@ -141,7 +140,7 @@ class CoxTime(CoxCCBase):
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
         device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
     """
-    make_dataset = CoxTimePrepare
+    make_dataset = models.data.CoxTimeDataset
     label_transform = LabTransCoxTime
 
     def __init__(self, net, optimizer=None, device=None, shrink=0., labtrans=None):

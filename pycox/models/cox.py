@@ -3,10 +3,8 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
-# from torchtuples import Model, tuplefy, make_dataloader
 import torchtuples as tt
 from pycox import models
-from pycox.models.cox.data import DatasetDurationSorted
 from pycox.models.utils import array_or_tensor
 
 def search_sorted_idx(array, values):
@@ -24,7 +22,7 @@ def search_sorted_idx(array, values):
     return idx
 
 
-class CoxBase(models.base._SurvModelBase):
+class _CoxBase(models.base._SurvModelBase):
     duration_col = 'duration'
     event_col = 'event'
 
@@ -227,7 +225,7 @@ class CoxBase(models.base._SurvModelBase):
         return input
     
 
-class CoxPHBase(CoxBase):
+class _CoxPHBase(_CoxBase):
     def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size, eval_=True, num_workers=0):
         if max_duration is None:
             max_duration = np.inf
@@ -291,7 +289,7 @@ class CoxPHBase(CoxBase):
                 ['pll'])
 
 
-class CoxPH(CoxPHBase):
+class CoxPH(_CoxPHBase):
     """Cox proportional hazards model parameterized with a neural net.
     This is essentailly the DeepSurv method by Katzman et al. (2018)
     https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1
@@ -316,7 +314,7 @@ class CoxPH(CoxPHBase):
     @staticmethod
     def make_dataloader(data, batch_size, shuffle, num_workers=0):
         dataloader = tt.make_dataloader(data, batch_size, shuffle, num_workers,
-                                        make_dataset=DatasetDurationSorted)
+                                        make_dataset=models.data.DurationSortedDataset)
         return dataloader
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
