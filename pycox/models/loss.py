@@ -250,6 +250,51 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
     return _reduction(loss, reduction)
 
 
+def cox_cc_loss(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
+    """Torch loss functin for the Cox case-control models.
+    TODO:
+        For only one control we should instead use the softplus function.
+    
+    Arguments:
+        g_case {torch.Tensor} -- Resulat of net(input_case)
+        g_control {torch.Tensor} -- Results of [net(input_ctrl1), net(input_ctrl2), ...]
+    
+    Keyword Arguments:
+        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
+            closer to zero (a regularizer in a sense). (default: {0.})
+        clamp {tuple} -- See code (default: {(-3e+38, 80.)})
+    
+    Returns:
+        [type] -- [description]
+    """
+    control_sum = 0.
+    shrink_control = 0.
+    for ctr in g_control:
+        shrink_control += ctr.abs().mean()
+        ctr = ctr - g_case
+        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
+        control_sum += torch.exp(ctr)
+    loss = torch.log(1. + control_sum)
+    shrink_zero = shrink * (g_case.abs().mean() + shrink_control) / len(g_control)
+    return torch.mean(loss) + shrink_zero.abs()
+
+def cox_ph_loss(log_h, event, eps=1e-7):
+    """Requires the input to be sorted by descending duration time.
+    See DatasetDurationSorted.
+
+    We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
+    where h = exp(log_h) are the hazards and R is the risk set, and d is event.
+
+    We just compute a cumulative sum, and not the true Risk sets. This is a
+    limitiation, but simple and fast.
+    """
+    event = event.view(-1)
+    log_h = log_h.view(-1)
+    gamma = log_h.max()
+    log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(eps).log().add(gamma)
+    return - log_h.sub(log_cumsum_h).mul(event).sum().div(event.sum())
+
+
 class _Loss(torch.nn.Module):
     """Generic loss function.
     
@@ -360,7 +405,75 @@ class DeepHitLoss(_Loss):
         self.alpha = alpha
         self.sigma = sigma
 
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, alpha):
+        if (alpha < 0) or (alpha > 1):
+            raise ValueError(f"Need `alpha` to be in [0, 1]. Got {alpha}.")
+        self._alpha = alpha
+
+    @property
+    def sigma(self):
+        return self._alpha
+
+    @sigma.setter
+    def sigma(self, sigma):
+        if sigma <= 0:
+            raise ValueError(f"Need `sigma` to be positive. Got {sigma}.")
+        self._sigma = sigma
+
     def forward(self, phi, idx_durations, events, rank_mat):
         nll =  nll_pmf_cr(phi, idx_durations, events, self.reduction)
         rank_loss = rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, self.sigma, self.reduction)
         return self.alpha * nll + (1. - self.alpha) * rank_loss
+
+
+class CoxCCLoss(torch.nn.Module):
+    """Torch loss functin for the Cox case-control models.
+
+    loss_func = LossCoxCC()
+    loss = loss_func(g_case, g_control)
+    
+    Keyword Arguments:
+        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
+            closer to zero (a regularizer in a sense). (default: {0.})
+        clamp {tuple} -- See code (default: {(-3e+38, 80.)})
+    """
+    def __init__(self, shrink=0., clamp=(-3e+38, 80.)):
+        super().__init__()
+        self.shrink = shrink
+        self.clamp = clamp
+
+    @property
+    def shrink(self):
+        return self._shrink
+    
+    @shrink.setter
+    def shrink(self, shrink):
+        if shrink < 0:
+            raise ValueError(f"Need shrink to be non-negative, got {shrink}.")
+        self._shrink = shrink
+
+    def forward(self, g_case, g_control):
+        return cox_cc_loss(g_case, g_control, self.shrink, self.clamp)
+
+
+class CoxPHLoss(torch.nn.Module):
+    """Loss for CoxPH.
+    Requires the input to be sorted by descending duration time.
+    See DatasetDurationSorted.
+
+    We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
+    where h = exp(log_h) are the hazards and R is the risk set, and d is event.
+
+    We just compute a cumulative sum, and not the true Risk sets. This is a
+    limitiation, but simple and fast.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, log_h, events):
+        return cox_ph_loss(log_h, events)

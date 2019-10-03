@@ -2,8 +2,11 @@ import os
 import warnings
 import numpy as np
 import pandas as pd
+import torch
 from torchtuples import Model, tuplefy, make_dataloader
 from pycox.models.cox.data import DatasetDurationSorted
+from pycox import models
+from pycox.models.utils import array_or_tensor
 
 def search_sorted_idx(array, values):
     '''For sorted array, get index of values.
@@ -20,7 +23,7 @@ def search_sorted_idx(array, values):
     return idx
 
 
-class CoxBase(Model):
+class CoxBase(models.base._SurvModelBase):
     duration_col = 'duration'
     event_col = 'event'
 
@@ -51,7 +54,7 @@ class CoxBase(Model):
                            num_workers, shuffle, metrics, val_data, val_batch_size,
                            **kwargs)
 
-    def _compute_baseline_hazards(self, input, df, max_duration, batch_size):
+    def _compute_baseline_hazards(self, input, df, max_duration, batch_size, eval_=True, num_workers=0):
         raise NotImplementedError
 
     def target_to_df(self, target):
@@ -60,7 +63,7 @@ class CoxBase(Model):
         return df
 
     def compute_baseline_hazards(self, input=None, target=None, max_duration=None, sample=None, batch_size=8224,
-                                set_hazards=True):
+                                set_hazards=True, eval_=True, num_workers=0):
         """Computes the Breslow estimates form the data definded by `input` and `target`
         (if `None` use traning data).
 
@@ -89,19 +92,21 @@ class CoxBase(Model):
             else:
                 df = df.sample(frac=sample)
         input = tuplefy(input).to_numpy().iloc[df.index.values]
-        base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size)
+        base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size,
+                                                  eval_=eval_, num_workers=num_workers)
         if set_hazards:
             self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
         return base_haz
 
     def compute_baseline_cumulative_hazards(self, input=None, target=None, max_duration=None, sample=None,
-                                            batch_size=8224, set_hazards=True, baseline_hazards_=None):
+                                            batch_size=8224, set_hazards=True, baseline_hazards_=None,
+                                            eval_=True, num_workers=0):
         """See `compute_bseline_hazards. This is the cumulative version."""
         if ((input is not None) or (target is not None)) and (baseline_hazards_ is not None):
             raise ValueError("'input', 'target' and 'baseline_hazards_' can not both be different from 'None'.")
         if baseline_hazards_ is None:
             baseline_hazards_ = self.compute_baseline_hazards(input, target, max_duration, sample, batch_size,
-                                                             set_hazards=False)
+                                                             set_hazards=False, eval_=eval_, num_workers=num_workers)
         assert baseline_hazards_.index.is_monotonic_increasing,\
             'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
         bch = (baseline_hazards_
@@ -112,7 +117,8 @@ class CoxBase(Model):
             self.baseline_cumulative_hazards_ = bch
         return bch
 
-    def predict_cumulative_hazards(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None):
+    def predict_cumulative_hazards(self, input, max_duration=None, batch_size=8224, verbose=False,
+                                   baseline_hazards_=None, eval_=True, num_workers=0):
         """See `predict_survival_function`."""
         if type(input) is pd.DataFrame:
             input = self.df_to_input(input)
@@ -122,12 +128,15 @@ class CoxBase(Model):
             baseline_hazards_ = self.baseline_hazards_
         assert baseline_hazards_.index.is_monotonic_increasing,\
             'Need index of baseline_hazards_ to be monotonic increasing, as it represents time.'
-        return self._predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_)
+        return self._predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_,
+                                                eval_, num_workers=num_workers)
 
-    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_):
+    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_,
+                                    eval_=True, num_workers=0):
         raise NotImplementedError
 
-    def predict_survival_function(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None):
+    def predict_surv_df(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None,
+                        eval_=True, num_workers=0):
         """Predict survival function for `input`. S(x, t) = exp(-H(x, t))
         Require compueted baseline hazards.
 
@@ -142,7 +151,34 @@ class CoxBase(Model):
         Returns:
             pd.DataFrame -- Survival esimates. One columns for each individual.
         """
-        return np.exp(-self.predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_))
+        return np.exp(-self.predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_,
+                                                       eval_, num_workers))
+
+    def predict_surv(self, input, max_duration=None, batch_size=8224, numpy=None, verbose=False,
+                     baseline_hazards_=None, eval_=True, num_workers=0):
+        """Predict survival function for `input`. S(x, t) = exp(-H(x, t))
+        Require compueted baseline hazards.
+
+        Arguments:
+            input {np.array, tensor or tuple} -- Input x passed to net.
+
+        Keyword Arguments:
+            max_duration {float} -- Don't compute estimates for duration higher (default: {None})
+            batch_size {int} -- Batch size (default: {8224})
+            baseline_hazards_ {pd.Series} -- Baseline hazards. If `None` used `model.baseline_hazards_` (default: {None})
+            numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
+                (default: {None})
+            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
+            num_workers {int} -- Number of workes in created dataloader (default: {0})
+
+        Returns:
+            pd.DataFrame -- Survival esimates. One columns for each individual.
+        """
+        surv = self.predict_surv_df(input, max_duration, batch_size, verbose, baseline_hazards_,
+                                    eval_, num_workers)
+        surv = torch.from_numpy(surv.values)
+        return array_or_tensor(surv, numpy, input)
+
 
     def predict_cumulative_hazards_at_times(self, times, input, batch_size=8224, return_df=True,
                                             verbose=False, baseline_hazards_=None):
@@ -258,7 +294,7 @@ class CoxBase(Model):
 
     def compute_baseline_hazards_df(self, df=None, max_duration=None, sample=None, batch_size=8224,
                                 set_hazards=True):
-        """See `compute_baeline_hazards`"""
+        """See `compute_baseline_hazards`"""
         input, target = None, None
         if df is not None:
             input, target = self.df_to_input(df), self.df_to_target
@@ -296,14 +332,14 @@ class CoxBase(Model):
 
 
 class CoxPHBase(CoxBase):
-    def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size):
+    def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size, eval_=True, num_workers=0):
         if max_duration is None:
             max_duration = np.inf
 
         # Here we are computing when expg when there are no events.
         #   Could be made faster, by only computing when there are events.
         return (df_target
-                .assign(expg=np.exp(self.predict(input, batch_size, numpy=True)))
+                .assign(expg=np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers)))
                 .groupby(self.duration_col)
                 .agg({'expg': 'sum', self.event_col: 'sum'})
                 .sort_index(ascending=False)
@@ -314,7 +350,8 @@ class CoxPHBase(CoxBase):
                 .loc[lambda x: x.index <= max_duration]
                 .rename('baseline_hazards'))
 
-    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_):
+    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_,
+                                    eval_=True, num_workers=0):
         max_duration = np.inf if max_duration is None else max_duration
         if baseline_hazards_ is self.baseline_hazards_:
             bch = self.baseline_cumulative_hazards_
@@ -322,12 +359,13 @@ class CoxPHBase(CoxBase):
             bch = self.compute_baseline_cumulative_hazards(set_hazards=False, 
                                                            baseline_hazards_=baseline_hazards_)
         bch = bch.loc[lambda x: x.index <= max_duration]
-        expg = np.exp(self.predict(input, batch_size, numpy=True)).reshape(1, -1)
+        expg = np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers)).reshape(1, -1)
         return pd.DataFrame(bch.values.reshape(-1, 1).dot(expg), 
                             index=bch.index)
 
     def predict_cumulative_hazards_at_times(self, times, input, batch_size=8224, return_df=True,
-                                            verbose=False, baseline_hazards_=None):
+                                            verbose=False, baseline_hazards_=None, eval_=True,
+                                            num_workers=0):
         if type(input) is pd.DataFrame:
             input = self.df_to_input(input)
         if verbose:
@@ -341,13 +379,14 @@ class CoxPHBase(CoxBase):
             times = [times]
         times_idx = search_sorted_idx(bch.index.values, times)
         bch = bch.iloc[times_idx].values.reshape(-1, 1)
-        expg = np.exp(self.predict(input, batch_size, numpy=True)).reshape(1, -1)
+        expg = np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers)).reshape(1, -1)
         res = bch.dot(expg)
         if return_df:
             return pd.DataFrame(res, index=times)
         return res
 
-    def partial_log_likelihood(self, input, target, g_preds=None, batch_size=8224, eps=1e-7):
+    def partial_log_likelihood(self, input, target, g_preds=None, batch_size=8224, eps=1e-7, eval_=True,
+                               num_workers=0):
         '''Calculate the partial log-likelihood for the events in datafram df.
         This likelihood does not sample the controls.
         Note that censored data (non events) does not have a partial log-likelihood.
@@ -364,7 +403,7 @@ class CoxPHBase(CoxBase):
         '''
         df = self.target_to_df(target)
         if g_preds is None:
-            g_preds = self.predict(input, batch_size, numpy=True)
+            g_preds = self.predict(input, batch_size, True, eval_, num_workers=num_workers)
         return (df
                 .assign(_g_preds=g_preds)
                 .sort_values(self.duration_col, ascending=False)
@@ -395,8 +434,10 @@ class CoxPH(CoxPHBase):
         device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
     """
     def __init__(self, net, optimizer=None, device=None):
-        loss = loss_cox_ph
-        return super().__init__(net, loss=loss, optimizer=optimizer, device=device)
+        return super().__init__(net, self.make_loss(), optimizer, device)
+
+    def make_loss(self):
+        return models.loss.CoxPHLoss()
 
     @staticmethod
     def make_dataloader(data, batch_size, shuffle, num_workers=0):
@@ -407,21 +448,3 @@ class CoxPH(CoxPHBase):
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
-
-
-def loss_cox_ph(log_h, event, eps=1e-7):
-    """Requires the input to be sorted by descending duration time.
-    See DatasetDurationSorted.
-
-    We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
-    where h = exp(log_h) are the hazards and R is the risk set, and d is event.
-
-    We just compute a cumulative sum, and not the true Risk sets. This is a
-    limitiation, but simple and fast.
-    """
-    event = event.view(-1)
-    log_h = log_h.view(-1)
-    gamma = log_h.max()
-    log_cumsum_h = log_h.sub(gamma).exp().cumsum(0).add(eps).log().add(gamma)
-    return - log_h.sub(log_cumsum_h).mul(event).sum().div(event.sum())
-

@@ -7,9 +7,6 @@ class _SurvModelBase(tt.Model):
     def __init__(self, net, loss=None, optimizer=None, device=None):
         super().__init__(net, loss, optimizer, device)
 
-    def _make_loss(self):
-        raise NotImplementedError
-
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True,
                      to_cpu=False, num_workers=0):
         """Predict the survival fuction for `input`.

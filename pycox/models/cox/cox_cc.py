@@ -1,76 +1,22 @@
 import numpy as np
 import pandas as pd
 import torch
-import torchtuples
-from torchtuples import TupleTree, tuplefy
+import torchtuples as tt
+# from torchtuples import TupleTree, tuplefy
 from pycox.models.cox.cox import CoxBase, CoxPHBase, search_sorted_idx
 from pycox.models.cox.data import CoxCCPrepare, CoxTimePrepare
+from pycox.preprocessing.label_transforms import LabTransCoxTime
+from pycox import models
 
-
-def loss_cox_cc(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
-    """Torch loss functin for the Cox case-control models.
-    TODO:
-        For only one control we should instead use the softplus function.
-    
-    Arguments:
-        g_case {torch.Tensor} -- Resulat of net(input_case)
-        g_control {torch.Tensor} -- Results of [net(input_ctrl1), net(input_ctrl2), ...]
-    
-    Keyword Arguments:
-        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
-            closer to zero (a regularizer in a sense). (default: {0.})
-        clamp {tuple} -- See code (default: {(-3e+38, 80.)})
-    
-    Returns:
-        [type] -- [description]
-    """
-    control_sum = 0.
-    shrink_control = 0.
-    for ctr in g_control:
-        shrink_control += ctr.abs().mean()
-        ctr = ctr - g_case
-        ctr = torch.clamp(ctr, *clamp)  # Kills grads for very bad cases (should instead cap grads!!!).
-        control_sum += torch.exp(ctr)
-    loss = torch.log(1. + control_sum)
-    shrink_zero = shrink * (g_case.abs().mean() + shrink_control) / len(g_control)
-    return torch.mean(loss) + shrink_zero.abs()
-
-
-class LossCoxCC(torch.nn.Module):
-    """Torch loss functin for the Cox case-control models.
-
-    loss_func = LossCoxCC()
-    loss = loss_func(g_case, g_control)
-    
-    Keyword Arguments:
-        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
-            closer to zero (a regularizer in a sense). (default: {0.})
-        clamp {tuple} -- See code (default: {(-3e+38, 80.)})
-    """
-    def __init__(self, shrink=0., clamp=(-3e+38, 80.)):
-        super().__init__()
-        self.shrink = shrink
-        self.clamp = clamp
-
-    @property
-    def shrink(self):
-        return self._shrink
-    
-    @shrink.setter
-    def shrink(self, shrink):
-        assert shrink >= 0, f"Need shrink to be non-negative, got {shrink}"
-        self._shrink = shrink
-
-    def forward(self, g_case, g_control):
-        return loss_cox_cc(g_case, g_control, self.shrink, self.clamp)
-    
 
 class CoxCCBase(CoxBase):
     make_dataset = NotImplementedError
 
     def __init__(self, net, optimizer=None, device=None, shrink=0.):
-        loss = LossCoxCC(shrink)
-        super().__init__(net, loss, optimizer, device)
+        super().__init__(net, self.make_loss(shrink), optimizer, device)
+
+    def make_loss(self, shrink):
+        return models.loss.CoxCCLoss(shrink)
 
     def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
             num_workers=0, shuffle=True, metrics=None, val_data=None, val_batch_size=8224,
@@ -111,9 +57,9 @@ class CoxCCBase(CoxBase):
         if batch_size is None:
             raise RuntimeError("All elements in input does not have the same lenght.")
         case, control = input # both are TupleTree
-        input_all = TupleTree((case,) + control).cat()
+        input_all = tt.TupleTree((case,) + control).cat()
         g_all = self.net(*input_all)
-        g_all = tuplefy(g_all).split(batch_size).flatten()
+        g_all = tt.tuplefy(g_all).split(batch_size).flatten()
         g_case = g_all[0]
         g_control = g_all[1:]
         res = {name: metric(g_case, g_control) for name, metric in metrics.items()}
@@ -156,8 +102,8 @@ class CoxCCBase(CoxBase):
         input, target = self._sorted_input_target(*data)
         durations, events = target
         dataset = self.make_dataset(input, durations, events, n_control)
-        dataloader = torchtuples.data.DataLoaderSlice(dataset, batch_size=batch_size,
-                                               shuffle=shuffle, num_workers=num_workers)
+        dataloader = tt.data.DataLoaderSlice(dataset, batch_size=batch_size,
+                                             shuffle=shuffle, num_workers=num_workers)
         return dataloader
 
     @staticmethod
@@ -166,8 +112,8 @@ class CoxCCBase(CoxBase):
         idx_sort = np.argsort(durations)
         if (idx_sort == np.arange(0, len(idx_sort))).all():
             return input, target
-        input = tuplefy(input).iloc[idx_sort]
-        target = tuplefy(target).iloc[idx_sort]
+        input = tt.tuplefy(input).iloc[idx_sort]
+        target = tt.tuplefy(target).iloc[idx_sort]
         return input, target
 
 
@@ -188,7 +134,7 @@ class CoxCC(CoxCCBase, CoxPHBase):
 
 class CoxTime(CoxCCBase):
     """A Cox model that does not have proportional hazards, trained with case-control sampling.
-    Se paper for explanation.
+    Se paper for explanation http://jmlr.org/papers/volume20/18-424/18-424.pdf
     
     Arguments:
         net {torch.nn.Module} -- A pytorch net.
@@ -198,17 +144,31 @@ class CoxTime(CoxCCBase):
         device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
     """
     make_dataset = CoxTimePrepare
+    label_transform = LabTransCoxTime
+
+    def __init__(self, net, optimizer=None, device=None, shrink=0., labtrans=None):
+        self.labtrans = labtrans
+        super().__init__(net, optimizer, device, shrink)
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         input, durations = input
-        input = tuplefy(input)
-        durations = tuplefy(durations)
+        input = tt.tuplefy(input)
+        durations = tt.tuplefy(durations)
         new_input = input + durations 
         dataloader = super().make_dataloader_predict(new_input, batch_size, shuffle, num_workers)
         return dataloader
 
+
+    def predict_surv_df(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None,
+                        eval_=True, num_workers=0):
+        surv = super().predict_surv_df(input, max_duration, batch_size, verbose, baseline_hazards_,
+                                       eval_, num_workers)
+        if self.labtrans is not None:
+            surv.index = self.labtrans.map_scaled_to_orig(surv.index)
+        return surv
+
     def compute_baseline_hazards(self, input=None, target=None, max_duration=None, sample=None, batch_size=8224,
-                                set_hazards=True):
+                                set_hazards=True, eval_=True, num_workers=0):
         if (input is None) and (target is None):
             if not hasattr(self, 'training_data'):
                 raise ValueError('Need to fit, or supply a input and target to this function.')
@@ -220,24 +180,25 @@ class CoxTime(CoxCCBase):
             else:
                 df = df.sample(frac=sample)
             df = df.sort_values(self.duration_col)
-        input = tuplefy(input).to_numpy().iloc[df.index.values]
-        base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size)
+        input = tt.tuplefy(input).to_numpy().iloc[df.index.values]
+        base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size, eval_, num_workers)
         if set_hazards:
             self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
         return base_haz
 
-    def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size):
+    def _compute_baseline_hazards(self, input, df_train_target, max_duration, batch_size, eval_=True,
+                                  num_workers=0):
         if max_duration is None:
             max_duration = np.inf
         def compute_expg_at_risk(ix, t):
             sub = input.iloc[ix:]
             n = sub.lens().flatten().get_if_all_equal()
             t = np.repeat(t, n).reshape(-1, 1).astype('float32')
-            return np.exp(self.predict((sub, t), batch_size)).flatten().sum()
+            return np.exp(self.predict((sub, t), batch_size, True, eval_, num_workers=num_workers)).flatten().sum()
 
         if not df_train_target[self.duration_col].is_monotonic_increasing:
             raise RuntimeError(f"Need 'df_train_target' to be sorted by {self.duration_col}")
-        input = tuplefy(input)
+        input = tt.tuplefy(input)
         df = df_train_target.reset_index(drop=True)
         times = (df
                  .loc[lambda x: x[self.event_col] != 0]
@@ -259,12 +220,13 @@ class CoxTime(CoxCCBase):
                      .rename('baseline_hazards'))
         return base_haz
 
-    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_):
+    def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_,
+                                    eval_=True, num_workers=0):
         def expg_at_time(t):
             t = np.repeat(t, n_cols).reshape(-1, 1).astype('float32')
-            return np.exp(self.predict((input, t), batch_size)).flatten()
+            return np.exp(self.predict((input, t), batch_size, True, eval_, num_workers=num_workers)).flatten()
 
-        input = tuplefy(input)
+        input = tt.tuplefy(input)
         max_duration = np.inf if max_duration is None else max_duration
         baseline_hazards_ = baseline_hazards_.loc[lambda x: x.index <= max_duration]
         n_rows, n_cols = baseline_hazards_.shape[0], input.lens().flatten().get_if_all_equal()
@@ -290,17 +252,17 @@ class CoxTime(CoxCCBase):
             return cum_haz
         return cum_haz.as_matrix()
 
-    def partial_log_likelihood(self, input, target, batch_size=512):
+    def partial_log_likelihood(self, input, target, batch_size=8224, eval_=True, num_workers=0):
         def expg_sum(t, i):
             sub = input_sorted.iloc[i:]
             n = sub.lens().flatten().get_if_all_equal()
             t = np.repeat(t, n).reshape(-1, 1).astype('float32')
-            return np.exp(self.predict((sub, t), batch_size)).flatten().sum()
+            return np.exp(self.predict((sub, t), batch_size, True, eval_, num_workers=num_workers)).flatten().sum()
 
         durations, events = target
         df = pd.DataFrame({self.duration_col: durations, self.event_col: events})
         df = df.sort_values(self.duration_col)
-        input = tuplefy(input)
+        input = tt.tuplefy(input)
         input_sorted = input.iloc[df.index.values]
 
         times =  (df
@@ -317,7 +279,7 @@ class CoxTime(CoxCCBase):
         pll = df.loc[lambda x: x[self.event_col] == True]
         input_event = input.iloc[pll.index.values]
         durations_event = pll[self.duration_col].values.reshape(-1, 1)
-        g_preds = self.predict((input_event, durations_event), batch_size).flatten()
+        g_preds = self.predict((input_event, durations_event), batch_size, True, eval_, num_workers=num_workers).flatten()
         pll = (pll
                .assign(_g_preds=g_preds)
                .reset_index()
