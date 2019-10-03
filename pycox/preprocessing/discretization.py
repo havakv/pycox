@@ -7,7 +7,7 @@ def make_cuts(cuts, durations, events, min_=0., dtype='float64'):
         if cuts[0] == 'equidistant':
             cuts = cuts_equidistant(durations.max(), cuts[1], min_, dtype)
         else:
-            raise RuntimeError("Need cuts to be e.g. ('equidistant', 100)")
+            raise ValueError("Need cuts to be e.g. ('equidistant', 100)")
     if (np.diff(cuts) == 0).any():
         raise ValueError("cuts are not unique.")
     return cuts

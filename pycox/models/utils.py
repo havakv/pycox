@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
 import torchtuples as tt
 
 def pad_col(input, val=0, where='end'):
@@ -39,3 +40,21 @@ def make_subgrid(grid, sub=1):
                         for start, end in zip(grid[:-1], grid[1:]))
     subgrid = subgrid.apply(lambda x: tt.TupleTree(x)).flatten() + (grid[-1],)
     return subgrid
+
+def log_softplus(input, threshold=-15.):
+    """Equivalent to 'F.softplus(input).log()', but for 'input < threshold',
+    we return 'input', as this is approximately the same.
+
+    Arguments:
+        input {torch.tensor} -- Input tensor
+    
+    Keyword Arguments:
+        threshold {float} -- Treshold for when to just return input (default: {-15.})
+    
+    Returns:
+        torch.tensor -- return log(softplus(input)).
+    """
+    output = input.clone()
+    above = input >= threshold
+    output[above] = F.softplus(input[above]).log()
+    return output

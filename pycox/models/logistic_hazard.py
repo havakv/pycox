@@ -10,7 +10,7 @@ from pycox.preprocessing import label_transforms
 class LogisticHazard(models.base._SurvModelBase):
     """Essentailly same as pyth.Model, but instead of specifying a loss function,
     """
-    label_transform = label_transforms.LabTransDiscreteSurv
+    label_transform = label_transforms.LabTransDiscreteTime
 
     def __init__(self, net, optimizer=None, device=None, duration_index=None):
         self.duration_index = duration_index

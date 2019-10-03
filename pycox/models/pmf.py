@@ -7,7 +7,7 @@ from pycox.preprocessing import label_transforms
 class _PMFBase(models.base._SurvModelBase):
     """Base class for PMF methods.
     """
-    label_transform = label_transforms.LabTransDiscreteSurv
+    label_transform = label_transforms.LabTransDiscreteTime
 
     def __init__(self, net, loss=None, optimizer=None, device=None, duration_index=None):
         self.duration_index = duration_index

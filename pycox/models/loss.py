@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from pycox.models.utils import pad_col
+from pycox.models.utils import pad_col, log_softplus
 
 
 def _reduction(loss, reduction='mean'):
@@ -64,6 +64,42 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     part3 = sum_.sub(cumsum.gather(1, idx_durations).view(-1)).relu().add(epsilon).log().mul(1. - events)
     # need relu() in part3 (and possibly part2) because cumsum on gpu has some bugs and we risk getting negative numbers.
     loss = - part1.add(part2).add(part3)
+    return _reduction(loss, reduction)
+
+def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mean'):
+    """Negative log-likelihood of the PC-Hazard parametrization model.
+    
+    Arguments:
+        phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
+        idx_durations {torch.tensor} -- Event times represented as indices.
+        events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
+            Same lenght as 'idx_durations'.
+        interval_frac {torch.tensor} -- Fraction of last interval before event/censoring.
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The negative log-likelihood.
+    """
+    idx_durations = idx_durations.view(-1, 1)
+    events = events.view(-1)
+    interval_frac = interval_frac.view(-1)
+
+    keep = idx_durations.view(-1) >= 0
+    phi = phi[keep, :]
+    idx_durations = idx_durations[keep, :]
+    events = events[keep]
+    interval_frac = interval_frac[keep]
+
+    # log_h_e = F.softplus(phi.gather(1, idx_durations).view(-1)).log().mul(events)
+    log_h_e = log_softplus(phi.gather(1, idx_durations).view(-1)).mul(events)
+    haz = F.softplus(phi)
+    scaled_h_e = haz.gather(1, idx_durations).view(-1).mul(interval_frac)
+    haz = pad_col(haz, where='start')
+    sum_haz = haz.cumsum(1).gather(1, idx_durations).view(-1) 
+    loss = - log_h_e.sub(scaled_h_e).sub(sum_haz)
     return _reduction(loss, reduction)
 
 
@@ -215,19 +251,68 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
 
 
 class _Loss(torch.nn.Module):
+    """Generic loss function.
+    
+    Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    """
     def __init__(self, reduction='mean'):
         super().__init__()
         self.reduction = reduction
 
 
 class NLLLogistiHazardLoss(_Loss):
+    """Negative log-likelihood of the hazard parametrization model.
+    See `loss.nll_logistic_hazard` for details.
+    
+    Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The negative log-likelihood.
+    """
     def forward(self, phi, idx_durations, events):
         return nll_logistic_hazard(phi, idx_durations, events, self.reduction)
 
 
 class NLLPMFLoss(_Loss):
+    """Negative log-likelihood of the pmf parametrization model.
+    See `loss.nll_pmf` for details.
+    
+    Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The negative log-likelihood.
+    """
     def forward(self, phi, idx_durations, events):
         return nll_pmf(phi, idx_durations, events, self.reduction)
+
+
+class NLLPCHazardLoss(_Loss):
+    def forward(self, phi, idx_durations, events, interval_frac, reduction='mean'):
+        """Negative log-likelihood of the PC-Hazard parametrization model.
+        See `loss.nll_pc_hazard_loss` for details.
+    
+        Arguments:
+            reduction {string} -- How to reduce the loss.
+                'none': No reduction.
+                'mean': Mean of tensor.
+                'sum: sum.
+    
+        Returns:
+            torch.tensor -- The negative log-likelihood loss.
+        """
+        return nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, self.reduction)
 
 
 class DeepHitSingleLoss(_Loss):

@@ -1,7 +1,8 @@
 import warnings
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from pycox.preprocessing.discretization import make_cuts, IdxDiscUnknownC, _values_if_series
+from pycox.preprocessing.discretization import (make_cuts, IdxDiscUnknownC, _values_if_series,
+    DiscretizeUnknownC, Duration2Idx)
 
 
 class LabTransCoxTime:
@@ -60,7 +61,7 @@ class LabTransCoxTime:
         return durations, events
 
 
-class LabTransDiscreteSurv:
+class LabTransDiscreteTime:
     """
     Discretize continuous (duration, event) pairs based on cuts.
     One can either determine the cuts points in form of passing an array to this class,
@@ -122,3 +123,57 @@ class LabTransDiscreteSurv:
         idx_durations, events = self.idu.transform(durations, events)
         return idx_durations, events.astype('float32')
 
+
+class LabTransPCHazard:
+    def __init__(self, cuts, min_=0., dtype=None):
+        self._predefined_cuts = False
+        if type(cuts) is int:
+            cuts = ('equidistant', cuts + 1)
+        elif hasattr(cuts, '__iter__'):
+            if (type(cuts[0]) is not str):
+                self.idu = IdxDiscUnknownC(cuts)
+                assert dtype is None, "Need dtype to be None for spesified cuts"
+                self.dtype = type(cuts[0])
+                self._dtype = self.dtype
+                self._predefined_cuts = True
+            elif (len(cuts) == 2) and (type(cuts[0]) is str):
+                cuts = (cuts[0], cuts[1] + 1)
+        self._cuts = cuts
+        self.min_ = min_
+        self._dtype = dtype
+
+    def fit(self, durations, events):
+        if self._predefined_cuts:
+            warnings.warn("Calling fit method, when 'cuts' are allready definded. Leaving cuts unchanges.")
+            return self
+        self.dtype = self._dtype
+        if self.dtype is None:
+            if isinstance(durations[0], np.floating):
+                self.dtype = durations.dtype
+            else:
+                self.dtype = np.dtype('float64')
+        durations = durations.astype(self.dtype)
+        self.cuts = make_cuts(self._cuts, durations, events, self.min_, self.dtype)
+        self.duc = DiscretizeUnknownC(self.cuts, right_censor=True, censor_side='right')
+        self.di = Duration2Idx(self.cuts)
+        return self
+
+    def fit_transform(self, durations, events):
+        self.fit(durations, events)
+        return self.transform(durations, events)
+
+    def transform(self, durations, events):
+        durations = _values_if_series(durations)
+        durations = durations.astype(self.dtype)
+        events = _values_if_series(events)
+        dur_disc, events = self.duc.transform(durations, events)
+        idx_durations = self.di.transform(dur_disc)
+        cut_diff = np.diff(self.cuts)
+        assert (cut_diff > 0).all(), 'Cuts are not unique.'
+        t_frac = 1. - (dur_disc - durations) / cut_diff[idx_durations-1]
+        if idx_durations.min() == 0:
+            warnings.warn("""Got event/censoring at start time. Should be removed! It is set s.t. it has no contribution to loss.""")
+            t_frac[idx_durations == 0] = 0
+            events[idx_durations == 0] = 0
+        idx_durations = idx_durations - 1
+        return idx_durations, events.astype('float32'), t_frac.astype('float32')
