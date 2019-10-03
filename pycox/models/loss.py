@@ -360,35 +360,7 @@ class NLLPCHazardLoss(_Loss):
         return nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, self.reduction)
 
 
-class DeepHitSingleLoss(_Loss):
-    """Loss for deephit (single risk) model.
-    Alpha is  weighting between likelihood and rank loss (so not like in paper):
-
-    loss = alpha * nll + (1 - alpha) rank_loss(sigma)
-    
-    Arguments:
-        alpha {float} -- Weighting between likelihood and rank loss.
-        sigma {float} -- Part of rank loss (see DeepHit paper)
-
-    Keyword Arguments:
-        reduction {string} -- How to reduce the loss.
-            'none': No reduction.
-            'mean': Mean of tensor.
-            'sum': sum.
-    """
-    def __init__(self, alpha, sigma, reduction='mean'):
-        super().__init__(reduction)
-        self.alpha = alpha
-        self.sigma = sigma
-
-    def forward(self, phi, idx_durations, events, rank_mat):
-        nll = nll_pmf(phi, idx_durations, events, self.reduction)
-        rank_loss = rank_loss_deephit_single(phi, idx_durations, events, rank_mat, self.sigma,
-                                             self.reduction)
-        return self.alpha * nll + (1. - self.alpha) * rank_loss
-
-
-class DeepHitLoss(_Loss):
+class _DeepHitLoss(_Loss):
     """Loss for deephit model.
     If you have only one event type, use LossDeepHitSingle instead!
 
@@ -425,6 +397,41 @@ class DeepHitLoss(_Loss):
             raise ValueError(f"Need `sigma` to be positive. Got {sigma}.")
         self._sigma = sigma
 
+class DeepHitSingleLoss(_DeepHitLoss):
+    """Loss for deephit (single risk) model.
+    Alpha is  weighting between likelihood and rank loss (so not like in paper):
+
+    loss = alpha * nll + (1 - alpha) rank_loss(sigma)
+    
+    Arguments:
+        alpha {float} -- Weighting between likelihood and rank loss.
+        sigma {float} -- Part of rank loss (see DeepHit paper)
+
+    Keyword Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum': sum.
+    """
+    def forward(self, phi, idx_durations, events, rank_mat):
+        nll = nll_pmf(phi, idx_durations, events, self.reduction)
+        rank_loss = rank_loss_deephit_single(phi, idx_durations, events, rank_mat, self.sigma,
+                                             self.reduction)
+        return self.alpha * nll + (1. - self.alpha) * rank_loss
+
+
+class DeepHitLoss(_DeepHitLoss):
+    """Loss for deephit model.
+    If you have only one event type, use LossDeepHitSingle instead!
+
+    Alpha is  weighting between likelihood and rank loss (so not like in paper):
+
+    loss = alpha * nll + (1 - alpha) rank_loss(sigma)
+    
+    Arguments:
+        alpha {float} -- Weighting between likelihood and rank loss.
+        sigma {float} -- Part of rank loss (see DeepHit paper)
+    """
     def forward(self, phi, idx_durations, events, rank_mat):
         nll =  nll_pmf_cr(phi, idx_durations, events, self.reduction)
         rank_loss = rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, self.sigma, self.reduction)
