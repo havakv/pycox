@@ -54,7 +54,7 @@ class DeepHitSingle(models.pmf._PMFBase):
     
     Keyword Arguments:
         alpha {float} -- Weighting (0, 1) likelihood and rank loss (L2 in paper).
-            1 gives only likelihood, and 0 gives only rank loss. (default: {0.5})
+            1 gives only likelihood, and 0 gives only rank loss. (default: {0.2})
         sigma {float} -- from eta in rank loss (L2 in paper) (default: {0.1})
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None, alpha=0.2, sigma=0.1):
@@ -93,10 +93,10 @@ class DeepHit(tt.Model):
     
     Keyword Arguments:
         alpha {float} -- Weighting (0, 1) likelihood and rank loss (L2 in paper).
-            1 gives only likelihood, and 0 gives only rank loss. (default: {0.5})
+            1 gives only likelihood, and 0 gives only rank loss. (default: {0.2})
         sigma {float} -- from eta in rank loss (L2 in paper) (default: {0.1})
     """
-    def __init__(self, net, optimizer=None, device=None, alpha=0.5, sigma=0.1, duration_index=None):
+    def __init__(self, net, optimizer=None, device=None, alpha=0.2, sigma=0.1, duration_index=None):
         self.duration_index = duration_index
         loss = self.make_loss(alpha, sigma)
         super().__init__(net, loss, optimizer, device)

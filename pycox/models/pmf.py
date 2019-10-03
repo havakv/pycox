@@ -1,11 +1,14 @@
 import pandas as pd
 from pycox import models
 from pycox.models.utils import array_or_tensor, pad_col
+from pycox.preprocessing import label_transforms
 
 
 class _PMFBase(models.base._SurvModelBase):
     """Base class for PMF methods.
     """
+    label_transform = label_transforms.LabTransDiscreteSurv
+
     def __init__(self, net, loss=None, optimizer=None, device=None, duration_index=None):
         self.duration_index = duration_index
         super().__init__(net, loss, optimizer, device)
@@ -85,4 +88,3 @@ class PMF(_PMFBase):
 
     def make_loss(self):
         return models.loss.NLLPMFLoss()
-
