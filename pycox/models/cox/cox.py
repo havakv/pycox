@@ -3,9 +3,10 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
-from torchtuples import Model, tuplefy, make_dataloader
-from pycox.models.cox.data import DatasetDurationSorted
+# from torchtuples import Model, tuplefy, make_dataloader
+import torchtuples as tt
 from pycox import models
+from pycox.models.cox.data import DatasetDurationSorted
 from pycox.models.utils import array_or_tensor
 
 def search_sorted_idx(array, values):
@@ -49,7 +50,7 @@ class CoxBase(models.base._SurvModelBase):
         Returns:
             TrainingLogger -- Training log
         """
-        self.training_data = tuplefy(input, target)
+        self.training_data = tt.tuplefy(input, target)
         return super().fit(input, target, batch_size, epochs, callbacks, verbose,
                            num_workers, shuffle, metrics, val_data, val_batch_size,
                            **kwargs)
@@ -58,7 +59,7 @@ class CoxBase(models.base._SurvModelBase):
         raise NotImplementedError
 
     def target_to_df(self, target):
-        durations, events = tuplefy(target).to_numpy()
+        durations, events = tt.tuplefy(target).to_numpy()
         df = pd.DataFrame({self.duration_col: durations, self.event_col: events}) 
         return df
 
@@ -91,7 +92,7 @@ class CoxBase(models.base._SurvModelBase):
                 df = df.sample(n=sample)
             else:
                 df = df.sample(frac=sample)
-        input = tuplefy(input).to_numpy().iloc[df.index.values]
+        input = tt.tuplefy(input).to_numpy().iloc[df.index.values]
         base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size,
                                                   eval_=eval_, num_workers=num_workers)
         if set_hazards:
@@ -179,27 +180,6 @@ class CoxBase(models.base._SurvModelBase):
         surv = torch.from_numpy(surv.values)
         return array_or_tensor(surv, numpy, input)
 
-
-    def predict_cumulative_hazards_at_times(self, times, input, batch_size=8224, return_df=True,
-                                            verbose=False, baseline_hazards_=None):
-        """NOTE: Don't know if this still works!!!!
-
-        See `predict_cumulative_hazards`
-        """
-        raise NotImplementedError
-
-    def predict_survival_at_times(self, times, input, batch_size=8224, return_df=True,
-                                  verbose=False, baseline_hazards_=None):
-        """NOTE: Don't know if this still works!!!!
-        
-        Predict survival function for `input` at five time points. S(x, t) = exp(-H(x, t))
-        Require compueted baseline hazards.
-
-        See `predict_survival_function`
-        """
-        return np.exp(-self.predict_cumulative_hazards_at_times(times, input, batch_size, return_df,
-                                                                verbose, baseline_hazards_))
-
     def save_net(self, path, **kwargs):
         """Save self.net and baseline hazards to file.
 
@@ -246,90 +226,6 @@ class CoxBase(models.base._SurvModelBase):
         input = df[self.input_cols].values
         return input
     
-    def df_to_target(self, df):
-        target = (df[self.duration_col].values, df[self.event_col].values)
-        return tuplefy(target)
-
-    def fit_df(self, df, duration_col, event_col, batch_size=256, epochs=1, callbacks=None,
-               verbose=True, num_workers=0, shuffle=True, metrics=None, val_df=None,
-               val_batch_size=8224, n_control=1, **kwargs):
-        """NOTE: Don't know if this still works. Use `fit` instead.
-
-        Fit the Cox Propertional Hazards model to a dataset. Tied survival times
-        are handled using Beslow's tie-method.
-
-        Parameters:
-            df: A Pandas dataframe with necessary columns `duration_col` and
-                `event_col`, plus other covariates. `duration_col` refers to
-                the lifetimes of the subjects. `event_col` refers to whether
-                the 'death' events was observed: 1 if observed, 0 else (censored).
-            duration_col: The column in dataframe that contains the subjects'
-                lifetimes.
-            event_col: The column in dataframe that contains the subjects' death
-                observation. 
-            batch_size: Batch size.
-            epochs: Number of epochs.
-            num_workers: Number of workers for preparing data.
-            verbose: Degree of verbose. If dict {'name': mm}, where mm is a MonitorMetric object,
-                this will be printed. 
-                Example: 
-                mm = MonitorCoxLoss(df_val, n_control=1, n_reps=4,)
-                cox.fit(..., verbose={'val_loss': mm}, callbacks=[mm])
-            callbacks: List of callbacks.
-            n_control: Number of control samples.
-            compute_hazards: If we should compute hazards when training has finished.
-
-        # Returns:
-        #     self, with additional properties: hazards_
-        """
-        self.duration_col = duration_col
-        self.event_col = event_col
-        self.input_cols = df.columns.drop([self.duration_col, self.event_col]).values
-        input, target = self.df_to_input(df), self.df_to_target(df)
-        val_data = val_df
-        if val_data is not None:
-            val_data = self.df_to_input(val_data), self.df_to_target(val_data)
-        return self.fit(input, target, batch_size, epochs, callbacks, verbose, num_workers,
-                           shuffle, metrics, val_data, val_batch_size, n_control=n_control, **kwargs)
-
-    def compute_baseline_hazards_df(self, df=None, max_duration=None, sample=None, batch_size=8224,
-                                set_hazards=True):
-        """See `compute_baseline_hazards`"""
-        input, target = None, None
-        if df is not None:
-            input, target = self.df_to_input(df), self.df_to_target
-        return self.compute_baseline_hazards_df(input, target, max_duration, sample, batch_size,
-                                set_hazards)
-
-    def compute_baseline_cumulative_hazards_df(self, df=None, max_duration=None, sample=None,
-                                            batch_size=8224, set_hazards=True, baseline_hazards_=None):
-        """See `compute_baseline_cumulative_hazards`."""
-        input, target = None, None
-        if df is not None:
-            input, target = self.df_to_input(df), self.df_to_target
-        return self.compute_baseline_cumulative_hazards(input, target, max_duration, sample,
-                                                        batch_size, set_hazards, baseline_hazards_)
-
-    def partial_log_likelihood_df(self, df, g_preds=None, batch_size=8224):
-        '''See `partial_log_likelihood`.
-
-        Calculate the partial log-likelihood for the events in datafram df.
-        This likelihood does not sample the controls.
-        Note that censored data (non events) does not have a partial log-likelihood.
-
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            g_preds: Exponent of proportional hazards (h = h0 * exp(g(x))).
-                If not supplied, it will be calculated.
-            batch_size: Batch size passed calculation of g_preds.
-
-        Returns:
-            Pandas dataframe with duration, g_preds, and the
-                partial log-likelihood pll.
-        '''
-        input, target = self.df_to_input(df), self.df_to_target
-        return self.partial_log_likelihood(input, target, g_preds, batch_size)
-
 
 class CoxPHBase(CoxBase):
     def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size, eval_=True, num_workers=0):
@@ -362,28 +258,6 @@ class CoxPHBase(CoxBase):
         expg = np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers)).reshape(1, -1)
         return pd.DataFrame(bch.values.reshape(-1, 1).dot(expg), 
                             index=bch.index)
-
-    def predict_cumulative_hazards_at_times(self, times, input, batch_size=8224, return_df=True,
-                                            verbose=False, baseline_hazards_=None, eval_=True,
-                                            num_workers=0):
-        if type(input) is pd.DataFrame:
-            input = self.df_to_input(input)
-        if verbose:
-            print('No verbose to show...')
-        if baseline_hazards_ is None:
-            bch = self.baseline_cumulative_hazards_
-        else:
-            bch = self.compute_baseline_cumulative_hazards(batch_size=batch_size, set_hazards=False,
-                                                           baseline_hazards_=baseline_hazards_)
-        if not hasattr(times, '__iter__'):
-            times = [times]
-        times_idx = search_sorted_idx(bch.index.values, times)
-        bch = bch.iloc[times_idx].values.reshape(-1, 1)
-        expg = np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers)).reshape(1, -1)
-        res = bch.dot(expg)
-        if return_df:
-            return pd.DataFrame(res, index=times)
-        return res
 
     def partial_log_likelihood(self, input, target, g_preds=None, batch_size=8224, eps=1e-7, eval_=True,
                                num_workers=0):
@@ -441,8 +315,8 @@ class CoxPH(CoxPHBase):
 
     @staticmethod
     def make_dataloader(data, batch_size, shuffle, num_workers=0):
-        dataloader = make_dataloader(data, batch_size, shuffle, num_workers,
-                                     make_dataset=DatasetDurationSorted)
+        dataloader = tt.make_dataloader(data, batch_size, shuffle, num_workers,
+                                        make_dataset=DatasetDurationSorted)
         return dataloader
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):

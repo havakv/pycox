@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
-import torch
 import torchtuples as tt
-# from torchtuples import TupleTree, tuplefy
 from pycox.models.cox.cox import CoxBase, CoxPHBase, search_sorted_idx
 from pycox.models.cox.data import CoxCCPrepare, CoxTimePrepare
 from pycox.preprocessing.label_transforms import LabTransCoxTime
@@ -238,19 +236,6 @@ class CoxTime(CoxCCBase):
         hazards[baseline_hazards_.values == 0] = 0.  # in case hazards are inf here
         hazards *= baseline_hazards_.values.reshape(-1, 1)
         return pd.DataFrame(hazards, index=baseline_hazards_.index).cumsum()
-
-    def predict_cumulative_hazards_at_times(self, times, input, batch_size=16448, return_df=True,
-                                           verbose=False, baseline_hazards_=None):
-        if not hasattr(times, '__iter__'):
-            times = [times]
-        max_duration = max(times)
-        cum_haz = self.predict_cumulative_hazards(input, max_duration, batch_size,
-                                                  verbose, baseline_hazards_)
-        times_idx = search_sorted_idx(cum_haz.index.values, times)
-        cum_haz = cum_haz.iloc[times_idx]
-        if return_df:
-            return cum_haz
-        return cum_haz.as_matrix()
 
     def partial_log_likelihood(self, input, target, batch_size=8224, eval_=True, num_workers=0):
         def expg_sum(t, i):
