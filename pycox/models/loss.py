@@ -417,7 +417,7 @@ class DeepHitLoss(_Loss):
 
     @property
     def sigma(self):
-        return self._alpha
+        return self._sigma
 
     @sigma.setter
     def sigma(self, sigma):
