@@ -17,5 +17,5 @@ try:
     _has_torch = True
 except:
     pass
-if _has_torch is False:
+if _has_torch:
     import pycox.models
