@@ -1,13 +1,17 @@
+import warnings
 import numpy as np
 import pandas as pd
+from pycox.evaluation.utils import kaplan_meier
 
 
 def make_cuts(cuts, durations, events, min_=0., dtype='float64'):
-    if type(cuts) is tuple:
+    if hasattr(cuts, '__iter__') and (type(cuts[0]) is str):
         if cuts[0] == 'equidistant':
             cuts = cuts_equidistant(durations.max(), cuts[1], min_, dtype)
+        elif cuts[0] == 'quantiles':
+            cuts = cuts_quantiles(durations, events, cuts[1], min_, dtype)
         else:
-            raise ValueError("Need cuts to be e.g. ('equidistant', 100)")
+            raise RuntimeError("Need cuts to be e.g. ('equidistant', 100)")
     if (np.diff(cuts) == 0).any():
         raise ValueError("cuts are not unique.")
     return cuts
@@ -19,6 +23,22 @@ def _values_if_series(x):
 
 def cuts_equidistant(max_, num, min_=0., dtype='float64'):
     return np.linspace(min_, max_, num, dtype=dtype)
+
+def cuts_quantiles(durations, events, num, min_=0., dtype='float64'):
+    """
+    If min_ = None, we will use durations.min() for the first cut.
+    """
+    km = kaplan_meier(durations, events)
+    surv_est, surv_durations = km.values, km.index.values
+    s_cuts = np.linspace(km.values.min(), km.values.max(), num)
+    cuts_idx = np.searchsorted(surv_est[::-1], s_cuts)[::-1]
+    cuts = surv_durations[::-1][cuts_idx]
+    cuts = np.unique(cuts)
+    if len(cuts) != num:
+        warnings.warn(f"cuts are not unique, continue with {len(cuts)} cuts instead of {num}")
+    cuts[0] = durations.min() if min_ is None else min_
+    assert cuts[-1] == durations.max(), 'something wrong...'
+    return cuts.astype(dtype)
 
 def _is_monotonic_increasing(x):
     assert len(x.shape) == 1, 'Only works for 1d'
