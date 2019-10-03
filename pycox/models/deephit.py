@@ -3,49 +3,11 @@
 """
 import numpy as np
 import pandas as pd
-import numba
 import torch
 import torchtuples as tt
 
 from pycox import models
 from pycox.models.utils import array_or_tensor, pad_col
-
-@numba.jit(nopython=True)
-def _pair_rank_mat(mat, idx_durations, events, dtype='float32'):
-    n = len(idx_durations)
-    for i in range(n):
-        dur_i = idx_durations[i]
-        ev_i = events[i]
-        if ev_i == 0:
-            continue
-        for j in range(n):
-            dur_j = idx_durations[j]
-            ev_j = events[j]
-            if (dur_i < dur_j) or ((dur_i == dur_j) and (ev_j == 0)):
-                mat[i, j] = 1
-    return mat
-
-def pair_rank_mat(idx_durations, events, dtype='float32'):
-    """Indicator matrix R with R_ij = 1{T_i < T_j and D_i = 1}.
-    So it takes value 1 if we observe that i has an event before j and zero otherwise.
-    
-    Arguments:
-        idx_durations {np.array} -- Array with durations.
-        events {np.array} -- Array with event indicators.
-    
-    Keyword Arguments:
-        dtype {str} -- dtype of array (default: {'float32'})
-    
-    Returns:
-        np.array -- n x n matrix indicating if i has an observerd event before j.
-    """
-    idx_durations = idx_durations.reshape(-1)
-    events = events.reshape(-1)
-    n = len(idx_durations)
-    mat = np.zeros((n, n), dtype=dtype)
-    mat = _pair_rank_mat(mat, idx_durations, events, dtype)
-    return mat
-
 
 class DeepHitSingle(models.pmf._PMFBase):
     """Essentailly same as torchtuples.Model, but instead of specifying a loss function,
@@ -66,21 +28,12 @@ class DeepHitSingle(models.pmf._PMFBase):
 
     def make_dataloader(self, data, batch_size, shuffle, num_workers=0):
         dataloader = super().make_dataloader(data, batch_size, shuffle, num_workers,
-                                             make_dataset=DatasetDeepHit)
+                                             make_dataset=models.data.DeepHitDataset)
         return dataloader
     
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         dataloader = super().make_dataloader(input, batch_size, shuffle, num_workers)
         return dataloader
-
-
-class DatasetDeepHit(tt.data.DatasetTuple):
-    def __getitem__(self, index):
-        input, target =  super().__getitem__(index)
-        target = target.to_numpy()
-        rank_mat = pair_rank_mat(*target)
-        target = tt.tuplefy(*target, rank_mat).to_tensor()
-        return tt.tuplefy(input, target)
 
 
 class DeepHit(tt.Model):
@@ -121,7 +74,7 @@ class DeepHit(tt.Model):
 
     def make_dataloader(self, data, batch_size, shuffle, num_workers=0):
         dataloader = super().make_dataloader(data, batch_size, shuffle, num_workers,
-                                             make_dataset=DatasetDeepHit)
+                                             make_dataset=models.data.DeepHitDataset)
         return dataloader
     
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):

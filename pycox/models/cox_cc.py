@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import torchtuples as tt
-# from pycox.models.cox import CoxBase, CoxPHBase, search_sorted_idx
 from pycox.preprocessing.label_transforms import LabTransCoxTime
 from pycox import models
 

@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+import numba
 import torch
 # from torchtuples import Model, tuplefy, make_dataloader, TupleTree
 # from torchtuples.data import DatasetTuple
@@ -92,3 +93,48 @@ class CoxTimeDataset(CoxCCDataset):
         case = case + durations
         control = control.apply_nrec(lambda x: x + durations)
         return tt.tuplefy(case, control), None
+
+@numba.njit
+def _pair_rank_mat(mat, idx_durations, events, dtype='float32'):
+    n = len(idx_durations)
+    for i in range(n):
+        dur_i = idx_durations[i]
+        ev_i = events[i]
+        if ev_i == 0:
+            continue
+        for j in range(n):
+            dur_j = idx_durations[j]
+            ev_j = events[j]
+            if (dur_i < dur_j) or ((dur_i == dur_j) and (ev_j == 0)):
+                mat[i, j] = 1
+    return mat
+
+def pair_rank_mat(idx_durations, events, dtype='float32'):
+    """Indicator matrix R with R_ij = 1{T_i < T_j and D_i = 1}.
+    So it takes value 1 if we observe that i has an event before j and zero otherwise.
+    
+    Arguments:
+        idx_durations {np.array} -- Array with durations.
+        events {np.array} -- Array with event indicators.
+    
+    Keyword Arguments:
+        dtype {str} -- dtype of array (default: {'float32'})
+    
+    Returns:
+        np.array -- n x n matrix indicating if i has an observerd event before j.
+    """
+    idx_durations = idx_durations.reshape(-1)
+    events = events.reshape(-1)
+    n = len(idx_durations)
+    mat = np.zeros((n, n), dtype=dtype)
+    mat = _pair_rank_mat(mat, idx_durations, events, dtype)
+    return mat
+
+
+class DeepHitDataset(tt.data.DatasetTuple):
+    def __getitem__(self, index):
+        input, target =  super().__getitem__(index)
+        target = target.to_numpy()
+        rank_mat = pair_rank_mat(*target)
+        target = tt.tuplefy(*target, rank_mat).to_tensor()
+        return tt.tuplefy(input, target)
