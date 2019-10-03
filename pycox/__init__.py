@@ -4,10 +4,18 @@
 
 __author__ = """Haavard Kvamme"""
 __email__ = 'haavard.kvamme@gmail.com'
-__version__ = '0.0.2'
+__version__ = '0.1.0'
 
 import pycox.datasets
 import pycox.evaluation
-import pycox.models
 import pycox.preprocessing
 import pycox.simulation
+
+_has_torch = False
+try:
+    import torch
+    _has_torch = True
+except:
+    pass
+if _has_torch is False:
+    import pycox.models
