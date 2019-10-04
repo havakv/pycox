@@ -10,6 +10,7 @@ import pycox.datasets
 import pycox.evaluation
 import pycox.preprocessing
 import pycox.simulation
+import pycox.utils
 
 _has_torch = False
 try:

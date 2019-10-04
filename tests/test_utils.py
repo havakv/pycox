@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from lifelines import KaplanMeierFitter
-from pycox.evaluation import utils
+from pycox import utils
 
 def test_kaplan_meier():
     durations = np.array([1., 1., 2., 3.])

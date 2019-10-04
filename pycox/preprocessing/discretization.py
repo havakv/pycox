@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
 import pandas as pd
-from pycox.evaluation.utils import kaplan_meier
+from pycox import utils
 
 
 def make_cuts(cuts, durations, events, min_=0., dtype='float64'):
@@ -28,7 +28,7 @@ def cuts_quantiles(durations, events, num, min_=0., dtype='float64'):
     """
     If min_ = None, we will use durations.min() for the first cut.
     """
-    km = kaplan_meier(durations, events)
+    km = utils.kaplan_meier(durations, events)
     surv_est, surv_durations = km.values, km.index.values
     s_cuts = np.linspace(km.values.min(), km.values.max(), num)
     cuts_idx = np.searchsorted(surv_est[::-1], s_cuts)[::-1]

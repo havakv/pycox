@@ -8,7 +8,7 @@ from pycox.models.utils import array_or_tensor, pad_col, make_subgrid
 from pycox.preprocessing import label_transforms
 
 class PCHazard(models.base._SurvModelBase):
-    """Continuous hazard parametrization of the survival likelihood.
+    """The PC-Hazard (piecewice constant hazard) method from [link].
 
     NOTE:
         The label_transform is slightly different than regular hazard transform in terms

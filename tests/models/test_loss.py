@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from pycox.models.deephit import pair_rank_mat
+from pycox.models.data import pair_rank_mat
 from pycox.models import loss
 
 @pytest.mark.parametrize('seed', [0, 1, 2])

@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 import numba
-from pycox.evaluation.utils import idx_at_times
+from pycox import utils
 
 @numba.njit(parallel=True)
 def _inv_cens_scores(func, time_grid, durations, events, surv, censor_surv, idx_ts_surv, idx_ts_censor,
@@ -44,9 +44,9 @@ def _inverse_censoring_weighted_metric(func):
         n_indiv = len(durations)
         scores = np.zeros((n_times, n_indiv))
         weights = np.zeros((n_times, n_indiv))
-        idx_ts_surv = idx_at_times(index_surv, time_grid, steps_surv, assert_sorted=True)
-        idx_ts_censor = idx_at_times(index_censor, time_grid, steps_censor, assert_sorted=True)
-        idx_tt_censor = idx_at_times(index_censor, durations, 'pre', assert_sorted=True)
+        idx_ts_surv = utils.idx_at_times(index_surv, time_grid, steps_surv, assert_sorted=True)
+        idx_ts_censor = utils.idx_at_times(index_censor, time_grid, steps_censor, assert_sorted=True)
+        idx_tt_censor = utils.idx_at_times(index_censor, durations, 'pre', assert_sorted=True)
         if steps_censor == 'post':
             idx_tt_censor  = (idx_tt_censor - 1).clip(0)
             #  This ensures that we get G(tt-)
