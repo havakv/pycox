@@ -1,31 +1,9 @@
 import numpy as np
 import pandas as pd
-from torchtuples.tupletree import docstring
+from pycox.simulation import base
 
 
-def dict2df(data, drop_true=False):
-    """Make a pd.DataFrame from the dict obtained when simulating.
-    
-    Arguments:
-        data {dict} -- Dict from simulation.
-    
-    Keyword Arguments:
-        drop_true {bool} -- If we should include the true duration and censoring times
-            (default: {False})
-    
-    Returns:
-        pd.DataFrame -- A DataFrame
-    """
-    df = (pd.DataFrame(data['covs'], columns=[f"x{i}" for i in range(data['covs'].shape[1])])
-          .assign(duration=data['durations'].astype('float32'),
-                  event=data['events'].astype('float32')))
-    if not drop_true:
-        df = df.assign(duration_true=data['durations_true'].astype('float32'),
-                       censoring_true=data['censor_durations'].astype('float32'))
-    return df
-
-
-class _SimRelativeRisk:
+class _SimStudyRelativeRisk(base._SimBase):
     '''Abstract class for simulation relative risk survival data,
     with constant baseline, and constant censoring distribution
 
@@ -40,7 +18,7 @@ class _SimRelativeRisk:
         self.c0 = c0
         self.surv_grid = surv_grid
     
-    def simulate(self, n, surv_df=False, censor_df=False):
+    def simulate(self, n, surv_df=False):
         covs = self.sample_covs(n).astype('float32')
         v = np.random.exponential(size=n)
         t = self.inv_cum_hazard(v, covs)
@@ -50,10 +28,10 @@ class _SimRelativeRisk:
         tt[tt > self.right_c] = self.right_c
         d = tt == t
         surv_df = self.surv_df(covs, self.surv_grid) if surv_df else None
-        censor_surv_df = NotImplemented if censor_df else None
+        # censor_surv_df = NotImplemented if censor_df else None
         return dict(covs=covs, durations=tt, events=d, surv_df=surv_df, durations_true=t,
                     events_true=np.ones_like(t), censor_durations=c,
-                    censor_events=np.ones_like(c), censor_surv_df=None)
+                    censor_events=np.ones_like(c))
 
     @staticmethod
     def sample_covs(n):
@@ -84,12 +62,23 @@ class _SimRelativeRisk:
         return pd.concat(s, axis=1)
 
     @staticmethod
-    @docstring(dict2df)
-    def dict2df(data, drop_true=False):
-        return dict2df(data, drop_true)
+    def dict2df(data, add_true=True):
+        """Make a pd.DataFrame from the dict obtained when simulating.
+
+        Arguments:
+            data {dict} -- Dict from simulation.
+
+        Keyword Arguments:
+            add_true {bool} -- If we should include the true duration and censoring times
+                (default: {True})
+
+        Returns:
+            pd.DataFrame -- A DataFrame
+        """
+        return base.dict2df(data, add_true)
 
 
-class SimLinearPH(_SimRelativeRisk):
+class SimStudyLinearPH(_SimStudyRelativeRisk):
     '''Survival simulations study for linear prop. hazard model
         h(t | x) = h0 exp[g(x)], where g(x) is linear.
 
@@ -119,7 +108,7 @@ class SimLinearPH(_SimRelativeRisk):
         return self.h0 * t * np.exp(self.g(covs))
 
 
-class SimNonLinearPH(SimLinearPH):
+class SimStudyNonLinearPH(SimStudyLinearPH):
     '''Survival simulations study for non-linear prop. hazard model
         h(t | x) = h0 exp[g(x)], where g(x) is non-linear.
 
@@ -132,12 +121,12 @@ class SimNonLinearPH(SimLinearPH):
         x = covs
         x0, x1, x2 = x[:, 0], x[:, 1], x[:, 2]
         beta = 2/3
-        linear = SimLinearPH.g(x)
+        linear = SimStudyLinearPH.g(x)
         nonlinear =  beta * (x0**2 + x2**2 + x0*x1 + x1*x2 + x1*x2)
         return linear + nonlinear
 
 
-class SimNonLinearNonPH(SimNonLinearPH):
+class SimStudyNonLinearNonPH(SimStudyNonLinearPH):
     '''Survival simulations study for non-linear non-prop. hazard model.
         h(t | x) = h0 * exp[g(t, x)], 
         with constant h_0, and g(t, x) = a(x) + b(x)*t.
@@ -157,7 +146,7 @@ class SimNonLinearNonPH(SimNonLinearPH):
     @staticmethod
     def a(x):
         _, _, x2 = x[:, 0], x[:, 1], x[:, 2]
-        return np.sign(x2) + SimNonLinearPH.g(x) 
+        return np.sign(x2) + SimStudyNonLinearPH.g(x) 
     
     @staticmethod
     def b(x):
@@ -167,7 +156,7 @@ class SimNonLinearNonPH(SimNonLinearPH):
     @staticmethod
     def g(t, covs):
         x = covs
-        return SimNonLinearNonPH.a(x) + SimNonLinearNonPH.b(x) * t
+        return SimStudyNonLinearNonPH.a(x) + SimStudyNonLinearNonPH.b(x) * t
     
     def inv_cum_hazard(self, v, covs):
         x = covs
