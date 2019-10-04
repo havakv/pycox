@@ -1,10 +1,9 @@
 
-import warnings
 import numpy as np
 import pandas as pd
-from torchtuples import tuplefy
+import torchtuples as tt
 
-from pycox.simulation import base
+from pycox.simulations import base
 
 _TIMES = np.linspace(0, 100, 1001)
 
@@ -74,7 +73,7 @@ class SimBase(base._SimBase):
         events[is_nan] = 0.
         durations[is_nan] = self.times[-1]
         covs = self.sample_covs(weights)
-        covs = tuplefy(covs).flatten()
+        covs = tt.tuplefy(covs).flatten()
         covs = np.concatenate(covs, axis=1)#.astype('float32')
         surv = self.surv_df(logit_haz) if surv_df is True else None
         return dict(covs=covs, durations=durations, events=events, weights=weights,
@@ -306,6 +305,20 @@ class SimStudyIndepSurvAndCens(_SimStudyBase):
 
 class SimStudySACCensorConst(_SimStudyBase):
     def __init__(self, covs_per_weight=5, seed=None, alpha_range=5., sin_pref=0.6):
+        """Simulation study from [paper link].
+        It combines three sources to the logit-hazard: A sin function, increasing function
+        and a constant function.
+
+        See paper for details.
+        
+        Keyword Arguments:
+            covs_per_weight {int} -- Number of covariates per weight (gamma in paper)
+                 (default: {5})
+            alpha_range {[type]} -- Controls how the mixing between the three logit-hazards.
+                High alpha is equivalent to picking one of them, while low is equivalent to
+                a more homogeneous mixing. (default: {5.})
+            sin_pref {float} -- Preference for the SimSin in the mixing. (default: {0.6})
+        """
         self.sim_surv = SimSinAccConst(covs_per_weight, seed, alpha_range, sin_pref)
         self.sim_censor = SimConstHazIndependentOfWeights()
 
