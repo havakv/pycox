@@ -11,12 +11,4 @@ import pycox.evaluation
 import pycox.preprocessing
 import pycox.simulations
 import pycox.utils
-
-_has_torch = False
-try:
-    import torch
-    _has_torch = True
-except:
-    pass
-if _has_torch:
-    import pycox.models
+import pycox.models

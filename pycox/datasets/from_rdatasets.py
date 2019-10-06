@@ -117,7 +117,7 @@ class _Nwtco(_DatasetRdatasetsSurvival):
 
     References
         NE Breslow and N Chatterjee (1999), Design and analysis of two-phase studies with binary
-        outcome applied to Wilms tumour prognosis. Applied Statistics 48, 457–68.
+        outcome applied to Wilms tumor prognosis. Applied Statistics 48, 457–68.
     """
     name = 'nwtco'
     col_duration = 'edrel'

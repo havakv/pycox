@@ -57,6 +57,14 @@ class _Support(_DatasetDeepSurv):
 
     See https://github.com/jaredleekatzman/DeepSurv/tree/master/experiments/data
     for original data.
+
+    Variables:
+        x0, ..., x13:
+            numerical covariates.
+        duration: (duration)
+            the right-censored event-times.
+        event: (event)
+            event indicator {1: event, 0: censoring}.
     """
     name = 'support'
 
@@ -72,6 +80,14 @@ class _Metabric(_DatasetDeepSurv):
 
     See https://github.com/jaredleekatzman/DeepSurv/tree/master/experiments/data
     for original data.
+
+    Variables:
+        x0, ..., x8:
+            numerical covariates.
+        duration: (duration)
+            the right-censored event-times.
+        event: (event)
+            event indicator {1: event, 0: censoring}.
     """
     name = 'metabric'
 
@@ -86,5 +102,13 @@ class _Gbsg(_DatasetDeepSurv):
 
     See https://github.com/jaredleekatzman/DeepSurv/tree/master/experiments/data
     for original data.
+
+    Variables:
+        x0, ..., x6:
+            numerical covariates.
+        duration: (duration)
+            the right-censored event-times.
+        event: (event)
+            event indicator {1: event, 0: censoring}.
     """
     name = 'gbsg'

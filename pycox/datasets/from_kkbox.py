@@ -13,12 +13,12 @@ class _DatasetKKBoxChurn(_DatasetLoader):
     with credentials (https://github.com/Kaggle/kaggle-api).
 
     The data set contains churn information from KKBox, an Asian music streaming service. Churn is
-    defined by a customer failiing to obtain a new valid service subscription within 30 days after
+    defined by a customer failing to obtain a new valid service subscription within 30 days after
     the current membership expires.
     This version of the data set only consider part of the information made available in the challenge,
     as it is intended to compare survival methods, and not compete in the challenge.
 
-    The data set is split in train, test and validations, based on an individua's id ('msno').
+    The data set is split in train, test and validations, based on an individual's id ('msno').
 
     Variables:
         msno:
@@ -77,12 +77,12 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
         The columns: 'duration' and 'event' gives the duration time and event indicator.
 
-        The survival data set contrains no covariates, but can be useful for extending
+        The survival data set contains no covariates, but can be useful for extending
         the dataset with more covariates from Kaggle.
     
         Keyword Arguments:
             subset {str} -- Which subset to use ('train', 'val', 'test').
-                Can also set 'survival' which will give df with surival information without
+                Can also set 'survival' which will give df with survival information without
                 covariates. (default: {'train'})
             log_trans {bool} -- If covariates in 'kkbox.log_cols' (from Kvamme paper) should be
                 transformed with 'z = log(x - min(x) + 1)'. (default: {True})
@@ -104,7 +104,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             The KKBox dataset not locally available.
             If you want to download, call 'kkbox.download_kkbox()', but note that 
             this might take a LONG TIME!!!
-            NOTE: You need kaggle credentials! Follow instructions at 
+            NOTE: You need Kaggle credentials! Follow instructions at 
             https://github.com/Kaggle/kaggle-api#api-credentials
             """)
             return None
@@ -123,8 +123,8 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
     def download_kkbox(self):
         """Download KKBox data set. 
-        This is likey to take a LONG time!!!
-        NOTE: You need kaggle credentials! Follow instructions at 
+        This is likely to take a LONG time!!!
+        NOTE: You need Kaggle credentials! Follow instructions at 
         https://github.com/Kaggle/kaggle-api#api-credentials
         """
         self._download()
@@ -156,12 +156,12 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         except OSError as e:
             raise OSError(
             f""""
-            Need to provide kaggle credentials to download this data set. See guide at
+            Need to provide Kaggle credentials to download this data set. See guide at
             https://github.com/Kaggle/kaggle-api#api-credentials.
             """
             )
         files =  ['train', 'transactions', 'members_v3']
-        print('Downloading from kaggle...')
+        print('Downloading from Kaggle...')
         for file in files:
             kaggle.api.competition_download_file('kkbox-churn-prediction-challenge', file + '.csv.7z',
                                                  path=self._path_dir, force=True)

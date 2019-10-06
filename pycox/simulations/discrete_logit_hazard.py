@@ -11,11 +11,8 @@ _TIMES = np.linspace(0, 100, 1001)
 class SimBase(base._SimBase):
     times = _TIMES
     num_weights = NotImplemented
-    def __init__(self, covs_per_weight=5, seed=None, betas=None):
+    def __init__(self, covs_per_weight=5, betas=None):
         self.covs_per_weight = covs_per_weight
-        self.seed = seed
-        if self.seed is not None:
-            np.random.seed(self.seed)
         self.betas = betas if betas else self.make_betas()
 
     def make_betas(self, func=lambda m: np.random.normal(0, 1, m)):
@@ -160,8 +157,7 @@ class SimConstHazIndependentOfWeights(SimBase):
     def __init__(self, *args, **kwargs):
         covs_per_weight = 1
         betas = np.array([0.])
-        seed = None
-        super().__init__(covs_per_weight, seed, betas)
+        super().__init__(covs_per_weight, betas)
 
     def sample_weights(self, n):
         return [np.zeros((n, 1))]
@@ -182,8 +178,7 @@ class SimUniform(SimBase):
         self.s_end = s_end
         covs_per_weight = 1
         betas = np.array([0.])
-        seed = None
-        super().__init__(covs_per_weight, seed, betas)
+        super().__init__(covs_per_weight, betas)
 
     def logit_haz(self, times, w):
         n, m = len(w), len(times)
@@ -234,9 +229,9 @@ class _SimCombine(SimBase):
 
 
 class SimSinAccConst(_SimCombine):
-    def __init__(self, covs_per_weight=5, seed=None, alpha_range=5., sin_pref=0.6):
+    def __init__(self, covs_per_weight=5, alpha_range=5., sin_pref=0.6):
         self.num_weights = 3
-        super().__init__(covs_per_weight, seed)
+        super().__init__(covs_per_weight)
         self.alpha_range = alpha_range
         self._first_pref = sin_pref
         self.sim_sin = SimSin(covs_per_weight)
@@ -246,9 +241,9 @@ class SimSinAccConst(_SimCombine):
 
 
 class SimConstAcc(_SimCombine):
-    def __init__(self, covs_per_weight=5, seed=None, alpha_range=5., const_pref=2):
+    def __init__(self, covs_per_weight=5, alpha_range=5., const_pref=2):
         self.num_weights = 2
-        super().__init__(covs_per_weight, seed)
+        super().__init__(covs_per_weight)
         self.alpha_range = alpha_range
         self._first_pref = const_pref
         self.sim_const = SimConstHaz(covs_per_weight)
@@ -304,7 +299,7 @@ class SimStudyIndepSurvAndCens(_SimStudyBase):
 
 
 class SimStudySACCensorConst(_SimStudyBase):
-    def __init__(self, covs_per_weight=5, seed=None, alpha_range=5., sin_pref=0.6):
+    def __init__(self, covs_per_weight=5, alpha_range=5., sin_pref=0.6):
         """Simulation study from [paper link].
         It combines three sources to the logit-hazard: A sin function, increasing function
         and a constant function.
@@ -319,7 +314,7 @@ class SimStudySACCensorConst(_SimStudyBase):
                 a more homogeneous mixing. (default: {5.})
             sin_pref {float} -- Preference for the SimSin in the mixing. (default: {0.6})
         """
-        self.sim_surv = SimSinAccConst(covs_per_weight, seed, alpha_range, sin_pref)
+        self.sim_surv = SimSinAccConst(covs_per_weight, alpha_range, sin_pref)
         self.sim_censor = SimConstHazIndependentOfWeights()
 
 
