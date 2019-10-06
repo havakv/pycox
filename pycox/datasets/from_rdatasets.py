@@ -60,6 +60,8 @@ class _Flchain(_DatasetRdatasetsSurvival):
     name = 'flchain'
     col_duration = 'futime'
     col_event = 'death'
+    _checksum = 'ec12748a1aa5790457c09793387337bb03b1dc45a22a2d58a8c2b9ad1f2648dd'
+
     def read_df(self, processed=True):
         """Get dataset.
 
@@ -122,6 +124,8 @@ class _Nwtco(_DatasetRdatasetsSurvival):
     name = 'nwtco'
     col_duration = 'edrel'
     col_event = 'rel'
+    _checksum = '5aa3de698dadb60154dd59196796e382739ff56dc6cbd39cfc2fda50d69d118e'
+
     def read_df(self, processed=True):
         """Get dataset.
 

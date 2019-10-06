@@ -24,9 +24,6 @@ class _SimDataset(_DatasetLoader):
     def _simulate_data(self):
         raise NotImplementedError
 
-    def _checksum(self, data):
-        raise NotImplementedError
-
     def _download(self):
         raise NotImplementedError("There is no `_download` for simulated data.")
 
@@ -71,14 +68,13 @@ class _RRNLNPH(_SimDataset):
         http://jmlr.org/papers/v20/18-424.html
     """
     name = 'rr_nl_nph'
+    _checksum = '68659bbb7d0320387fdc5584e647e288469eed86bfa75dac3369e36b237814ab'
 
     def _simulate_data(self):
         np.random.seed(1234)
         sim = simulations.SimStudyNonLinearNonPH()
         data = sim.simulate(25000)
         df = sim.dict2df(data, True)
-        # if self._checksum(df) is False:
-        #     raise ValueError("Checksum did not pass")
         df.to_feather(self.path)
 
 
@@ -110,12 +106,11 @@ class _SAC3(_SimDataset):
 
     """
     name = 'sac3'
+    _checksum = 'd5ec4153ba47e152383f3a1838cfaf2856ea2ad2dd198fe02c414c822524da20'
 
     def _simulate_data(self):
         np.random.seed(1234)
         sim = simulations.SimStudySACCensorConst()
         data = sim.simulate(100000)
         df = sim.dict2df(data, True, False)
-        # if self._checksum(df) is False:
-        #     raise ValueError("Checksum did not pass")
         df.to_feather(self.path)

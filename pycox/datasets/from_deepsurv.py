@@ -67,6 +67,7 @@ class _Support(_DatasetDeepSurv):
             event indicator {1: event, 0: censoring}.
     """
     name = 'support'
+    _checksum = 'b07a9d216bf04501e832084e5b7955cb84dfef834810037c548dee82ea251f8d'
 
 
 class _Metabric(_DatasetDeepSurv):
@@ -90,6 +91,7 @@ class _Metabric(_DatasetDeepSurv):
             event indicator {1: event, 0: censoring}.
     """
     name = 'metabric'
+    _checksum = '310b74b97cc37c9eddd29f253ae3c06015dc63a17a71e4a68ff339dbe265f417'
 
 
 class _Gbsg(_DatasetDeepSurv):
@@ -112,3 +114,4 @@ class _Gbsg(_DatasetDeepSurv):
             event indicator {1: event, 0: censoring}.
     """
     name = 'gbsg'
+    _checksum = 'de2359bee62bf36b9e3f901fea4a9fbef2d145e26e9384617d0d3f75892fe5ce'
