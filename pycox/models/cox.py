@@ -309,7 +309,7 @@ class CoxPH(_CoxPHBase):
         return super().__init__(net, self.make_loss(), optimizer, device)
 
     def make_loss(self):
-        return models.loss.CoxPHLoss()
+        return models.loss.CoxPHLossSorted()
 
     @staticmethod
     def make_dataloader(data, batch_size, shuffle, num_workers=0):
