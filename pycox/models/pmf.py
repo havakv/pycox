@@ -16,7 +16,7 @@ class _PMFBase(models.base._SurvModelBase):
     @property
     def duration_index(self):
         """
-        Array of durations that defineds the discrete times. This is used to set the index
+        Array of durations that defines the discrete times. This is used to set the index
         of the DataFrame in `predict_surv_df`.
         
         Returns:
@@ -36,20 +36,20 @@ class _PMFBase(models.base._SurvModelBase):
 
     def predict_pmf(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False,
                     num_workers=0):
-        """Predict the probability mass fuction (PMF) for `input`.
+        """Predict the probability mass function (PMF) for `input`.
 
         Arguments:
-            input {tuple, np.ndarra, or torch.tensor} -- Input to net.
+            input {tuple, np.ndarray, or torch.tensor} -- Input to net.
         
         Keyword Arguments:
             batch_size {int} -- Batch size (default: {8224})
             numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
                 (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
             grads {bool} -- If gradients should be computed (default: {False})
             to_cpu {bool} -- For larger data sets we need to move the results to cpu
                 (default: {False})
-            num_workers {int} -- Number of workes in created dataloader (default: {0})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
         
         Returns:
             [np.ndarray or tensor] -- Predictions
@@ -72,15 +72,15 @@ class PMF(_PMFBase):
         net {torch.nn.Module} -- A torch module.
     
     Keyword Arguments:
-        optimizer {Optimizer} -- A torch optimizer or similar. Preferrably use torchtuples.optim instead of
+        optimizer {Optimizer} -- A torch optimizer or similar. Preferably use torchtuples.optim instead of
             torch.optim, as this allows for reinitialization, etc. If 'None' set to torchtuples.optim.AdamW.
             (default: {None})
         device {str, int, torch.device} -- Device to compute on. (default: {None})
-            Preferrably pass a torch.device object.
-            If 'None': use default gpu if avaiable, else use cpu.
+            Preferably pass a torch.device object.
+            If 'None': use default gpu if available, else use cpu.
             If 'int': used that gpu: torch.device('cuda:<device>').
             If 'string': string is passed to torch.device('string').
-        duration_index {list, np.array} -- Array of durations that defineds the discrete times.
+        duration_index {list, np.array} -- Array of durations that defines the discrete times.
             This is used to set the index of the DataFrame in `predict_surv_df`.
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None):

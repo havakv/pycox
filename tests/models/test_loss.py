@@ -87,3 +87,18 @@ def test_cox_cc_loss_zero(shrink):
     loss_1 = loss.cox_cc_loss(case, (ctrl,), shrink)
     val = torch.tensor(2.).log()
     assert (loss_1 - val).abs() == 0
+
+def test_nll_mtlr_zero():
+    n_frac = 4
+    m = 5
+    n = m * n_frac
+    phi = torch.zeros(n, m)
+    idx_durations = torch.arange(m).repeat(n_frac)
+    events = torch.ones_like(idx_durations).float()
+    loss_pmf = loss.nll_pmf(phi, idx_durations, events)
+    loss_mtlr = loss.nll_mtlr(phi, idx_durations, events)
+    assert (loss_pmf - loss_mtlr).abs() == 0
+    events = torch.zeros_like(events)
+    loss_pmf = loss.nll_pmf(phi, idx_durations, events)
+    loss_mtlr = loss.nll_mtlr(phi, idx_durations, events)
+    assert (loss_pmf - loss_mtlr).abs() == 0 

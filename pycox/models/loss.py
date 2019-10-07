@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from pycox.models.utils import pad_col, log_softplus
+from pycox.models import utils
 
 
 def _reduction(loss, reduction='mean'):
@@ -55,7 +55,7 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
         raise ValueError("""'t_idx' too large. Probably need to increase output size of net.""")
     events = events.view(-1)
     idx_durations = idx_durations.view(-1, 1)
-    phi = pad_col(phi)
+    phi = utils.pad_col(phi)
     gamma = phi.max(1)[0]
     cumsum = phi.sub(gamma.view(-1, 1)).exp().cumsum(1)
     sum_ = cumsum[:, -1]
@@ -65,6 +65,28 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     # need relu() in part3 (and possibly part2) because cumsum on gpu has some bugs and we risk getting negative numbers.
     loss = - part1.add(part2).add(part3)
     return _reduction(loss, reduction)
+
+def nll_mtlr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
+    """Negative log-likelihood for the MTLR parametrized model.
+
+    This is essentially a PMF parametrization with an extra cumulative sum.
+    See [paper link] for an explanation.
+    
+    Arguments:
+        phi {torch.tensor} -- Estimates in (-inf, inf), where pmf = somefunc(phi).
+        idx_durations {torch.tensor} -- Event times represented as indices.
+        events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
+            Same length as 'idx_durations'.
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The negative log-likelihood.
+    """
+    phi = utils.cumsum_reverse(phi, dim=1)
+    return nll_pmf(phi, idx_durations, events, reduction, epsilon)
 
 def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mean'):
     """Negative log-likelihood of the PC-Hazard parametrization model.
@@ -94,10 +116,10 @@ def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mea
     interval_frac = interval_frac[keep]
 
     # log_h_e = F.softplus(phi.gather(1, idx_durations).view(-1)).log().mul(events)
-    log_h_e = log_softplus(phi.gather(1, idx_durations).view(-1)).mul(events)
+    log_h_e = utils.log_softplus(phi.gather(1, idx_durations).view(-1)).mul(events)
     haz = F.softplus(phi)
     scaled_h_e = haz.gather(1, idx_durations).view(-1).mul(interval_frac)
-    haz = pad_col(haz, where='start')
+    haz = utils.pad_col(haz, where='start')
     sum_haz = haz.cumsum(1).gather(1, idx_durations).view(-1) 
     loss = - log_h_e.sub(scaled_h_e).sub(sum_haz)
     return _reduction(loss, reduction)
@@ -166,7 +188,7 @@ def rank_loss_deephit_single(phi, idx_durations, events, rank_mat, sigma, reduct
     """
     idx_durations = idx_durations.view(-1, 1)
     events = events.float().view(-1)
-    pmf = pad_col(phi).softmax(1)
+    pmf = utils.pad_col(phi).softmax(1)
     y = torch.zeros_like(pmf).scatter(1, idx_durations, 1.) # one-hot
     rank_loss = _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction)
     return rank_loss
@@ -195,7 +217,7 @@ def nll_pmf_cr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     event_01 = (events != -1).float()
     idx_durations = idx_durations.view(-1)
     batch_size = phi.size(0)
-    sm = pad_col(phi.view(batch_size, -1)).softmax(1)[:, :-1].view(phi.shape)
+    sm = utils.pad_col(phi.view(batch_size, -1)).softmax(1)[:, :-1].view(phi.shape)
     index = torch.arange(batch_size)
     part1 = sm[index, events, idx_durations].relu().add(epsilon).log().mul(event_01)
     part2 = (1 - sm.cumsum(2)[index, :, idx_durations].sum(1)).relu().add(epsilon).log().mul(1 - event_01)
@@ -228,7 +250,7 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
     event_01 = (events == -1).float()
 
     batch_size, n_risks = phi.shape[:2]
-    pmf = pad_col(phi.view(batch_size, -1)).softmax(1)
+    pmf = utils.pad_col(phi.view(batch_size, -1)).softmax(1)
     pmf = pmf[:, :-1].view(phi.shape)
     y = torch.zeros_like(pmf)
     y[torch.arange(batch_size), :, idx_durations] = 1.
@@ -348,6 +370,26 @@ class NLLPMFLoss(_Loss):
     """
     def forward(self, phi, idx_durations, events):
         return nll_pmf(phi, idx_durations, events, self.reduction)
+
+
+class NLLMTLRLoss(_Loss):
+    """Negative log-likelihood for the MTLR parametrized model.
+    See `loss.nll_mtlr` for details.
+
+    This is essentially a PMF parametrization with an extra cumulative sum.
+    See [paper link] for an explanation.
+    
+    Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The negative log-likelihood.
+    """
+    def forward(self, phi, idx_durations, events):
+        return nll_mtlr(phi, idx_durations, events, self.reduction)
 
 
 class NLLPCHazardLoss(_Loss):
