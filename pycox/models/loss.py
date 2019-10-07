@@ -19,7 +19,7 @@ def nll_logistic_hazard(phi, idx_durations, events, reduction='mean'):
         phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
         idx_durations {torch.tensor} -- Event times represented as indices.
         events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
-            Same lenght as 'idx_durations'.
+            Same length as 'idx_durations'.
         reduction {string} -- How to reduce the loss.
             'none': No reduction.
             'mean': Mean of tensor.
@@ -36,13 +36,13 @@ def nll_logistic_hazard(phi, idx_durations, events, reduction='mean'):
     return _reduction(loss, reduction)
 
 def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
-    """Negative log-likelihood for the pmf parametrized model.
+    """Negative log-likelihood for the PMF parametrized model.
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where pmf = somefunc(phi).
         idx_durations {torch.tensor} -- Event times represented as indices.
         events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
-            Same lenght as 'idx_durations'.
+            Same length as 'idx_durations'.
         reduction {string} -- How to reduce the loss.
             'none': No reduction.
             'mean': Mean of tensor.
@@ -73,7 +73,7 @@ def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mea
         phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
         idx_durations {torch.tensor} -- Event times represented as indices.
         events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
-            Same lenght as 'idx_durations'.
+            Same length as 'idx_durations'.
         interval_frac {torch.tensor} -- Fraction of last interval before event/censoring.
         reduction {string} -- How to reduce the loss.
             'none': No reduction.
@@ -110,7 +110,7 @@ def _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction='mean'):
         pmf {torch.tensor} -- Matrix with probability mass function pmf_ij = f_i(t_j)
         y {torch.tensor} -- Matrix with indicator of duration and censoring time. 
         rank_mat {torch.tensor} -- See pair_rank_mat function.
-        sigma {float} -- Sigma from DeepHit paper, choosen by you.
+        sigma {float} -- Sigma from DeepHit paper, chosen by you.
     
     Returns:
         torch.tensor -- loss
@@ -121,16 +121,13 @@ def _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction='mean'):
     return _reduction(loss, reduction)
 
 def _diff_cdf_at_time_i(pmf, y):
-    """R is the matrix from the deephit code giving the difference in cdf between individual
+    """R is the matrix from the DeepHit code giving the difference in CDF between individual
     i and j, at the event time of j. 
     I.e: R_ij = F_i(T_i) - F_j(T_i)
     
     Arguments:
         pmf {torch.tensor} -- Matrix with probability mass function pmf_ij = f_i(t_j)
-        y {torch.tensor} -- Matrix with indicator of duratio/censor time.
-
-        # not_ec {torch.tensor} -- Indicator matrix with same shape as 'pmf', indicating
-        #     that the individual has still not had an event or censoring.
+        y {torch.tensor} -- Matrix with indicator of duration/censor time.
     
     Returns:
         torch.tensor -- R_ij = F_i(T_i) - F_j(T_i)
@@ -151,12 +148,12 @@ def rank_loss_deephit_single(phi, idx_durations, events, rank_mat, sigma, reduct
         rank_mat {torch.tensor} -- See pair_rank_mat function.
         sigma {float} -- Sigma from DeepHit paper, choosen by you.
     Arguments:
-        phi {torch.tensor} -- Preditions as float tensor with shape [batch, n_durations]
+        phi {torch.tensor} -- Predictions as float tensor with shape [batch, n_durations]
             all in (-inf, inf).
         idx_durations {torch.tensor} -- Int tensor with index of durations.
         events {torch.tensor} -- Float indicator of event or censoring (1 is event).
         rank_mat {torch.tensor} -- See pair_rank_mat function.
-        sigma {float} -- Sigma from DeepHit paper, choosen by you.
+        sigma {float} -- Sigma from DeepHit paper, chosen by you.
     
     Keyword Arguments:
         reduction {string} -- How to reduce the loss.
@@ -175,10 +172,10 @@ def rank_loss_deephit_single(phi, idx_durations, events, rank_mat, sigma, reduct
     return rank_loss
 
 def nll_pmf_cr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
-    """Negtive log-likelihood for pmf paraterizations. `phi` is the ''logit''.
+    """Negative log-likelihood for PMF parameterizations. `phi` is the ''logit''.
     
     Arguments:
-        phi {torch.tensor} -- Preditions as float tensor with shape [batch, n_risks, n_durations]
+        phi {torch.tensor} -- Predictions as float tensor with shape [batch, n_risks, n_durations]
             all in (-inf, inf).
         idx_durations {torch.tensor} -- Int tensor with index of durations.
         events {torch.tensor} -- Int tensor with event types.
@@ -209,13 +206,13 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
     """Rank loss proposed by DeepHit authors for competing risks.
     
     Arguments:
-        phi {torch.tensor} -- Preditions as float tensor with shape [batch, n_risks, n_durations]
+        phi {torch.tensor} -- Predictions as float tensor with shape [batch, n_risks, n_durations]
             all in (-inf, inf).
         idx_durations {torch.tensor} -- Int tensor with index of durations.
         events {torch.tensor} -- Int tensor with event types.
             {0: Censored, 1: first group, ..., n_risks: n'th risk group}.
         rank_mat {torch.tensor} -- See pair_rank_mat function.
-        sigma {float} -- Sigma from DeepHit paper, choosen by you.
+        sigma {float} -- Sigma from DeepHit paper, chosen by you.
     
     Keyword Arguments:
         reduction {string} -- How to reduce the loss.
@@ -251,16 +248,15 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
 
 
 def cox_cc_loss(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
-    """Torch loss functin for the Cox case-control models.
-    TODO:
-        For only one control we should instead use the softplus function.
+    """Torch loss function for the Cox case-control models.
+    For only one control, see `cox_cc_loss_single_ctrl` instead.
     
     Arguments:
-        g_case {torch.Tensor} -- Resulat of net(input_case)
+        g_case {torch.Tensor} -- Result of net(input_case)
         g_control {torch.Tensor} -- Results of [net(input_ctrl1), net(input_ctrl2), ...]
     
     Keyword Arguments:
-        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
+        shrink {float} -- Shrinkage that encourage the net got give g_case and g_control
             closer to zero (a regularizer in a sense). (default: {0.})
         clamp {tuple} -- See code (default: {(-3e+38, 80.)})
     
@@ -269,6 +265,9 @@ def cox_cc_loss(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
     """
     control_sum = 0.
     shrink_control = 0.
+    if g_case.shape != g_control[0].shape:
+        raise ValueError(f"Need `g_case` and `g_control[0]` to have same shape. Got {g_case.shape}"+
+                         f" and {g_control[0].shape}")
     for ctr in g_control:
         shrink_control += ctr.abs().mean()
         ctr = ctr - g_case
@@ -278,7 +277,15 @@ def cox_cc_loss(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
     shrink_zero = shrink * (g_case.abs().mean() + shrink_control) / len(g_control)
     return torch.mean(loss) + shrink_zero.abs()
 
-def cox_ph_loss(log_h, event, eps=1e-7):
+def cox_cc_loss_single_ctrl(g_case: torch.Tensor, g_control: torch.Tensor, shrink: float = 0.) -> torch.Tensor:
+    """CoxCC and CoxTime loss, but with only a single control.
+    """
+    loss = F.softplus(g_control - g_case).mean()
+    if shrink != 0:
+        loss += shrink * (g_case.abs().mean() + g_control.abs().mean())
+    return loss
+
+def cox_ph_loss_sorted(log_h, event, eps=1e-7):
     """Requires the input to be sorted by descending duration time.
     See DatasetDurationSorted.
 
@@ -286,7 +293,7 @@ def cox_ph_loss(log_h, event, eps=1e-7):
     where h = exp(log_h) are the hazards and R is the risk set, and d is event.
 
     We just compute a cumulative sum, and not the true Risk sets. This is a
-    limitiation, but simple and fast.
+    limitation, but simple and fast.
     """
     event = event.view(-1)
     log_h = log_h.view(-1)
@@ -327,7 +334,7 @@ class NLLLogistiHazardLoss(_Loss):
 
 
 class NLLPMFLoss(_Loss):
-    """Negative log-likelihood of the pmf parametrization model.
+    """Negative log-likelihood of the PMF parametrization model.
     See `loss.nll_pmf` for details.
     
     Arguments:
@@ -361,7 +368,7 @@ class NLLPCHazardLoss(_Loss):
 
 
 class _DeepHitLoss(_Loss):
-    """Loss for deephit model.
+    """Loss for DeepHit model.
     If you have only one event type, use LossDeepHitSingle instead!
 
     Alpha is  weighting between likelihood and rank loss (so not like in paper):
@@ -397,8 +404,9 @@ class _DeepHitLoss(_Loss):
             raise ValueError(f"Need `sigma` to be positive. Got {sigma}.")
         self._sigma = sigma
 
+
 class DeepHitSingleLoss(_DeepHitLoss):
-    """Loss for deephit (single risk) model.
+    """Loss for DeepHit (single risk) model.
     Alpha is  weighting between likelihood and rank loss (so not like in paper):
 
     loss = alpha * nll + (1 - alpha) rank_loss(sigma)
@@ -421,7 +429,7 @@ class DeepHitSingleLoss(_DeepHitLoss):
 
 
 class DeepHitLoss(_DeepHitLoss):
-    """Loss for deephit model.
+    """Loss for DeepHit model.
     If you have only one event type, use LossDeepHitSingle instead!
 
     Alpha is  weighting between likelihood and rank loss (so not like in paper):
@@ -439,13 +447,13 @@ class DeepHitLoss(_DeepHitLoss):
 
 
 class CoxCCLoss(torch.nn.Module):
-    """Torch loss functin for the Cox case-control models.
+    """Torch loss function for the Cox case-control models.
 
     loss_func = LossCoxCC()
     loss = loss_func(g_case, g_control)
     
     Keyword Arguments:
-        shrink {float} -- Shinkage that encourage the net got give g_case and g_control
+        shrink {float} -- Shrinkage that encourage the net got give g_case and g_control
             closer to zero (a regularizer in a sense). (default: {0.})
         clamp {tuple} -- See code (default: {(-3e+38, 80.)})
     """
@@ -465,10 +473,16 @@ class CoxCCLoss(torch.nn.Module):
         self._shrink = shrink
 
     def forward(self, g_case, g_control):
+        single = False
+        if hasattr(g_control, 'shape'):
+             if g_case.shape == g_control.shape:
+                return cox_cc_loss_single_ctrl(g_case, g_control, self.shrink)
+        elif (len(g_control) == 1) and (g_control[0].shape == g_case.shape):
+                return cox_cc_loss_single_ctrl(g_case, g_control[0], self.shrink)
         return cox_cc_loss(g_case, g_control, self.shrink, self.clamp)
 
 
-class CoxPHLoss(torch.nn.Module):
+class CoxPHLossSorted(torch.nn.Module):
     """Loss for CoxPH.
     Requires the input to be sorted by descending duration time.
     See DatasetDurationSorted.
@@ -477,10 +491,10 @@ class CoxPHLoss(torch.nn.Module):
     where h = exp(log_h) are the hazards and R is the risk set, and d is event.
 
     We just compute a cumulative sum, and not the true Risk sets. This is a
-    limitiation, but simple and fast.
+    limitation, but simple and fast.
     """
     def __init__(self):
         super().__init__()
 
     def forward(self, log_h, events):
-        return cox_ph_loss(log_h, events)
+        return cox_ph_loss_sorted(log_h, events)

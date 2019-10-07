@@ -25,7 +25,7 @@ class _CoxCCBase(models.cox._CoxBase):
             target {np.array, tensor or tuple} -- Target [durations, events]. 
         
         Keyword Arguments:
-            batch_size {int} -- Elemets in each batch (default: {256})
+            batch_size {int} -- Elements in each batch (default: {256})
             epochs {int} -- Number of epochs (default: {1})
             callbacks {list} -- list of callbacks (default: {None})
             verbose {bool} -- Print progress (default: {True})
@@ -84,7 +84,7 @@ class _CoxCCBase(models.cox._CoxBase):
         target is (durations, events).
         
         Arguments:
-            data {tuple} -- Tuple containig (input, (durations, events)).
+            data {tuple} -- Tuple containing (input, (durations, events)).
             batch_size {int} -- Batch size.
         
         Keyword Arguments:
@@ -119,7 +119,7 @@ class CoxCC(_CoxCCBase, models.cox._CoxPHBase):
     This is similar to DeepSurv, but use an approximation of the loss function.
     
     Arguments:
-        net {torch.nn.Module} -- A pytorch net.
+        net {torch.nn.Module} -- A PyTorch net.
     
     Keyword Arguments:
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
@@ -133,7 +133,7 @@ class CoxTime(_CoxCCBase):
     Se paper for explanation http://jmlr.org/papers/volume20/18-424/18-424.pdf
     
     Arguments:
-        net {torch.nn.Module} -- A pytorch net.
+        net {torch.nn.Module} -- A PyTorch net.
     
     Keyword Arguments:
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})

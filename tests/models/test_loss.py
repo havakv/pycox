@@ -1,5 +1,7 @@
 import pytest
+import numpy as np
 import torch
+import torchtuples as tt
 
 from pycox.models.data import pair_rank_mat
 from pycox.models import loss
@@ -57,3 +59,31 @@ def test_loss_deephit_cr_equals_single(seed, m, sigma, alpha):
     r1 = loss_cr(phi, idx_duration, events, rank_mat)
     r2 = loss_single(phi.view(batch, -1), idx_duration, events.float(), rank_mat)
     assert (r1 - r2).abs() < 1e-5
+
+@pytest.mark.parametrize('seed', [0, 1])
+@pytest.mark.parametrize('shrink', [0, 0.01, 1.])
+def test_cox_cc_loss_single_ctrl(seed, shrink):
+    np.random.seed(seed)
+    n = 100
+    case = np.random.uniform(-1, 1, n)
+    ctrl = np.random.uniform(-1, 1, n)
+    case, ctrl = tt.tuplefy(case, ctrl).to_tensor()
+    loss_1 = loss.cox_cc_loss(case, (ctrl,), shrink)
+    loss_2 = loss.cox_cc_loss_single_ctrl(case, ctrl, shrink)
+    assert (loss_1 - loss_2).abs() < 1e-6
+
+@pytest.mark.parametrize('shrink', [0, 0.01, 1.])
+def test_cox_cc_loss_single_ctrl_zero(shrink):
+    n = 10
+    case = ctrl = torch.zeros(n)
+    loss_1 = loss.cox_cc_loss_single_ctrl(case, ctrl, shrink)
+    val = torch.tensor(2.).log()
+    assert (loss_1 - val).abs() == 0
+
+@pytest.mark.parametrize('shrink', [0, 0.01, 1.])
+def test_cox_cc_loss_zero(shrink):
+    n = 10
+    case = ctrl = torch.zeros(n)
+    loss_1 = loss.cox_cc_loss(case, (ctrl,), shrink)
+    val = torch.tensor(2.).log()
+    assert (loss_1 - val).abs() == 0
