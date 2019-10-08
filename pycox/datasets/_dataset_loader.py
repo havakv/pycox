@@ -4,6 +4,7 @@ import pycox
 
 _PATH_ROOT = Path(pycox.__file__).parent.parent
 _PATH_DATA = _PATH_ROOT / 'datasets'
+_PATH_DATA.mkdir(exist_ok=True)
 
 class _DatasetLoader:
     """Abstract class for loading data sets.
