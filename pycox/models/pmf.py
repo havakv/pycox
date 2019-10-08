@@ -2,6 +2,7 @@ import pandas as pd
 from pycox import models
 from pycox.models.utils import array_or_tensor, pad_col
 from pycox.preprocessing import label_transforms
+from pycox.models.interpolation import InterpolatePMF
 
 
 class _PMFBase(models.base._SurvModelBase):
@@ -62,6 +63,26 @@ class _PMFBase(models.base._SurvModelBase):
         surv = self.predict_surv(input, batch_size, True, eval_, True, num_workers)
         return pd.DataFrame(surv, self.duration_index)
 
+    def interpolate(self, sub=10, scheme='const_pdf', duration_index=None):
+        """Use interpolation for predictions.
+        There are only one scheme:
+            `const_pdf` and `lin_surv` which assumes pice-wise constant pmf in each interval (linear survival).
+        
+        Keyword Arguments:
+            sub {int} -- Number of "sub" units in interpolation grid. If `sub` is 10 we have a grid with
+                10 times the number of grid points than the original `duration_index` (default: {10}).
+            scheme {str} -- Type of interpolation {'const_hazard', 'const_pdf'}.
+                See `InterpolateDiscrete` (default: {'const_pdf'})
+            duration_index {np.array} -- Cuts used for discretization. Does not affect interpolation,
+                only for setting index in `predict_surv_df` (default: {None})
+        
+        Returns:
+            [InterpolationPMF] -- Object for prediction with interpolation.
+        """
+        if duration_index is None:
+            duration_index = self.duration_index
+        return InterpolatePMF(self, scheme, duration_index, sub)
+
 
 class PMF(_PMFBase):
     """
@@ -88,3 +109,4 @@ class PMF(_PMFBase):
 
     def make_loss(self):
         return models.loss.NLLPMFLoss()
+
