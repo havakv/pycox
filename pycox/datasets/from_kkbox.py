@@ -84,7 +84,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             subset {str} -- Which subset to use ('train', 'val', 'test').
                 Can also set 'survival' which will give df with survival information without
                 covariates. (default: {'train'})
-            log_trans {bool} -- If covariates in 'kkbox.log_cols' (from Kvamme paper) should be
+            log_trans {bool} -- If covariates in 'kkbox_v1.log_cols' (from Kvamme paper) should be
                 transformed with 'z = log(x - min(x) + 1)'. (default: {True})
         """
         if subset == 'train':
@@ -102,8 +102,8 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         if not path.exists():
             print(f"""
             The KKBox dataset not locally available.
-            If you want to download, call 'kkbox.download_kkbox()', but note that 
-            this might take a LONG TIME!!!
+            If you want to download, call 'kkbox_v1.download_kkbox()', but note that 
+            this might take around 10 min!
             NOTE: You need Kaggle credentials! Follow instructions at 
             https://github.com/Kaggle/kaggle-api#api-credentials
             """)
@@ -123,7 +123,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
     def download_kkbox(self):
         """Download KKBox data set. 
-        This is likely to take a LONG time!!!
+        This is likely to take around 10 min!!!
         NOTE: You need Kaggle credentials! Follow instructions at 
         https://github.com/Kaggle/kaggle-api#api-credentials
         """
@@ -141,7 +141,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         self._make_train_test_split()
         print('Cleaning up...')
         self._clean_up()
-        print('Done!')
+        print("Done! You can now call `df = kkbox_v1.read_df()`.")
 
     def _setup_download_dir(self):
         if self._path_dir.exists():
@@ -202,7 +202,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  [['msno', 'transaction_date', 'membership_expire_date', 'is_cancel']])
         last_churn_date = '2017-01-29' # 30 days before last transactions are made in the dataset.
 
-        # Chunr: More than 30 days before reentering
+        # Churn: More than 30 days before reentering
         def days_without_membership(df):
             diff = (df['next_trans_date'] - df['membership_expire_date']).dt.total_seconds()
             return diff / (60 * 60 * 24)
@@ -338,7 +338,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  .assign(strange_age=lambda x: (x['age_at_start'] <= 0) | (x['age_at_start'] >= 100),
                          age_at_start=lambda x: x['age_at_start'].clip(lower=0, upper=100)))
 
-        # days_beteen_subs 
+        # days_between_subs 
         # There are None for (not new start), so we can just set them to zero, and we don't need to include another variable (as it allready exists).
         trans = trans.assign(days_between_subs=lambda x: x['days_between_subs'].fillna(0.))
 
@@ -355,7 +355,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
         # age_at_start 
         # This is Nan when days_since_reg_init is nan. This is because registration_init_time is nan when bd is nan.
-        # We have removed negative entries, so we set Nans to -1, but don't add dymmy because its eaqual to days_since_reg_init dummy.
+        # We have removed negative entries, so we set Nans to -1, but don't add dummy because its equal to days_since_reg_init dummy.
         trans = trans.assign(age_at_start=lambda x: x['age_at_start'].fillna(-1.))
 
         # First churn variable
@@ -375,7 +375,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         # We could use this covariate, but we choose not to...
         trans = trans.drop('payment_method_id', axis=1)
 
-        # ### Log transfrom variables
+        # ### Log transform variables
         # log_cols = ['actual_amount_paid', 'days_between_subs', 'days_since_reg_init', 'payment_plan_days',
         #             'plan_list_price']
         
