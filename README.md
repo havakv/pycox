@@ -31,7 +31,7 @@ In addition, some useful preprocessing tools are available in the `pycox.preproc
 
 To get started you first need to [install the package](#installation).
 
-We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://github.com/havakv/pycox/blob/master/01_introduction/.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
+We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://github.com/havakv/pycox/blob/master/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
 The notebook use the `LogisticHazard` method for illustration, but most of the principles generalize to the other methods.
 
 Alternatively, there are many examples listed in the [examples folder](https://github.com/havakv/pycox/tree/master/examples).
