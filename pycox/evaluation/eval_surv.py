@@ -79,8 +79,8 @@ class EvalSurv:
         self._steps = steps
 
     def add_censor_est(self, censor_surv, steps='post'):
-        """Add censoring estimates so one can use invece censoring weighting.
-        `censor_surv` are the suvival estimes trainied on (durations, 1-events),
+        """Add censoring estimates so one can use inverse censoring weighting.
+        `censor_surv` are the survival estimates trained on (durations, 1-events),
         
         Arguments:
             censor_surv {pd.DataFrame} -- Censor survival curves.
@@ -96,7 +96,7 @@ class EvalSurv:
         return self
 
     def add_km_censor(self, steps='post'):
-        """Add censoring estimates obtaind by Kaplan-Meier on the test set
+        """Add censoring estimates obtained by Kaplan-Meier on the test set
         (durations, 1-events).
         """
         km = utils.kaplan_meier(self.durations, 1-self.events)
@@ -149,14 +149,14 @@ class EvalSurv:
 
     def concordance_td(self, method='adj_antolini'):
         """Time dependent concorance index from
-        Antolini, L.; Boracchi, P.; and Biganzoli, E. 2005. A timedependent discrimination
+        Antolini, L.; Boracchi, P.; and Biganzoli, E. 2005. A time-dependent discrimination
         index for survival data. Statistics in Medicine 24:3927–3944.
 
         If 'method' is 'antolini', the concordance from Antolini et al. is computed.
     
         If 'method' is 'adj_antolini' (default) we have made a small modifications
         for ties in predictions and event times.
-        We have followed step 3. in Sec 5.1. in Random Survial Forests paper, except for the last
+        We have followed step 3. in Sec 5.1. in Random Survival Forests paper, except for the last
         point with "T_i = T_j, but not both are deaths", as that doesn't make much sense.
         See 'metrics._is_concordant'.
 
@@ -170,17 +170,17 @@ class EvalSurv:
                               self._duration_idx(), method)
 
     def brier_score(self, time_grid, max_weight=np.inf):
-        """Brier score weighted by the inverce censoring distibution.
+        """Brier score weighted by the inverse censoring distribution.
         
         Arguments:
-            time_grid {np.array} -- Duarations where the brier score should be calculated.
+            time_grid {np.array} -- Durations where the brier score should be calculated.
 
         Keyword Arguments:
             max_weight {float} -- Max weight value (max number of individuals an individual
                 can represent (default {np.inf}).
         """
         if self.censor_surv is None:
-            raise ValueError("""Need to add censor_surv to compute briser score. Use 'add_censor_est'
+            raise ValueError("""Need to add censor_surv to compute Brier score. Use 'add_censor_est'
             or 'add_km_censor' for Kaplan-Meier""")
         bs = ipcw.brier_score(time_grid, self.durations, self.events, self.surv.values,
                               self.censor_surv.surv.values, self.index_surv,
@@ -188,31 +188,31 @@ class EvalSurv:
                               self.censor_surv.steps)
         return pd.Series(bs, index=time_grid).rename('brier_score')
 
-    def mbll(self, time_grid, max_weight=np.inf):
-        """Mean binomial log-likelihood weighted by the inverce censoring distribution.
+    def nbll(self, time_grid, max_weight=np.inf):
+        """Negative binomial log-likelihood weighted by the inverse censoring distribution.
         
         Arguments:
-            time_grid {np.array} -- Duarations where the brier score should be calculated.
+            time_grid {np.array} -- Durations where the brier score should be calculated.
 
         Keyword Arguments:
             max_weight {float} -- Max weight value (max number of individuals an individual
                 can represent (default {np.inf}).
         """
         if self.censor_surv is None:
-            raise ValueError("""Need to add censor_surv to compute briser score. Use 'add_censor_est'
+            raise ValueError("""Need to add censor_surv to compute the score. Use 'add_censor_est'
             or 'add_km_censor' for Kaplan-Meier""")
-        bs = ipcw.binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
-                                          self.censor_surv.surv.values, self.index_surv,
-                                          self.censor_surv.index_surv, max_weight, True, self.steps,
-                                          self.censor_surv.steps)
-        return pd.Series(bs, index=time_grid).rename('mbll')
+        bll = ipcw.binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
+                                           self.censor_surv.surv.values, self.index_surv,
+                                           self.censor_surv.index_surv, max_weight, True, self.steps,
+                                           self.censor_surv.steps)
+        return pd.Series(-bll, index=time_grid).rename('nbll')
 
     def integrated_brier_score(self, time_grid, max_weight=np.inf):
-        """Integrated Brier score weighted by the inverce censoring distibution.
+        """Integrated Brier score weighted by the inverse censoring distribution.
         Essentially an integral over values obtained from `brier_score(time_grid, max_weight)`.
         
         Arguments:
-            time_grid {np.array} -- Duarations where the brier score should be calculated.
+            time_grid {np.array} -- Durations where the brier score should be calculated.
 
         Keyword Arguments:
             max_weight {float} -- Max weight value (max number of individuals an individual
@@ -225,20 +225,21 @@ class EvalSurv:
                                            self.censor_surv.index_surv, max_weight, self.steps,
                                            self.censor_surv.steps)
 
-    def integrated_mbll(self, time_grid, max_weight=np.inf):
-        """Integrated mean binomial log-likelihood weighted by the inverce censoring distribution.
-        Essentially an integral over values obtained from `mbll(time_grid, max_weight)`.
+    def integrated_nbll(self, time_grid, max_weight=np.inf):
+        """Integrated negative binomial log-likelihood weighted by the inverse censoring distribution.
+        Essentially an integral over values obtained from `nbll(time_grid, max_weight)`.
         
         Arguments:
-            time_grid {np.array} -- Duarations where the brier score should be calculated.
+            time_grid {np.array} -- Durations where the brier score should be calculated.
 
         Keyword Arguments:
             max_weight {float} -- Max weight value (max number of individuals an individual
                 can represent (default {np.inf}).
         """
         if self.censor_surv is None:
-            raise ValueError("Need to add censor_surv to compute briser score. Use 'add_censor_est'")
-        return ipcw.integrated_binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
+            raise ValueError("Need to add censor_surv to compute the score. Use 'add_censor_est'")
+        ibll = ipcw.integrated_binomial_log_likelihood(time_grid, self.durations, self.events, self.surv.values,
                                                        self.censor_surv.surv.values, self.index_surv,
                                                        self.censor_surv.index_surv, max_weight, self.steps,
                                                        self.censor_surv.steps)
+        return -ibll
