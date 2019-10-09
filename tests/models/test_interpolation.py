@@ -18,6 +18,13 @@ class MockLogisticHazard(models.LogisticHazard):
     def predict(self, input, *args, **kwargs):
         return input
 
+class MockMTLR(models.MTLR):
+    def __init__(self, duration_index=None):
+        self.duration_index = duration_index
+        
+    def predict(self, input, *args, **kwargs):
+        return input
+
 
 @pytest.mark.parametrize('m', [2, 5, 10])
 @pytest.mark.parametrize('sub', [2, 5])
@@ -47,6 +54,19 @@ def test_base_values_at_knots(m, sub):
     assert diff.shape == surv.shape
     assert (diff == 0).all().all()
 
+@pytest.mark.parametrize('m', [2, 5, 10])
+@pytest.mark.parametrize('sub', [2, 5])
+def test_pmf_values_at_knots(m, sub):
+    torch.manual_seed(12345)
+    n = 20
+    idx = torch.randn(m).abs().sort()[0].numpy()
+    input = torch.randn(n, m)
+    model = MockPMF(idx)
+    surv = model.predict_surv_df(input)
+    surv_cdi = model.interpolate(sub, 'const_pdf').predict_surv_df(input)
+    diff = (surv - surv_cdi).dropna()
+    assert diff.shape == surv.shape
+    assert diff.max().max() < 1e-7
 
 @pytest.mark.parametrize('m', [2, 5, 10])
 @pytest.mark.parametrize('sub', [2, 5])
@@ -66,3 +86,17 @@ def test_logistic_hazard_values_at_knots(m, sub):
     assert diff.shape == surv.shape
     assert (diff.index == surv.index).all()
     assert diff.max().max() < 1e-6
+
+@pytest.mark.parametrize('m', [2, 5, 10])
+@pytest.mark.parametrize('sub', [2, 5])
+def test_mtlr_values_at_knots(m, sub):
+    torch.manual_seed(12345)
+    n = 20
+    idx = torch.randn(m).abs().sort()[0].numpy()
+    input = torch.randn(n, m)
+    model = MockMTLR(idx)
+    surv = model.predict_surv_df(input)
+    surv_cdi = model.interpolate(sub, 'const_pdf').predict_surv_df(input)
+    diff = (surv - surv_cdi).dropna()
+    assert diff.shape == surv.shape
+    assert diff.max().max() < 1e-7
