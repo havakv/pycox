@@ -1,6 +1,3 @@
-"""Impleentation of the deephit model, but currently for single event cause
-(not compteeting risk).
-"""
 import numpy as np
 import pandas as pd
 import torch
@@ -10,14 +7,32 @@ from pycox import models
 from pycox.models.utils import array_or_tensor, pad_col
 
 class DeepHitSingle(models.pmf._PMFBase):
-    """Essentailly same as torchtuples.Model, but instead of specifying a loss function,
-    we now specify 'alpha' and 'simga'.
-    See paper (or make_loss_deephit function)
+    """The DeepHit methods by [1] but only for single event (not competing risks).
+
+    Note that `alpha` is here defined differently than in [1], as `alpha` is  weighting between
+    the likelihood and rank loss (see Appendix D in [2])
+        loss = alpha * nll + (1 - alpha) rank_loss(sigma).
+    
+    Also, unlike [1], this implementation allows for survival past the max durations, i.e., it
+    does not assume all events happen within the defined duration grid. See [3] for details.
     
     Keyword Arguments:
         alpha {float} -- Weighting (0, 1) likelihood and rank loss (L2 in paper).
             1 gives only likelihood, and 0 gives only rank loss. (default: {0.2})
         sigma {float} -- from eta in rank loss (L2 in paper) (default: {0.1})
+    
+    References:
+    [1] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning
+        approach to survival analysis with competing risks. In Thirty-Second AAAI Conference on Artificial
+        Intelligence, 2018.
+        http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
+
+    [2] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel.
+        Time-to-event prediction with neural networks and Cox regression.
+        Journal of Machine Learning Research, 20(129):1–30, 2019.
+        http://jmlr.org/papers/v20/18-424.html
+    
+    [3] [Add paper ref.]
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None, alpha=0.2, sigma=0.1):
         loss = self.make_loss(alpha, sigma)
@@ -37,17 +52,33 @@ class DeepHitSingle(models.pmf._PMFBase):
 
 
 class DeepHit(tt.Model):
-    """DeepHit for competing risks.
-    If you have only one event type, use DeepHitSingle instead!
+    """DeepHit for competing risks [1].
+    For single risk (only one event type) use `DeepHitSingle` instead!
 
-    Essentailly same as torchtuples.Model, but instead of specifying a loss function,
-    we now specify 'alpha' and 'simga'.
-    See paper (or make_loss_deephit function)
+    Note that `alpha` is here defined differently than in [1], as `alpha` is  weighting between
+    the likelihood and rank loss (see Appendix D in [2])
+        loss = alpha * nll + (1 - alpha) rank_loss(sigma).
+
+    Also, unlike [1], this implementation allows for survival past the max durations, i.e., it
+    does not assume all events happen within the defined duration grid. See [3] for details.
     
     Keyword Arguments:
         alpha {float} -- Weighting (0, 1) likelihood and rank loss (L2 in paper).
             1 gives only likelihood, and 0 gives only rank loss. (default: {0.2})
         sigma {float} -- from eta in rank loss (L2 in paper) (default: {0.1})
+
+    References:
+    [1] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning
+        approach to survival analysis with competing risks. In Thirty-Second AAAI Conference on Artificial
+        Intelligence, 2018.
+        http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
+
+    [2] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel.
+        Time-to-event prediction with neural networks and Cox regression.
+        Journal of Machine Learning Research, 20(129):1–30, 2019.
+        http://jmlr.org/papers/v20/18-424.html
+    
+    [3] [Add paper ref.]
     """
     def __init__(self, net, optimizer=None, device=None, alpha=0.2, sigma=0.1, duration_index=None):
         self.duration_index = duration_index
@@ -60,7 +91,7 @@ class DeepHit(tt.Model):
     @property
     def duration_index(self):
         """
-        Array of durations that defineds the discrete times. This is used to set the index
+        Array of durations that defines the discrete times. This is used to set the index
         of the DataFrame in `predict_surv_df`.
         
         Returns:
@@ -82,8 +113,9 @@ class DeepHit(tt.Model):
         return dataloader
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
-        """Predict the survival fuction for `input` and return as a pandas DataFrame.
-        See `predict_surv` to return tensor or np.array instead.
+        """Predict the survival function for `input`, i.e., survive all of the event types,
+        and return as a pandas DataFrame.
+        See `prediction_surv_df` to return a DataFrame instead.
 
         Arguments:
             input {tuple, np.ndarra, or torch.tensor} -- Input to net.
@@ -101,7 +133,7 @@ class DeepHit(tt.Model):
 
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True,
                      to_cpu=False, num_workers=0):
-        """Predict the survival fuction for `input`, i.e., survive all of the event types.
+        """Predict the survival function for `input`, i.e., survive all of the event types.
         See `prediction_surv_df` to return a DataFrame instead.
 
         Arguments:
@@ -128,16 +160,16 @@ class DeepHit(tt.Model):
         """Predict the cumulative incidence function (cif) for `input`.
 
         Arguments:
-            input {tuple, np.ndarra, or torch.tensor} -- Input to net.
+            input {tuple, np.ndarray, or torch.tensor} -- Input to net.
         
         Keyword Arguments:
             batch_size {int} -- Batch size (default: {8224})
             numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
                 (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
             to_cpu {bool} -- For larger data sets we need to move the results to cpu
                 (default: {False})
-            num_workers {int} -- Number of workes in created dataloader (default: {0})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
         
         Returns:
             [np.ndarray or tensor] -- Predictions
@@ -151,17 +183,17 @@ class DeepHit(tt.Model):
         """Predict the probability mass fuction (PMF) for `input`.
 
         Arguments:
-            input {tuple, np.ndarra, or torch.tensor} -- Input to net.
+            input {tuple, np.ndarray, or torch.tensor} -- Input to net.
         
         Keyword Arguments:
             batch_size {int} -- Batch size (default: {8224})
             numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
                 (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
             grads {bool} -- If gradients should be computed (default: {False})
             to_cpu {bool} -- For larger data sets we need to move the results to cpu
                 (default: {False})
-            num_workers {int} -- Number of workes in created dataloader (default: {0})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
         
         Returns:
             [np.ndarray or tensor] -- Predictions

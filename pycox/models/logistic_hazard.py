@@ -89,11 +89,11 @@ class LogisticHazard(models.base._SurvModelBase):
             batch_size {int} -- Batch size (default: {8224})
             numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
                 (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
             grads {bool} -- If gradients should be computed (default: {False})
             to_cpu {bool} -- For larger data sets we need to move the results to cpu
                 (default: {False})
-            num_workers {int} -- Number of workes in created dataloader (default: {0})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
         
         Returns:
             [np.ndarray or tensor] -- Predicted hazards
@@ -106,7 +106,7 @@ class LogisticHazard(models.base._SurvModelBase):
         """Use interpolation for predictions.
         There are two schemes:
             `const_hazard` and `exp_surv` which assumes pice-wise constant hazard in each interval (exponential survival).
-            `const_pdf` and `lin_surv` which assumes pice-wise constant pmf in each interval (linear survival).
+            `const_pdf` and `lin_surv` which assumes pice-wise constant PMF in each interval (linear survival).
         
         Keyword Arguments:
             sub {int} -- Number of "sub" units in interpolation grid. If `sub` is 10 we have a grid with
@@ -117,7 +117,7 @@ class LogisticHazard(models.base._SurvModelBase):
                 only for setting index in `predict_surv_df` (default: {None})
         
         Returns:
-            [InterpolationDiscrete] -- Object for prediction with interpolation.
+            [InterpolateLogisticHazard] -- Object for prediction with interpolation.
         """
         if duration_index is None:
             duration_index = self.duration_index

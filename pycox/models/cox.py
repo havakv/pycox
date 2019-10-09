@@ -37,7 +37,7 @@ class _CoxBase(models.base._SurvModelBase):
             target {np.array, tensor or tuple} -- Target [durations, events]. 
         
         Keyword Arguments:
-            batch_size {int} -- Elemets in each batch (default: {256})
+            batch_size {int} -- Elements in each batch (default: {256})
             epochs {int} -- Number of epochs (default: {1})
             callbacks {list} -- list of callbacks (default: {None})
             verbose {bool} -- Print progress (default: {True})
@@ -63,15 +63,15 @@ class _CoxBase(models.base._SurvModelBase):
 
     def compute_baseline_hazards(self, input=None, target=None, max_duration=None, sample=None, batch_size=8224,
                                 set_hazards=True, eval_=True, num_workers=0):
-        """Computes the Breslow estimates form the data definded by `input` and `target`
-        (if `None` use traning data).
+        """Computes the Breslow estimates form the data defined by `input` and `target`
+        (if `None` use training data).
 
         Typically call
         model.compute_baseline_hazards() after fitting.
         
         Keyword Arguments:
             input  -- Input data (train input) (default: {None})
-            target  -- Taget data (train target) (default: {None})
+            target  -- Target data (train target) (default: {None})
             max_duration {float} -- Don't compute estimates for duration higher (default: {None})
             sample {float or int} -- Compute estimates of subsample of data (default: {None})
             batch_size {int} -- Batch size (default: {8224})
@@ -100,7 +100,7 @@ class _CoxBase(models.base._SurvModelBase):
     def compute_baseline_cumulative_hazards(self, input=None, target=None, max_duration=None, sample=None,
                                             batch_size=8224, set_hazards=True, baseline_hazards_=None,
                                             eval_=True, num_workers=0):
-        """See `compute_bseline_hazards. This is the cumulative version."""
+        """See `compute_baseline_hazards. This is the cumulative version."""
         if ((input is not None) or (target is not None)) and (baseline_hazards_ is not None):
             raise ValueError("'input', 'target' and 'baseline_hazards_' can not both be different from 'None'.")
         if baseline_hazards_ is None:
@@ -137,7 +137,7 @@ class _CoxBase(models.base._SurvModelBase):
     def predict_surv_df(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None,
                         eval_=True, num_workers=0):
         """Predict survival function for `input`. S(x, t) = exp(-H(x, t))
-        Require compueted baseline hazards.
+        Require computed baseline hazards.
 
         Arguments:
             input {np.array, tensor or tuple} -- Input x passed to net.
@@ -146,9 +146,11 @@ class _CoxBase(models.base._SurvModelBase):
             max_duration {float} -- Don't compute estimates for duration higher (default: {None})
             batch_size {int} -- Batch size (default: {8224})
             baseline_hazards_ {pd.Series} -- Baseline hazards. If `None` used `model.baseline_hazards_` (default: {None})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
 
         Returns:
-            pd.DataFrame -- Survival esimates. One columns for each individual.
+            pd.DataFrame -- Survival estimates. One columns for each individual.
         """
         return np.exp(-self.predict_cumulative_hazards(input, max_duration, batch_size, verbose, baseline_hazards_,
                                                        eval_, num_workers))
@@ -164,14 +166,14 @@ class _CoxBase(models.base._SurvModelBase):
         Keyword Arguments:
             max_duration {float} -- Don't compute estimates for duration higher (default: {None})
             batch_size {int} -- Batch size (default: {8224})
-            baseline_hazards_ {pd.Series} -- Baseline hazards. If `None` used `model.baseline_hazards_` (default: {None})
             numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
                 (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
-            num_workers {int} -- Number of workes in created dataloader (default: {0})
+            baseline_hazards_ {pd.Series} -- Baseline hazards. If `None` used `model.baseline_hazards_` (default: {None})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
 
         Returns:
-            pd.DataFrame -- Survival esimates. One columns for each individual.
+            pd.DataFrame -- Survival estimates. One columns for each individual.
         """
         surv = self.predict_surv_df(input, max_duration, batch_size, verbose, baseline_hazards_,
                                     eval_, num_workers)
@@ -263,15 +265,18 @@ class _CoxPHBase(_CoxBase):
         This likelihood does not sample the controls.
         Note that censored data (non events) does not have a partial log-likelihood.
 
-        Parameters:
-            df: Pandas dataframe with covariates, duration, and events.
-            g_preds: Exponent of proportional hazards (h = h0 * exp(g(x))).
-                If not supplied, it will be calculated.
-            batch_size: Batch size passed calculation of g_preds.
+        Arguments:
+            input {tuple, np.ndarray, or torch.tensor} -- Input to net.
+            target {tuple, np.ndarray, or torch.tensor} -- Target labels.
+
+        Keyword Arguments:
+            g_preds {np.array} -- Predictions from `model.predict` (default: {None})
+            batch_size {int} -- Batch size (default: {8224})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
 
         Returns:
-            Pandas dataframe with duration, g_preds, and the
-                partial log-likelihood pll.
+            Partial log-likelihood.
         '''
         df = self.target_to_df(target)
         if g_preds is None:
@@ -291,10 +296,9 @@ class _CoxPHBase(_CoxBase):
 
 class CoxPH(_CoxPHBase):
     """Cox proportional hazards model parameterized with a neural net.
-    This is essentailly the DeepSurv method by Katzman et al. (2018)
-    https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1
+    This is essentially the DeepSurv method [1].
 
-    The loss function is not quite the parial log-likelihood, but close.    
+    The loss function is not quite the partial log-likelihood, but close.    
     The difference is that for tied events, we use a random order instead of 
     including all individuals that had an event at that point in time.
 
@@ -303,7 +307,16 @@ class CoxPH(_CoxPHBase):
     
     Keyword Arguments:
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
-        device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
+        device {str, int, torch.device} -- Device to compute on. (default: {None})
+            Preferably pass a torch.device object.
+            If 'None': use default gpu if available, else use cpu.
+            If 'int': used that gpu: torch.device('cuda:<device>').
+            If 'string': string is passed to torch.device('string').
+
+    [1] Jared L. Katzman, Uri Shaham, Alexander Cloninger, Jonathan Bates, Tingting Jiang, and Yuval Kluger.
+        Deepsurv: personalized treatment recommender system using a Cox proportional hazards deep neural network.
+        BMC Medical Research Methodology, 18(1), 2018.
+        https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1
     """
     def __init__(self, net, optimizer=None, device=None):
         return super().__init__(net, self.make_loss(), optimizer, device)

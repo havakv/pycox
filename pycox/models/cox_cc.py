@@ -51,7 +51,7 @@ class _CoxCCBase(models.cox._CoxBase):
         input = self._to_device(input)
         batch_size = input.lens().flatten().get_if_all_equal()
         if batch_size is None:
-            raise RuntimeError("All elements in input does not have the same lenght.")
+            raise RuntimeError("All elements in input does not have the same length.")
         case, control = input # both are TupleTree
         input_all = tt.TupleTree((case,) + control).cat()
         g_all = self.net(*input_all)
@@ -115,7 +115,7 @@ class _CoxCCBase(models.cox._CoxBase):
 
 class CoxCC(_CoxCCBase, models.cox._CoxPHBase):
     """Cox proportional hazards model parameterized with a neural net and
-    trained with case-control sampling.
+    trained with case-control sampling [1].
     This is similar to DeepSurv, but use an approximation of the loss function.
     
     Arguments:
@@ -123,21 +123,46 @@ class CoxCC(_CoxCCBase, models.cox._CoxPHBase):
     
     Keyword Arguments:
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
-        device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
+        device {str, int, torch.device} -- Device to compute on. (default: {None})
+            Preferably pass a torch.device object.
+            If 'None': use default gpu if available, else use cpu.
+            If 'int': used that gpu: torch.device('cuda:<device>').
+            If 'string': string is passed to torch.device('string').
+
+    References:
+    [1] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel.
+        Time-to-event prediction with neural networks and Cox regression.
+        Journal of Machine Learning Research, 20(129):1–30, 2019.
+        http://jmlr.org/papers/v20/18-424.html
     """
     make_dataset = models.data.CoxCCDataset
 
 
 class CoxTime(_CoxCCBase):
-    """A Cox model that does not have proportional hazards, trained with case-control sampling.
-    Se paper for explanation http://jmlr.org/papers/volume20/18-424/18-424.pdf
+    """The Cox-Time model from [1]. A relative risk model without proportional hazards, trained
+    with case-control sampling.
     
     Arguments:
         net {torch.nn.Module} -- A PyTorch net.
     
     Keyword Arguments:
         optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
-        device {string, int, or torch.device} -- See torchtuples.Model (default: {None})
+        device {str, int, torch.device} -- Device to compute on. (default: {None})
+            Preferably pass a torch.device object.
+            If 'None': use default gpu if available, else use cpu.
+            If 'int': used that gpu: torch.device('cuda:<device>').
+            If 'string': string is passed to torch.device('string').
+        shrink {float} -- Shrinkage that encourage the net got give g_case and g_control
+            closer to zero (a regularizer in a sense). (default: {0.})
+        labtrans {pycox.preprocessing.label_tranforms.LabTransCoxTime} -- A object for transforming
+            durations. Useful for prediction as we can obtain durations on the original scale.
+            (default: {None})
+
+    References:
+    [1] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel.
+        Time-to-event prediction with neural networks and Cox regression.
+        Journal of Machine Learning Research, 20(129):1–30, 2019.
+        http://jmlr.org/papers/v20/18-424.html
     """
     make_dataset = models.data.CoxTimeDataset
     label_transform = LabTransCoxTime
@@ -153,7 +178,6 @@ class CoxTime(_CoxCCBase):
         new_input = input + durations 
         dataloader = super().make_dataloader_predict(new_input, batch_size, shuffle, num_workers)
         return dataloader
-
 
     def predict_surv_df(self, input, max_duration=None, batch_size=8224, verbose=False, baseline_hazards_=None,
                         eval_=True, num_workers=0):

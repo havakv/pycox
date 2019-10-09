@@ -86,8 +86,9 @@ class _PMFBase(models.base._SurvModelBase):
 
 class PMF(_PMFBase):
     """
-    A discrete-time survival model that minimize the likelihood for right-censored data.
-    See <link>.
+    The PMF is a discrete-time survival model that parametrize the probability mass function (PMF)
+    and optimizer the survival likelihood. It is the base of methods such as DeepHit and MTLR.
+    See [1].
 
     Arguments:
         net {torch.nn.Module} -- A torch module.
@@ -103,6 +104,9 @@ class PMF(_PMFBase):
             If 'string': string is passed to torch.device('string').
         duration_index {list, np.array} -- Array of durations that defines the discrete times.
             This is used to set the index of the DataFrame in `predict_surv_df`.
+
+    References:
+    [1] SOMETHING
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None):
         super().__init__(net, self.make_loss(), optimizer, device, duration_index)

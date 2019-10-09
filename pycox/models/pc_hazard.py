@@ -8,12 +8,20 @@ from pycox.models.utils import array_or_tensor, pad_col, make_subgrid
 from pycox.preprocessing import label_transforms
 
 class PCHazard(models.base._SurvModelBase):
-    """The PC-Hazard (piecewice constant hazard) method from [link].
+    """The PC-Hazard (piecewise constant hazard) method from [1].
+    The Piecewise Constant Hazard (PC-Hazard) model from [1] which assumes that the continuous-time
+    hazard function is constant in a set of predefined intervals. It is similar to the Piecewise
+    Exponential Models [2] but with a softplus activation instead of the exponential function.
 
-    NOTE:
-        The label_transform is slightly different than regular hazard transform in terms
-        of censorings beeing moved right instead of left.
-        Also, this typically has one less output node than the HazardSurv.
+    Note that the label_transform is slightly different than that of the LogistcHazard and PMF methods.
+    This typically results in one less output node.
+
+    References:
+    [1] SOMETHING
+
+    [2] Michael Friedman. Piecewise exponential models for survival data with covariates.
+        The Annals of Statistics, 10(1):101–113, 1982.
+        https://projecteuclid.org/euclid.aos/1176345693
     """
     label_transform = label_transforms.LabTransPCHazard
 
@@ -52,10 +60,10 @@ class PCHazard(models.base._SurvModelBase):
             batch_size {int} -- Batch size (default: {8224})
             numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
                 (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' modede on net. (default: {True})
+            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
             to_cpu {bool} -- For larger data sets we need to move the results to cpu
                 (default: {False})
-            num_workers {int} -- Number of workes in created dataloader (default: {0})
+            num_workers {int} -- Number of workers in created dataloader (default: {0})
         
         Returns:
             [np.ndarray or tensor] -- Predicted hazards
@@ -102,6 +110,6 @@ class PCHazard(models.base._SurvModelBase):
             if target is not None:
                 max_idx = tt.tuplefy(target).to_numpy()[0].max()
                 if m_output != (max_idx + 1):
-                    raise ValueError(f"Ouput of `net` is {m_output}, but data only trains {max_idx + 1} indices. "+
+                    raise ValueError(f"Output of `net` is {m_output}, but data only trains {max_idx + 1} indices. "+
                         f"Output of `net` should be  {max_idx + 1}."+
                         "Set `check_out_feature=False` to suppress this Error.")
