@@ -64,7 +64,7 @@ The following methods are available in the `pycox.methods` module.
         <td>PCHazard</td>
         <td>
         The Piecewise Constant Hazard (PC-Hazard) model assumes that the continuous-time hazard function is constant in predefined intervals.
-        It is similar to the Piecewise Exponential Models <a href="#references">[10]</a> but with a softplus activation instead of the exponential function
+        It is similar to the Piecewise Exponential Models <a href="#references">[11]</a> but with a softplus activation instead of the exponential function
         <a href="#references">[??]</a>.
         </td>
         <td><a href="https://github.com/havakv/pycox/blob/master/examples/pc_hazard.ipynb">notebook</a>
