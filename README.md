@@ -13,6 +13,7 @@
 
 
 <p align="center">
+    <a href="#get-started">Get Started</a> •
     <a href="#methods">Methods</a> •
     <a href="#evaluation-criteria">Evaluation Criteria</a> •
     <a href="#datasets">Datasets</a> •
@@ -26,6 +27,14 @@
 The package contains implementations of various [survival models](#methods), some useful [evaluation metrics](#evaluation-criteria), and a collection of [event-time datasets](#datasets).
 In addition, some useful preprocessing tools are available in the `pycox.preprocessing` module.
 
+## Get Started
+
+To get started you first need to [install the package](#installation).
+
+We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://github.com/havakv/pycox/blob/master/01_introduction/.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
+The notebook use the `LogisticHazard` method for illustration, but most of the principles generalize to the other methods.
+
+Alternatively, there are many examples listed in the [examples folder](https://github.com/havakv/pycox/tree/master/examples).
 
 
 ## Methods
@@ -139,9 +148,9 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
         </td>
     </tr>
     <tr>
-        <td>mbll</td>
+        <td>nbll</td>
         <td>
-        The IPCW Binomial log-likelihood <a href="#references">[5]</a><a href="#references">[1]</a>.
+        The IPCW negative binomial log-likelihood <a href="#references">[5]</a><a href="#references">[1]</a>.
         </td>
     </tr>
     <tr>
@@ -151,9 +160,9 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
         </td>
     </tr>
     <tr>
-        <td>integrated_mbll</td>
+        <td>integrated_nbll</td>
         <td>
-        The integrated IPCW Binomial log-likelihood. Numerical integration of the `mbll` <a href="#references">[5]</a><a href="#references">[1]</a>.
+        The integrated IPCW negative binomial log-likelihood. Numerical integration of the `nbll` <a href="#references">[5]</a><a href="#references">[1]</a>.
         </td>
     </tr>
 </table>
