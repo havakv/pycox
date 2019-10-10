@@ -154,6 +154,16 @@ class InterpolateLogisticHazard(InterpolateDiscrete):
 
     def _hazard_const_haz(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False,
                           num_workers=0):
+        """Computes the continuous-time constant hazard interpolation.
+        Essentially we what the discrete survival estimates to match the continuous time at the knots.
+        So essentially we want
+            $$S(tau_j) = prod_{k=1}^j [1 - h_k] = prod_{k=1}{j} exp[-eta_k].$$
+        where $h_k$ is the discrete hazard estimates and $eta_k$ continuous time hazards multiplied
+        with the length of the duration interval as they are defined for the PC-Hazard method.
+        Thus we get 
+            $$eta_k = - log[1 - h_k]$$
+        which can be divided by the length of the time interval to get the continuous time hazards.
+        """
         haz_orig = self.model.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
         haz_orig = haz_orig.transpose(0, 1)
         haz = (1 - haz_orig).add(self.epsilon).log().mul(-1).relu()[:, 1:].contiguous()
