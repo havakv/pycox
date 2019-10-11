@@ -71,4 +71,3 @@ def test_pc_hazard_runs(numpy, num_durations):
     assert_survs(input, model)
     model.duration_index = labtrans.cuts
     assert_survs(input, model)
-    assert True

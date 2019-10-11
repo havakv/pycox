@@ -177,7 +177,7 @@ class _CoxBase(models.base._SurvModelBase):
         """
         surv = self.predict_surv_df(input, max_duration, batch_size, verbose, baseline_hazards_,
                                     eval_, num_workers)
-        surv = torch.from_numpy(surv.values)
+        surv = torch.from_numpy(surv.values.transpose())
         return array_or_tensor(surv, numpy, input)
 
     def save_net(self, path, **kwargs):

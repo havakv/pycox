@@ -47,7 +47,7 @@ class PCHazard(models.base._SurvModelBase):
 
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         hazard = self.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
-        surv = hazard.cumsum(1).mul(-1).exp().transpose(0, 1)
+        surv = hazard.cumsum(1).mul(-1).exp()
         return array_or_tensor(surv, numpy, input)
 
     def predict_hazard(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
@@ -80,7 +80,7 @@ class PCHazard(models.base._SurvModelBase):
         index = None
         if self.duration_index is not None:
             index = make_subgrid(self.duration_index, self.sub)
-        return pd.DataFrame(surv, index)
+        return pd.DataFrame(surv.transpose(), index)
 
     def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
             num_workers=0, shuffle=True, metrics=None, val_data=None, val_batch_size=8224,

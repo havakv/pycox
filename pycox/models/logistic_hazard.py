@@ -69,12 +69,12 @@ class LogisticHazard(models.base._SurvModelBase):
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
         surv = self.predict_surv(input, batch_size, True, eval_, True, num_workers)
-        return pd.DataFrame(surv, self.duration_index)
+        return pd.DataFrame(surv.transpose(), self.duration_index)
 
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False,
                      num_workers=0, epsilon=1e-7):
         hazard = self.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
-        surv = (1 - hazard).add(epsilon).log().cumsum(0).exp()
+        surv = (1 - hazard).add(epsilon).log().cumsum(1).exp()
         return array_or_tensor(surv, numpy, input)
 
 
@@ -99,7 +99,6 @@ class LogisticHazard(models.base._SurvModelBase):
             [np.ndarray or tensor] -- Predicted hazards
         """
         hazard = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers).sigmoid()
-        hazard = hazard.transpose(0, 1)
         return array_or_tensor(hazard, numpy, input)
 
     def interpolate(self, sub=10, scheme='const_pdf', duration_index=None):

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import torch
 import torchtuples as tt
@@ -24,8 +25,12 @@ def fit_model(data, model):
 def assert_survs(input, model):
     preds = model.predict_surv(input)
     assert type(preds) is type(input)
+    assert preds.shape[0] == input.shape[0]
     surv_df = model.predict_surv_df(input)
     assert type(surv_df) is pd.DataFrame
+    assert type(surv_df.values) is np.ndarray
+    assert preds.shape[0] == surv_df.shape[1]
+    assert preds.shape[1] == surv_df.shape[0]
     np_input = tt.tuplefy(input).to_numpy()[0]
     torch_input = tt.tuplefy(input).to_tensor()[0]
     np_preds = model.predict_surv(np_input)

@@ -84,7 +84,6 @@ class InterpolateDiscrete:
             [np.ndarray or tensor] -- Predictions
         """
         s = self.model.predict_surv(input, batch_size, False, eval_, to_cpu, num_workers)
-        s = s.transpose(0, 1)
         n, m = s.shape
         diff = (s[:, 1:] - s[:, :-1]).contiguous().view(-1, 1).repeat(1, self.sub).view(n, -1)
         rho = torch.linspace(0, 1, self.sub+1)[:-1].contiguous().repeat(n, m-1)
@@ -92,7 +91,6 @@ class InterpolateDiscrete:
         surv = torch.zeros(n, int((m-1)*self.sub + 1))
         surv[:, :-1] = diff * rho + s_prev
         surv[:, -1] = s[:, -1]
-        surv = surv.transpose(0, 1)
         return utils.array_or_tensor(surv, numpy, input)
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
@@ -114,7 +112,7 @@ class InterpolateDiscrete:
         index = None
         if self.duration_index is not None:
             index = utils.make_subgrid(self.duration_index, self.sub)
-        return pd.DataFrame(surv, index)
+        return pd.DataFrame(surv.transpose(), index)
 
 
 class InterpolatePMF(InterpolateDiscrete):
@@ -122,15 +120,15 @@ class InterpolatePMF(InterpolateDiscrete):
         if not self.scheme in ['const_pdf', 'lin_surv']:
             raise NotImplementedError
         pmf = self.model.predict_pmf(input, batch_size, False, eval_, to_cpu, num_workers)
-        m, n = pmf.shape
-        pmf_cdi = pmf.transpose(0, 1)[:, 1:].contiguous().view(-1, 1).repeat(1, self.sub).div(self.sub).view(n, -1)
-        pmf_cdi = utils.pad_col(pmf_cdi, where='start').transpose(0, 1)
-        pmf_cdi[0, :] = pmf[0, :]
+        n, m = pmf.shape
+        pmf_cdi = pmf[:, 1:].contiguous().view(-1, 1).repeat(1, self.sub).div(self.sub).view(n, -1)
+        pmf_cdi = utils.pad_col(pmf_cdi, where='start')
+        pmf_cdi[:, 0] = pmf[:, 0]
         return utils.array_or_tensor(pmf_cdi, numpy, input)
 
     def _surv_const_pdf(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         pmf = self.predict_pmf(input, batch_size, False, eval_, to_cpu, num_workers)
-        surv = 1 - pmf.cumsum(0)
+        surv = 1 - pmf.cumsum(1)
         return utils.array_or_tensor(surv, numpy, input)
 
 
@@ -165,18 +163,15 @@ class InterpolateLogisticHazard(InterpolateDiscrete):
         which can be divided by the length of the time interval to get the continuous time hazards.
         """
         haz_orig = self.model.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
-        haz_orig = haz_orig.transpose(0, 1)
         haz = (1 - haz_orig).add(self.epsilon).log().mul(-1).relu()[:, 1:].contiguous()
         n = haz.shape[0]
         haz = haz.view(-1, 1).repeat(1, self.sub).view(n, -1).div(self.sub)
         haz = utils.pad_col(haz, where='start')
         haz[:, 0] = haz_orig[:, 0]
-        haz = haz.transpose(0, 1)
         return utils.array_or_tensor(haz, numpy, input)
 
     def _surv_const_haz(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         haz = self._hazard_const_haz(input, batch_size, False, eval_, to_cpu, num_workers)
-        haz = haz.transpose(0, 1)
         surv_0 = 1 - haz[:, :1]
-        surv = utils.pad_col(haz[:, 1:], where='start').cumsum(1).mul(-1).exp().mul(surv_0).transpose(0, 1)
+        surv = utils.pad_col(haz[:, 1:], where='start').cumsum(1).mul(-1).exp().mul(surv_0)
         return utils.array_or_tensor(surv, numpy, input)

@@ -45,5 +45,5 @@ class MTLR(models.pmf._PMFBase):
     def predict_pmf(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         preds = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
         preds = utils.cumsum_reverse(preds, dim=1)
-        pmf = utils.pad_col(preds).softmax(1)[:, :-1].transpose(0, 1)
+        pmf = utils.pad_col(preds).softmax(1)[:, :-1]
         return utils.array_or_tensor(pmf, numpy, input)
