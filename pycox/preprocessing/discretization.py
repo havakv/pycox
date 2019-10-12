@@ -4,14 +4,13 @@ import pandas as pd
 from pycox import utils
 
 
-def make_cuts(cuts, durations, events, min_=0., dtype='float64'):
-    if hasattr(cuts, '__iter__') and (type(cuts[0]) is str):
-        if cuts[0] == 'equidistant':
-            cuts = cuts_equidistant(durations.max(), cuts[1], min_, dtype)
-        elif cuts[0] == 'quantiles':
-            cuts = cuts_quantiles(durations, events, cuts[1], min_, dtype)
-        else:
-            raise RuntimeError("Need cuts to be e.g. ('equidistant', 100)")
+def make_cuts(n_cuts, scheme, durations, events, min_=0., dtype='float64'):
+    if scheme == 'equidistant':
+        cuts = cuts_equidistant(durations.max(), n_cuts, min_, dtype)
+    elif scheme == 'quantiles':
+        cuts = cuts_quantiles(durations, events, n_cuts, min_, dtype)
+    else:
+        raise ValueError(f"Got invalid `scheme` {scheme}.")
     if (np.diff(cuts) == 0).any():
         raise ValueError("cuts are not unique.")
     return cuts

@@ -15,7 +15,7 @@ def test_mtlr_runs(numpy, num_durations):
     data = tt.tuplefy(input, target)
     if not numpy:
         data = data.to_tensor()
-    net = tt.practical.MLPVanilla(input.shape[1], [4], num_durations)
+    net = tt.practical.MLPVanilla(input.shape[1], [4], labtrans.out_features)
     model = MTLR(net)
     fit_model(data, model)
     assert_survs(input, model)
