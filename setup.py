@@ -20,7 +20,7 @@ setup(
     author="Haavard Kvamme",
     author_email='haavard.kvamme@gmail.com',
     url='https://github.com/havakv/pycox',
-    packages=find_packages(include=['pycox']),
+    packages=find_packages(),
     include_package_data=True,
     install_requires=requirements,
     license="BSD license",
