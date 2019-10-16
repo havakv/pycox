@@ -2,8 +2,8 @@ from pathlib import Path
 import pandas as pd
 import pycox
 
-_PATH_ROOT = Path(pycox.__file__).parent.parent
-_PATH_DATA = _PATH_ROOT / 'datasets'
+_PATH_ROOT = Path(pycox.__file__).parent
+_PATH_DATA = _PATH_ROOT / 'datasets' / 'data'
 _PATH_DATA.mkdir(exist_ok=True)
 
 class _DatasetLoader:
