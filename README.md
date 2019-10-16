@@ -31,10 +31,10 @@ In addition, some useful preprocessing tools are available in the `pycox.preproc
 
 To get started you first need to [install the package](#installation).
 
-We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://github.com/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
+We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
 The notebook use the `LogisticHazard` method for illustration, but most of the principles generalize to the other methods.
 
-Alternatively, there are many examples listed in the [examples folder](https://github.com/havakv/pycox/tree/master/examples).
+Alternatively, there are many examples listed in the [examples folder](https://nbviewer.jupyter.org/github/havakv/pycox/tree/master/examples).
 
 
 ## Methods
@@ -53,21 +53,21 @@ The following methods are available in the `pycox.methods` module.
         <td>
         Cox-Time is a relative risk model that extends Cox regression beyond the proportional hazards <a href="#references">[1]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox-time.ipynb">notebook</a></td>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/cox-time.ipynb">notebook</a></td>
     </tr>
     <tr>
         <td>CoxCC</td>
         <td>
         Cox-CC is a proportional version of the Cox-Time model <a href="#references">[1]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox-cc.ipynb">notebook</a></td>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/cox-cc.ipynb">notebook</a></td>
     </tr>
     <tr>
         <td>CoxPH (DeepSurv)</td>
         <td>
         CoxPH is a Cox proportional hazards model also referred to as DeepSurv <a href="#references">[2]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox-ph.ipynb">notebook</a></td>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/cox-ph.ipynb">notebook</a></td>
     </tr>
     <tr>
         <td>PCHazard</td>
@@ -75,7 +75,7 @@ The following methods are available in the `pycox.methods` module.
         The Piecewise Constant Hazard (PC-Hazard) model <a href="#references">[12]</a> assumes that the continuous-time hazard function is constant in predefined intervals.
         It is similar to the Piecewise Exponential Models <a href="#references">[11]</a> but with a softplus activation instead of the exponential function.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/pc-hazard.ipynb">notebook</a>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/pc-hazard.ipynb">notebook</a>
         </td>
     </tr>
 </table>
@@ -93,7 +93,7 @@ The following methods are available in the `pycox.methods` module.
         The Logistic-Hazard method parametrize the discrete hazards and optimize the survival likelihood <a href="#references">[12]</a> <a href="#references">[7]</a>.
         It is also called Nnet-survival <a href="#references">[8]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/01_introduction.ipynb">notebook</a>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb">notebook</a>
         </td>
     </tr>
     <tr>
@@ -101,7 +101,7 @@ The following methods are available in the `pycox.methods` module.
         <td>
         The PMF method parametrize the probability mass function (PMF) and optimize the survival likelihood <a href="#references">[12]</a>. It is the foundation of methods such as DeepHit and MTLR.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/pmf.ipynb">notebook</a>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/pmf.ipynb">notebook</a>
         </td>
     </tr>
     <tr>
@@ -110,8 +110,8 @@ The following methods are available in the `pycox.methods` module.
         DeepHit is a PMF method with a loss for improved ranking that 
         can handle competing risks <a href="#references">[3]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb">single</a>
-        <a href="https://github.com/havakv/pycox/blob/master/examples/deephit_competing_risks.ipynb">competing</a></td>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/deephit.ipynb">single</a>
+        <a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/deephit_competing_risks.ipynb">competing</a></td>
     </tr>
     <tr>
         <td>MTLR (N-MTLR)</td>
@@ -119,7 +119,7 @@ The following methods are available in the `pycox.methods` module.
         The (Neural) Multi-Task Logistic Regression is a PMF methods proposed by 
         <a href="#references">[9]</a> and <a href="#references">[10]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/mtlr.ipynb">notebook</a>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/mtlr.ipynb">notebook</a>
         </td>
     </tr>
 </table>
