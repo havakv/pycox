@@ -111,7 +111,7 @@ The following methods are available in the `pycox.methods` module.
         can handle competing risks <a href="#references">[3]</a>.
         </td>
         <td><a href="https://github.com/havakv/pycox/blob/master/examples/deephit.ipynb">single</a>
-        <a href="https://github.com/havakv/pycox/blob/master/examples/deephit_compteting_risks.ipynb">competing</a></td>
+        <a href="https://github.com/havakv/pycox/blob/master/examples/deephit_competing_risks.ipynb">competing</a></td>
     </tr>
     <tr>
         <td>MTLR (N-MTLR)</td>
@@ -256,7 +256,7 @@ df = datasets.metabric.read_df()
         This is a continuous-time simulation study with event times drawn from a
         relative risk non-linear non-proportional hazards model (RRNLNPH).
         </td>
-        <td><a href="https://github.com/havakv/pycox/tree/master/pycox/simulations/relative_risk">SimStudyNonLinearNonPH</a>
+        <td><a href="https://github.com/havakv/pycox/blob/master/pycox/simulations/relative_risk.py">SimStudyNonLinearNonPH</a>
     </tr>
     <tr>
         <td>sac3</td>
@@ -265,7 +265,7 @@ df = datasets.metabric.read_df()
         Dataset from simulation study in <a href="#references">[12]</a>.
         This is a discrete time dataset with 1000 possible event-times.
         </td>
-        <td><a href="https://github.com/havakv/pycox/tree/master/pycox/simulations/discrete_logit_hazard">SimStudySACCensorConst</a>
+        <td><a href="https://github.com/havakv/pycox/tree/master/pycox/simulations/discrete_logit_hazard.py">SimStudySACCensorConst</a>
     </tr>
 </table>
 
@@ -275,12 +275,12 @@ df = datasets.metabric.read_df()
 The package only works for python 3.6+.
 
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
-You can then run the following command to install the package, **but we recommend to instead install from source (see below)**
+You can then run the following command to install the package:
 ```sh
-pip install -e git+git://github.com/havakv/pycox.git#egg=pycox git+git://github.com/havakv/torchtuples.git
+pip install git+git://github.com/havakv/pycox.git git+git://github.com/havakv/torchtuples.git
 ```
 
-### Install from Source (Recommended)
+### Install from Source
 
 Installation from source depends on [PyTorch](https://pytorch.org/get-started/locally/), in addition to [torchtuples](https://github.com/havakv/torchtuples) which can be installed with
 ```sh
