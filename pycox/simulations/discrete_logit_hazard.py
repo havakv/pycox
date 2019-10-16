@@ -1,4 +1,9 @@
+"""Code for simulations in [1].
 
+[1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+    with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+    https://arxiv.org/pdf/1910.06724.pdf
+"""
 import numpy as np
 import pandas as pd
 import torchtuples as tt
@@ -148,7 +153,7 @@ class SimAcceleratingHaz(SimBase):
 
 
 class SimConstHazIndependentOfWeights(SimBase):
-    """Constant hazards independen of weights and covariates.
+    """Constant hazards independent of weights and covariates.
     Covariates are simply a column of zeros and can be removed from analysis.
     
     None of the call arguments matter, as they are set in the constructor.
@@ -299,21 +304,26 @@ class SimStudyIndepSurvAndCens(_SimStudyBase):
 
 
 class SimStudySACCensorConst(_SimStudyBase):
-    def __init__(self, covs_per_weight=5, alpha_range=5., sin_pref=0.6):
-        """Simulation study from [paper link].
-        It combines three sources to the logit-hazard: A sin function, increasing function
-        and a constant function.
+    """Simulation study from [1].
+    It combines three sources to the logit-hazard: A sin function, an increasing function
+    and a constant function.
 
-        See paper for details.
-        
-        Keyword Arguments:
-            covs_per_weight {int} -- Number of covariates per weight (gamma in paper)
-                 (default: {5})
-            alpha_range {[type]} -- Controls how the mixing between the three logit-hazards.
-                High alpha is equivalent to picking one of them, while low is equivalent to
-                a more homogeneous mixing. (default: {5.})
-            sin_pref {float} -- Preference for the SimSin in the mixing. (default: {0.6})
-        """
+    See paper for details https://arxiv.org/pdf/1910.06724.pdf.
+    
+    Keyword Arguments:
+        covs_per_weight {int} -- Number of covariates per weight (gamma in paper)
+             (default: {5})
+        alpha_range {[type]} -- Controls how the mixing between the three logit-hazards.
+            High alpha is equivalent to picking one of them, while low is equivalent to
+            a more homogeneous mixing. (default: {5.})
+        sin_pref {float} -- Preference for the SimSin in the mixing. (default: {0.6})
+
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
+    """
+    def __init__(self, covs_per_weight=5, alpha_range=5., sin_pref=0.6):
         self.sim_surv = SimSinAccConst(covs_per_weight, alpha_range, sin_pref)
         self.sim_censor = SimConstHazIndependentOfWeights()
 

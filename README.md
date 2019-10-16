@@ -53,30 +53,29 @@ The following methods are available in the `pycox.methods` module.
         <td>
         Cox-Time is a relative risk model that extends Cox regression beyond the proportional hazards <a href="#references">[1]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb">notebook</a></td>
+        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox-time.ipynb">notebook</a></td>
     </tr>
     <tr>
         <td>CoxCC</td>
         <td>
         Cox-CC is a proportional version of the Cox-Time model <a href="#references">[1]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb">notebook</a></td>
+        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox-cc.ipynb">notebook</a></td>
     </tr>
     <tr>
         <td>CoxPH (DeepSurv)</td>
         <td>
         CoxPH is a Cox proportional hazards model also referred to as DeepSurv <a href="#references">[2]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox_models_1_introduction.ipynb">notebook</a></td>
+        <td><a href="https://github.com/havakv/pycox/blob/master/examples/cox-ph.ipynb">notebook</a></td>
     </tr>
     <tr>
         <td>PCHazard</td>
         <td>
-        The Piecewise Constant Hazard (PC-Hazard) model assumes that the continuous-time hazard function is constant in predefined intervals.
-        It is similar to the Piecewise Exponential Models <a href="#references">[11]</a> but with a softplus activation instead of the exponential function
-        <a href="#references">[??]</a>.
+        The Piecewise Constant Hazard (PC-Hazard) model <a href="#references">[12]</a> assumes that the continuous-time hazard function is constant in predefined intervals.
+        It is similar to the Piecewise Exponential Models <a href="#references">[11]</a> but with a softplus activation instead of the exponential function.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/pc_hazard.ipynb">notebook</a>
+        <td><a href="https://github.com/havakv/pycox/blob/master/examples/pc-hazard.ipynb">notebook</a>
         </td>
     </tr>
 </table>
@@ -91,17 +90,16 @@ The following methods are available in the `pycox.methods` module.
     <tr>
         <td>LogisticHazard (Nnet-survival)</td>
         <td>
-        The Logistic-Hazard method parametrize the discrete hazards and optimize the survival likelihood <a href="#references">[??]</a> <a href="#references">[7]</a>.
+        The Logistic-Hazard method parametrize the discrete hazards and optimize the survival likelihood <a href="#references">[12]</a> <a href="#references">[7]</a>.
         It is also called Nnet-survival <a href="#references">[8]</a>.
         </td>
-        <td><a href="https://github.com/havakv/pycox/blob/master/examples/logistic_hazard.ipynb">notebook</a>
+        <td><a href="https://github.com/havakv/pycox/blob/master/examples/01_introduction.ipynb">notebook</a>
         </td>
     </tr>
     <tr>
         <td>PMF</td>
         <td>
-        The PMF method parametrize the probability mass function (PMF) and optimizer the survival likelihood. It is the fundament of methods such as DeepHit and MTLR.
-        <a href="#references">[??]</a>.
+        The PMF method parametrize the probability mass function (PMF) and optimize the survival likelihood <a href="#references">[12]</a>. It is the foundation of methods such as DeepHit and MTLR.
         </td>
         <td><a href="https://github.com/havakv/pycox/blob/master/examples/pmf.ipynb">notebook</a>
         </td>
@@ -150,7 +148,7 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
     <tr>
         <td>nbll</td>
         <td>
-        The IPCW negative binomial log-likelihood <a href="#references">[5]</a><a href="#references">[1]</a>.
+        The IPCW (negative) binomial log-likelihood <a href="#references">[5]</a><a href="#references">[1]</a>. I.e., this is minus the binomial log-likelihood and should not be confused with the negative binomial distribution.
         </td>
     </tr>
     <tr>
@@ -162,7 +160,7 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
     <tr>
         <td>integrated_nbll</td>
         <td>
-        The integrated IPCW negative binomial log-likelihood. Numerical integration of the `nbll` <a href="#references">[5]</a><a href="#references">[1]</a>.
+        The integrated IPCW (negative) binomial log-likelihood. Numerical integration of the `nbll` <a href="#references">[5]</a><a href="#references">[1]</a>.
         </td>
     </tr>
 </table>
@@ -264,7 +262,7 @@ df = datasets.metabric.read_df()
         <td>sac3</td>
         <td>100,000</td>
         <td>
-        Dataset from simulation study in <a href="#references">[??]</a>.
+        Dataset from simulation study in <a href="#references">[12]</a>.
         This is a discrete time dataset with 1000 possible event-times.
         </td>
         <td><a href="https://github.com/havakv/pycox/tree/master/pycox/simulations/discrete_logit_hazard">SimStudySACCensorConst</a>
@@ -323,3 +321,6 @@ python setup.py install
 
 \[11\] Michael Friedman. Piecewise exponential models for survival data with covariates. *The Annals of Statistics*, 10(1):101–113, 1982.
 \[[paper](https://projecteuclid.org/euclid.aos/1176345693)\]
+
+\[12\] Håvard Kvamme and Ørnulf Borgan. Continuous and discrete-time survival prediction with neural networks. *arXiv preprint arXiv:1910.06724*, 2019.
+\[[paper](https://arxiv.org/pdf/1910.06724.pdf)\]

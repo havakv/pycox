@@ -87,8 +87,8 @@ class _PMFBase(models.base._SurvModelBase):
 class PMF(_PMFBase):
     """
     The PMF is a discrete-time survival model that parametrize the probability mass function (PMF)
-    and optimizer the survival likelihood. It is the base of methods such as DeepHit and MTLR.
-    See [1].
+    and optimizer the survival likelihood. It is the foundation of methods such as DeepHit and MTLR.
+    See [1] for details.
 
     Arguments:
         net {torch.nn.Module} -- A torch module.
@@ -106,7 +106,9 @@ class PMF(_PMFBase):
             This is used to set the index of the DataFrame in `predict_surv_df`.
 
     References:
-    [1] SOMETHING
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None):
         super().__init__(net, self.make_loss(), optimizer, device, duration_index)

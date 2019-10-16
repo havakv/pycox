@@ -11,8 +11,7 @@ from pycox.models.interpolation import InterpolateLogisticHazard
 class LogisticHazard(models.base._SurvModelBase):
     """
     A discrete-time survival model that minimize the likelihood for right-censored data by
-    parameterizing the hazard function.
-    Also known as  "Nnet-survival" [3].
+    parameterizing the hazard function. Also known as  "Nnet-survival" [3].
 
     The Logistic-Hazard was first proposed by [2], but this implementation follows [1].
 
@@ -32,7 +31,9 @@ class LogisticHazard(models.base._SurvModelBase):
             This is used to set the index of the DataFrame in `predict_surv_df`.
     
     References:
-    [1] SOMETHING
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
 
     [2] Charles C. Brown. On the use of indicator variables for studying the time-dependence of parameters
         in a response-time model. Biometrics, 31(4):863–872, 1975.

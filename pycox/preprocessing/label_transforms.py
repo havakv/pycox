@@ -149,7 +149,7 @@ class LabTransDiscreteTime:
 
 class LabTransPCHazard:
     """
-    Defining time intervals (`cuts`) needed for the `PCHazard` method.
+    Defining time intervals (`cuts`) needed for the `PCHazard` method [1].
     One can either determine the cut points in form of passing an array to this class,
     or one can obtain cut points based on the training data.
 
@@ -161,6 +161,11 @@ class LabTransPCHazard:
             (default: {'equidistant})
         min_ {float} -- Starting duration (default: {0.})
         dtype {str, dtype} -- dtype of discretization.
+
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     def __init__(self, cuts, scheme='equidistant', min_=0., dtype=None):
         self._cuts = cuts

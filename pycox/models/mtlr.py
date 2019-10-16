@@ -7,8 +7,7 @@ class MTLR(models.pmf._PMFBase):
     The (Neural) Multi-Task Logistic Regression, MTLR [1] and N-MTLR [2].
     A discrete-time survival model that minimize the likelihood for right-censored data.
 
-    This is essentially a PMF parametrization with an extra cumulative sum.
-    See [paper link] for an explanation.
+    This is essentially a PMF parametrization with an extra cumulative sum, as explained in [3].
 
     Arguments:
         net {torch.nn.Module} -- A torch module.
@@ -35,6 +34,10 @@ class MTLR(models.pmf._PMFBase):
     [2] Stephane Fotso. Deep neural networks for survival analysis based on a multi-task framework.
         arXiv preprint arXiv:1801.05512, 2018.
         https://arxiv.org/pdf/1801.05512.pdf
+
+    [3] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None):
         super().__init__(net, self.make_loss(), optimizer, device, duration_index)

@@ -32,7 +32,9 @@ class DeepHitSingle(models.pmf._PMFBase):
         Journal of Machine Learning Research, 20(129):1–30, 2019.
         http://jmlr.org/papers/v20/18-424.html
     
-    [3] [Add paper ref.]
+    [3] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     def __init__(self, net, optimizer=None, device=None, duration_index=None, alpha=0.2, sigma=0.1):
         loss = self.make_loss(alpha, sigma)
@@ -78,7 +80,9 @@ class DeepHit(tt.Model):
         Journal of Machine Learning Research, 20(129):1–30, 2019.
         http://jmlr.org/papers/v20/18-424.html
     
-    [3] [Add paper ref.]
+    [3] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     def __init__(self, net, optimizer=None, device=None, alpha=0.2, sigma=0.1, duration_index=None):
         self.duration_index = duration_index

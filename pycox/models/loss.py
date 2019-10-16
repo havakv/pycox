@@ -13,7 +13,7 @@ def _reduction(loss, reduction='mean'):
     raise ValueError(f"`reduction` = {reduction} is not valid. Use 'none', 'mean' or 'sum'.")
 
 def nll_logistic_hazard(phi, idx_durations, events, reduction='mean'):
-    """Negative log-likelihood of the hazard parametrization model.
+    """Negative log-likelihood of the discrete time hazard parametrized model LogisticHazard [1].
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
@@ -27,6 +27,11 @@ def nll_logistic_hazard(phi, idx_durations, events, reduction='mean'):
     
     Returns:
         torch.tensor -- The negative log-likelihood.
+
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     events = events.view(-1, 1)
     idx_durations = idx_durations.view(-1, 1)
@@ -36,7 +41,7 @@ def nll_logistic_hazard(phi, idx_durations, events, reduction='mean'):
     return _reduction(loss, reduction)
 
 def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
-    """Negative log-likelihood for the PMF parametrized model.
+    """Negative log-likelihood for the PMF parametrized model [1].
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where pmf = somefunc(phi).
@@ -50,6 +55,11 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     
     Returns:
         torch.tensor -- The negative log-likelihood.
+
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     if (idx_durations.max()) >= phi.shape[1]:
         raise ValueError("""'t_idx' too large. Probably need to increase output size of net.""")
@@ -67,10 +77,9 @@ def nll_pmf(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     return _reduction(loss, reduction)
 
 def nll_mtlr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
-    """Negative log-likelihood for the MTLR parametrized model.
+    """Negative log-likelihood for the MTLR parametrized model [1] [2].
 
-    This is essentially a PMF parametrization with an extra cumulative sum.
-    See [paper link] for an explanation.
+    This is essentially a PMF parametrization with an extra cumulative sum, as explained in [3].
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where pmf = somefunc(phi).
@@ -84,12 +93,27 @@ def nll_mtlr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     
     Returns:
         torch.tensor -- The negative log-likelihood.
+
+    References:
+    [1] Chun-Nam Yu, Russell Greiner, Hsiu-Chin Lin, and Vickie Baracos.
+        Learning patient- specific cancer survival distributions as a sequence of dependent regressors.
+        In Advances in Neural Information Processing Systems 24, pages 1845–1853.
+        Curran Associates, Inc., 2011.
+        https://papers.nips.cc/paper/4210-learning-patient-specific-cancer-survival-distributions-as-a-sequence-of-dependent-regressors.pdf
+
+    [2] Stephane Fotso. Deep neural networks for survival analysis based on a multi-task framework.
+        arXiv preprint arXiv:1801.05512, 2018.
+        https://arxiv.org/pdf/1801.05512.pdf
+
+    [3] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     phi = utils.cumsum_reverse(phi, dim=1)
     return nll_pmf(phi, idx_durations, events, reduction, epsilon)
 
 def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mean'):
-    """Negative log-likelihood of the PC-Hazard parametrization model.
+    """Negative log-likelihood of the PC-Hazard parametrization model [1].
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where hazard = sigmoid(phi).
@@ -104,6 +128,11 @@ def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mea
     
     Returns:
         torch.tensor -- The negative log-likelihood.
+
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     idx_durations = idx_durations.view(-1, 1)
     events = events.view(-1)
@@ -126,7 +155,7 @@ def nll_pc_hazard_loss(phi, idx_durations, events, interval_frac, reduction='mea
 
 
 def _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction='mean'):
-    """Ranking loss from deephit.
+    """Ranking loss from DeepHit.
     
     Arguments:
         pmf {torch.tensor} -- Matrix with probability mass function pmf_ij = f_i(t_j)
@@ -162,7 +191,7 @@ def _diff_cdf_at_time_i(pmf, y):
     return r.transpose(0, 1)
 
 def rank_loss_deephit_single(phi, idx_durations, events, rank_mat, sigma, reduction='mean'):
-    """Rank loss proposed by DeepHit authors for competing risks.
+    """Rank loss proposed by DeepHit authors [1] for a single risks.
     
     Arguments:
         pmf {torch.tensor} -- Matrix with probability mass function pmf_ij = f_i(t_j)
@@ -185,6 +214,12 @@ def rank_loss_deephit_single(phi, idx_durations, events, rank_mat, sigma, reduct
     
     Returns:
         torch.tensor -- Rank loss.
+
+    References:
+    [1] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning
+        approach to survival analysis with competing risks. In Thirty-Second AAAI Conference on Artificial
+        Intelligence, 2018.
+        http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
     """
     idx_durations = idx_durations.view(-1, 1)
     events = events.float().view(-1)
@@ -212,7 +247,7 @@ def nll_pmf_cr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     Returns:
         torch.tensor -- Negative log-likelihood.
     """
-    # Should improve numerical stbility by, e.g., log-sum-exp tric.
+    # Should improve numerical stability by, e.g., log-sum-exp trick.
     events = events.view(-1) - 1
     event_01 = (events != -1).float()
     idx_durations = idx_durations.view(-1)
@@ -225,7 +260,7 @@ def nll_pmf_cr(phi, idx_durations, events, reduction='mean', epsilon=1e-7):
     return _reduction(loss, reduction)
 
 def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction='mean'):
-    """Rank loss proposed by DeepHit authors for competing risks.
+    """Rank loss proposed by DeepHit authors for competing risks [1].
     
     Arguments:
         phi {torch.tensor} -- Predictions as float tensor with shape [batch, n_risks, n_durations]
@@ -244,6 +279,12 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
     
     Returns:
         torch.tensor -- Rank loss.
+
+    References:
+    [1] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning
+        approach to survival analysis with competing risks. In Thirty-Second AAAI Conference on Artificial
+        Intelligence, 2018.
+        http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
     """
     idx_durations = idx_durations.view(-1)
     events = events.view(-1) - 1
@@ -448,7 +489,7 @@ class _DeepHitLoss(_Loss):
 
 
 class DeepHitSingleLoss(_DeepHitLoss):
-    """Loss for DeepHit (single risk) model.
+    """Loss for DeepHit (single risk) model [1].
     Alpha is  weighting between likelihood and rank loss (so not like in paper):
 
     loss = alpha * nll + (1 - alpha) rank_loss(sigma)
@@ -462,6 +503,12 @@ class DeepHitSingleLoss(_DeepHitLoss):
             'none': No reduction.
             'mean': Mean of tensor.
             'sum': sum.
+
+    References:
+    [1] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning
+        approach to survival analysis with competing risks. In Thirty-Second AAAI Conference on Artificial
+        Intelligence, 2018.
+        http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
     """
     def forward(self, phi, idx_durations, events, rank_mat):
         nll = nll_pmf(phi, idx_durations, events, self.reduction)
@@ -471,7 +518,7 @@ class DeepHitSingleLoss(_DeepHitLoss):
 
 
 class DeepHitLoss(_DeepHitLoss):
-    """Loss for DeepHit model.
+    """Loss for DeepHit model [1].
     If you have only one event type, use LossDeepHitSingle instead!
 
     Alpha is  weighting between likelihood and rank loss (so not like in paper):
@@ -481,6 +528,12 @@ class DeepHitLoss(_DeepHitLoss):
     Arguments:
         alpha {float} -- Weighting between likelihood and rank loss.
         sigma {float} -- Part of rank loss (see DeepHit paper)
+
+    References:
+    [1] Changhee Lee, William R Zame, Jinsung Yoon, and Mihaela van der Schaar. Deephit: A deep learning
+        approach to survival analysis with competing risks. In Thirty-Second AAAI Conference on Artificial
+        Intelligence, 2018.
+        http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
     """
     def forward(self, phi, idx_durations, events, rank_mat):
         nll =  nll_pmf_cr(phi, idx_durations, events, self.reduction)

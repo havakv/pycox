@@ -17,7 +17,9 @@ class PCHazard(models.base._SurvModelBase):
     This typically results in one less output node.
 
     References:
-    [1] SOMETHING
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
 
     [2] Michael Friedman. Piecewise exponential models for survival data with covariates.
         The Annals of Statistics, 10(1):101–113, 1982.
