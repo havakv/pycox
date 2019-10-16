@@ -2,10 +2,29 @@ import pandas as pd
 import numpy as np
 import numba
 
-def idx_at_times(index_surv, times, assert_sorted=True):
+def idx_at_times(index_surv, times, steps='pre', assert_sorted=True):
+    """Gives index of `index_surv` corresponding to `time`, i.e. 
+    `index_surv[idx_at_times(index_surv, times)]` give the values of `index_surv`
+    closet to `times`.
+    
+    Arguments:
+        index_surv {np.array} -- Durations of survival estimates
+        times {np.array} -- Values one want to match to `index_surv`
+    
+    Keyword Arguments:
+        steps {str} -- Round 'pre' (closest value higher) or 'post'
+          (closest value lower) (default: {'pre'})
+        assert_sorted {bool} -- Assert that index_surv is monotone (default: {True})
+    
+    Returns:
+        np.array -- Index of `index_surv` that is closest to `times`
+    """
     if assert_sorted:
         assert pd.Series(index_surv).is_monotonic_increasing, "Need 'index_surv' to be monotonic increasing"
-    idx = np.searchsorted(index_surv, times)
+    if steps == 'pre':
+        idx = np.searchsorted(index_surv, times)
+    elif steps == 'post':
+        idx = np.searchsorted(index_surv, times, side='right') - 1
     return idx.clip(0, len(index_surv)-1)
 
 @numba.njit

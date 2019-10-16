@@ -4,11 +4,14 @@ import pycox
 
 _PATH_ROOT = Path(pycox.__file__).parent.parent
 _PATH_DATA = _PATH_ROOT / 'datasets'
+_PATH_DATA.mkdir(exist_ok=True)
 
 class _DatasetLoader:
     """Abstract class for loading data sets.
     """
     name = NotImplemented
+    _checksum = None
+
     def __init__(self):
         self.path = _PATH_DATA / f"{self.name}.feather"
 
@@ -34,3 +37,27 @@ class _DatasetLoader:
             col_label = [self.col_duration, self.col_event]
             df = df[list(df.columns.drop(col_label)) + col_label]
         return df
+
+    def checksum(self):
+        """Checks that the dataset is correct. 
+        
+        Returns:
+            bool -- If the check passed.
+        """
+        if self._checksum is None:
+            raise NotImplementedError("No available comparison for this dataset.")
+        df = self.read_df()
+        return self._checksum_df(df)
+
+    def _checksum_df(self, df):
+        if self._checksum is None:
+            raise NotImplementedError("No available comparison for this dataset.")
+        import hashlib
+        val = get_checksum(df)
+        return val == self._checksum
+
+
+def get_checksum(df):
+    import hashlib
+    val = hashlib.sha256(df.to_csv().encode()).hexdigest()
+    return val

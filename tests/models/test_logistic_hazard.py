@@ -1,5 +1,5 @@
 import pytest
-from pycox.models import DeepHitSingle
+from pycox.models import LogisticHazard
 import torchtuples as tt
 
 from utils_model_testing import make_dataset, fit_model, assert_survs
@@ -7,16 +7,16 @@ from utils_model_testing import make_dataset, fit_model, assert_survs
 
 @pytest.mark.parametrize('numpy', [True, False])
 @pytest.mark.parametrize('num_durations', [2, 5])
-def test_deep_hit_single_runs(numpy, num_durations):
+def test_logistic_hazard_runs(numpy, num_durations):
     data = make_dataset(True)
     input, target = data
-    labtrans = DeepHitSingle.label_transform(num_durations)
+    labtrans = LogisticHazard.label_transform(num_durations)
     target = labtrans.fit_transform(*target)
     data = tt.tuplefy(input, target)
     if not numpy:
         data = data.to_tensor()
     net = tt.practical.MLPVanilla(input.shape[1], [4], labtrans.out_features)
-    model = DeepHitSingle(net)
+    model = LogisticHazard(net)
     fit_model(data, model)
     assert_survs(input, model)
     model.duration_index = labtrans.cuts
