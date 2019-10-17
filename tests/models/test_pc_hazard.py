@@ -10,7 +10,7 @@ from utils_model_testing import make_dataset, fit_model, assert_survs
 def _make_dataset(n, m):
     np.random.seed(0)
     x = np.random.normal(0, 1, (n, 4)).astype('float32')
-    duration_index = np.arange(m+1)
+    duration_index = np.arange(m+1).astype('int64')
     durations = np.repeat(duration_index, np.ceil(n / m))[:n]
     events = np.random.uniform(0, 1, n).round().astype('float32')
     fracs = np.random.uniform(0, 1, n).astype('float32')
@@ -54,7 +54,7 @@ def test_right_net_output(m, n_mul):
     assert True
 
 @pytest.mark.parametrize('numpy', [True, False])
-@pytest.mark.parametrize('num_durations', [3])
+@pytest.mark.parametrize('num_durations', [3, 8])
 def test_pc_hazard_runs(numpy, num_durations):
     data = make_dataset(True)
     input, (durations, events) = data

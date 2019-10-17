@@ -220,7 +220,7 @@ class LabTransPCHazard:
             t_frac[idx_durations == 0] = 0
             events[idx_durations == 0] = 0
         idx_durations = idx_durations - 1
-        return idx_durations, events.astype('float32'), t_frac.astype('float32')
+        return idx_durations.astype('int64'), events.astype('float32'), t_frac.astype('float32')
 
     @property
     def out_features(self):
