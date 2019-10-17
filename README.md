@@ -272,6 +272,8 @@ df = datasets.metabric.read_df()
 
 ## Installation
 
+**Warning:** At the moment there are some issues with on Windows. This should be addressed shortly.
+
 The package only works for python 3.6+.
 
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
