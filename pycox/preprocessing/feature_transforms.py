@@ -34,7 +34,7 @@ class OrderedCategoricalLong:
             series = pd.Series(series)
         transformed = pd.Categorical(series, categories=self.categories, ordered=True)
         transformed = pd.Series(transformed, index=series.index)
-        transformed = transformed.cat.codes.astype('long') + 1
+        transformed = transformed.cat.codes.astype('int64') + 1
         return transformed if self.return_series else transformed.values
     
     def fit_transform(self, series, y=None):
