@@ -3,9 +3,8 @@ name: Python package
 on:
   push:
     branches:
-      # - master
-      - havakv-fix_windows
-  # pull_request:
+      - master
+  pull_request:
 
 jobs:
   build_test:
