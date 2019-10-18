@@ -273,7 +273,7 @@ df = datasets.metabric.read_df()
 
 ## Installation
 
-**Warning:** At the moment there are some issues with on Windows. This should be addressed shortly.
+**Note:** *This package is still in its early stages of development, so please don't hesitate to report any problems you may experience.* 
 
 The package only works for python 3.6+.
 
