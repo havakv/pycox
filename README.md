@@ -74,7 +74,7 @@ The following methods are available in the `pycox.methods` module.
         <td>PCHazard</td>
         <td>
         The Piecewise Constant Hazard (PC-Hazard) model <a href="#references">[12]</a> assumes that the continuous-time hazard function is constant in predefined intervals.
-        It is similar to the Piecewise Exponential Models <a href="#references">[11]</a> but with a softplus activation instead of the exponential function.
+        It is similar to the Piecewise Exponential Models <a href="#references">[11]</a> and PEANN <a href="#references">[14]</a>, but with a softplus activation instead of the exponential function.
         </td>
         <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/pc-hazard.ipynb">notebook</a>
         </td>
@@ -92,7 +92,7 @@ The following methods are available in the `pycox.methods` module.
         <td>LogisticHazard (Nnet-survival)</td>
         <td>
         The Logistic-Hazard method parametrize the discrete hazards and optimize the survival likelihood <a href="#references">[12]</a> <a href="#references">[7]</a>.
-        It is also called Nnet-survival <a href="#references">[8]</a>.
+        It is also called Partial Logistic Regression <a href="#references">[13]</a> and Nnet-survival <a href="#references">[8]</a>.
         </td>
         <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb">notebook</a>
         </td>
@@ -327,3 +327,9 @@ python setup.py install
 
 \[12\] Håvard Kvamme and Ørnulf Borgan. Continuous and discrete-time survival prediction with neural networks. *arXiv preprint arXiv:1910.06724*, 2019.
 \[[paper](https://arxiv.org/pdf/1910.06724.pdf)\]
+
+\[13\] Elia Biganzoli, Patrizia Boracchi, Luigi Mariani, and Ettore Marubini. Feed forward neural networks for the analysis of censored survival data: a partial logistic regression approach. *Statistics in Medicine*, 17(10):1169–1186, 1998.
+\[[paper](https://onlinelibrary.wiley.com/doi/abs/10.1002/(SICI)1097-0258(19980530)17:10%3C1169::AID-SIM796%3E3.0.CO;2-D)\]
+
+\[14\] Marco Fornili, Federico Ambrogi, Patrizia Boracchi, and Elia Biganzoli. Piecewise exponential artificial neural networks (PEANN) for modeling hazard function with right censored data. *Computational Intelligence Methods for Bioinformatics and Biostatistics*, pages 125–136, 2014.
+\[[paper](https://link.springer.com/chapter/10.1007%2F978-3-319-09042-9_9)\]
