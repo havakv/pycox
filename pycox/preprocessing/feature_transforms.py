@@ -19,9 +19,7 @@ class OrderedCategoricalLong:
         self.return_series = return_series
 
     def fit(self, series, y=None):
-        if type(series) is np.ndarray:
-            series = pd.Series(series)
-        series = series.copy()
+        series = pd.Series(series).copy()
         smaller = series.value_counts() < self.min_per_category
         values = smaller[smaller].index.values
         for v in values:
@@ -30,8 +28,7 @@ class OrderedCategoricalLong:
         return self
     
     def transform(self, series, y=None):
-        if type(series) is np.ndarray:
-            series = pd.Series(series)
+        series = pd.Series(series).copy()
         transformed = pd.Categorical(series, categories=self.categories, ordered=True)
         transformed = pd.Series(transformed, index=series.index)
         transformed = transformed.cat.codes.astype('int64') + 1
