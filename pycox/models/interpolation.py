@@ -109,7 +109,6 @@ class InterpolateDiscrete:
         Returns:
             pd.DataFrame -- Predictions
         """
-        # surv = self.predict_surv(input, batch_size, True, eval_, num_workers)
         surv = self.predict_surv(input, batch_size, True, eval_, to_cpu, num_workers)
         index = None
         if self.duration_index is not None:
