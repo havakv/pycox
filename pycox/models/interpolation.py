@@ -85,15 +85,16 @@ class InterpolateDiscrete:
         """
         s = self.model.predict_surv(input, batch_size, False, eval_, to_cpu, num_workers)
         n, m = s.shape
+        device = s.device
         diff = (s[:, 1:] - s[:, :-1]).contiguous().view(-1, 1).repeat(1, self.sub).view(n, -1)
-        rho = torch.linspace(0, 1, self.sub+1)[:-1].contiguous().repeat(n, m-1)
+        rho = torch.linspace(0, 1, self.sub+1, device=device)[:-1].contiguous().repeat(n, m-1)
         s_prev = s[:, :-1].contiguous().view(-1, 1).repeat(1, self.sub).view(n, -1)
         surv = torch.zeros(n, int((m-1)*self.sub + 1))
         surv[:, :-1] = diff * rho + s_prev
         surv[:, -1] = s[:, -1]
         return utils.array_or_tensor(surv, numpy, input)
 
-    def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
+    def predict_surv_df(self, input, batch_size=8224, eval_=True, to_cpu=False, num_workers=0):
         """Predict the survival function for `input` and return as a pandas DataFrame.
         See `predict_surv` to return tensor or np.array instead.
 
@@ -108,7 +109,7 @@ class InterpolateDiscrete:
         Returns:
             pd.DataFrame -- Predictions
         """
-        surv = self.predict_surv(input, batch_size, True, eval_, num_workers)
+        surv = self.predict_surv(input, batch_size, True, eval_, to_cpu, num_workers)
         index = None
         if self.duration_index is not None:
             index = utils.make_subgrid(self.duration_index, self.sub)
