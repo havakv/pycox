@@ -24,7 +24,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      if: runner.os == 'macos'
+      if: matrix.os == 'macOS-latest'
       env:
         INSTALL_TORCH: "torch"      
       run: |
