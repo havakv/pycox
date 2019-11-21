@@ -24,9 +24,12 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Set environment variables
+      if: runner.os=="macOS"
+      env:
+        INSTALL_TORCH: "torch"
     - name: Install dependencies
       run: |
-        echo ${{ runner.os }}
         python -m pip install --upgrade pip
         echo $INSTALL_TORCH
         pip install $INSTALL_TORCH
