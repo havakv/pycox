@@ -27,8 +27,7 @@ jobs:
     - name: Change environment variables if macOS
       if: runner.os == 'macOS'
       env:
-        INSTALL_TORCH: "torch"
-      run: echo "hei"
+        INSTALL_TORCH: torch
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
