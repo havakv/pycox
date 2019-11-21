@@ -25,7 +25,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Change environment variables if macOS
-      if: runner.os=="macOS"
+      if: runner.os == 'macOS'
       env:
         INSTALL_TORCH: "torch"
       run: echo "hei"
