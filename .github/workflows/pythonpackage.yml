@@ -14,7 +14,7 @@ jobs:
       max-parallel: 4
       matrix:
         python-version: [3.6, 3.7]
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, windows-latest]
     env:
       INSTALL_TORCH: "torch==1.3.0+cpu -f https://download.pytorch.org/whl/torch_stable.html"
     steps:
