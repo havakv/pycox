@@ -8,22 +8,21 @@ on:
 
 jobs:
   build_test:
-    name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
+    name: Test on ${{ matrix.config.os }} with Python ${{ matrix.config.python-version }}
+    runs-on: ${{ matrix.config.os }}
     strategy:
       max-parallel: 4
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7]
         config:
-        - { os: ubuntu-latest, args: "torch==1.3.0+cpu -f https://download.pytorch.org/whl/torch_stable.html"}
-        - { os: macOS-latest, args: "torch"}
+        - { os: ubuntu-latest, python-version: 3.6, args: "torch==1.3.0+cpu -f https://download.pytorch.org/whl/torch_stable.html"}
+        - { os: macOS-latest, python-version: 3.6, args: "torch"}
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.config.python-version }}
       uses: actions/setup-python@v1
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ matrix.config.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
