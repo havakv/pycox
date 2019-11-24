@@ -23,7 +23,7 @@
 </p>
 
 
-**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org).
+**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org), built on the [torchtuples](https://github.com/havakv/torchtuples) package for training PyTorch models.
 
 The package contains implementations of various [survival models](#methods), some useful [evaluation metrics](#evaluation-criteria), and a collection of [event-time datasets](#datasets).
 In addition, some useful preprocessing tools are available in the `pycox.preprocessing` module.
@@ -280,15 +280,12 @@ The package only works for python 3.6+.
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
 You can then run the following command to install the package:
 ```sh
-pip install git+git://github.com/havakv/pycox.git git+git://github.com/havakv/torchtuples.git
+pip install git+git://github.com/havakv/pycox.git
 ```
 
 ### Install from Source
 
-Installation from source depends on [PyTorch](https://pytorch.org/get-started/locally/), in addition to [torchtuples](https://github.com/havakv/torchtuples) which can be installed with
-```sh
-pip install git+git://github.com/havakv/torchtuples.git
-```
+Installation from source depends on [PyTorch](https://pytorch.org/get-started/locally/), so make sure a it is installed.
 Next, clone and install with
 ```sh
 git clone https://github.com/havakv/pycox.git

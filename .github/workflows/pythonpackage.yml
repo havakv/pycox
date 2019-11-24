@@ -16,7 +16,8 @@ jobs:
       matrix:
         python-version: [3.6, 3.7]
         config:
-        - { os: ubuntu-latest, torch-version: "torch==1.3.0+cpu -f https://download.pytorch.org/whl/torch_stable.html"}
+        - { os: ubuntu-latest, torch-version: "torch==1.3.1+cpu -f https://download.pytorch.org/whl/torch_stable.html"}
+        - { os: windows-latest, torch-version: "torch==1.3.1+cpu -f https://download.pytorch.org/whl/torch_stable.html"}
         - { os: macOS-latest, torch-version: "torch"}
     steps:
     - uses: actions/checkout@v1
