@@ -278,7 +278,7 @@ df = datasets.metabric.read_df()
 The package only works for python 3.6+.
 
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
-You can then run the following command to install the package:
+You can then run the following command to install the package (consider adding `--force-reinstall`):
 ```sh
 pip install git+git://github.com/havakv/pycox.git
 ```
@@ -290,7 +290,7 @@ Next, clone and install with
 ```sh
 git clone https://github.com/havakv/pycox.git
 cd pycox
-python setup.py install
+pip install .
 ```
 
 ## References
