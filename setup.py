@@ -5,7 +5,12 @@
 
 from setuptools import setup, find_packages
 
+
+with open('README.md', 'r') as readme_file:
+    readme = readme_file.read()
+
 requirements = [
+    'torchtuples>=0.1.2',
     'feather-format>=0.4.0',
     'h5py>=2.9.0',
     'numba>=0.44',
@@ -17,6 +22,8 @@ setup(
     name='pycox',
     version='0.1.1',
     description="Survival analysis with PyTorch",
+    long_description=readme,
+    long_description_content_type='text/markdown',
     author="Haavard Kvamme",
     author_email='haavard.kvamme@gmail.com',
     url='https://github.com/havakv/pycox',
@@ -32,6 +39,7 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.6',
     ],
     python_requires='>=3.6'
 )
