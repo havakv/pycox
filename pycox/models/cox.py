@@ -22,7 +22,7 @@ def search_sorted_idx(array, values):
     return idx
 
 
-class _CoxBase(models.base._SurvModelBase):
+class _CoxBase(models.base.SurvBase):
     duration_col = 'duration'
     event_col = 'event'
 
@@ -318,11 +318,10 @@ class CoxPH(_CoxPHBase):
         BMC Medical Research Methodology, 18(1), 2018.
         https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1
     """
-    def __init__(self, net, optimizer=None, device=None):
-        return super().__init__(net, self.make_loss(), optimizer, device)
-
-    def make_loss(self):
-        return models.loss.CoxPHLossSorted()
+    def __init__(self, net, optimizer=None, device=None, loss=None):
+        if loss is None:
+            loss = models.loss.CoxPHLossSorted()
+        super().__init__(net, loss, optimizer, device)
 
     @staticmethod
     def make_dataloader(data, batch_size, shuffle, num_workers=0):

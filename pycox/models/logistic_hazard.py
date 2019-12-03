@@ -8,7 +8,7 @@ from pycox.models.utils import array_or_tensor, pad_col, make_subgrid
 from pycox.preprocessing import label_transforms
 from pycox.models.interpolation import InterpolateLogisticHazard
 
-class LogisticHazard(models.base._SurvModelBase):
+class LogisticHazard(models.base.SurvBase):
     """
     A discrete-time survival model that minimize the likelihood for right-censored data by
     parameterizing the hazard function. Also known as  "Nnet-survival" [3].
@@ -45,13 +45,11 @@ class LogisticHazard(models.base._SurvModelBase):
     """
     label_transform = label_transforms.LabTransDiscreteTime
 
-    def __init__(self, net, optimizer=None, device=None, duration_index=None):
+    def __init__(self, net, optimizer=None, device=None, duration_index=None, loss=None):
         self.duration_index = duration_index
-        super().__init__(net, self.make_loss(), optimizer, device)
-
-    def make_loss(self):
-        return models.loss.NLLLogistiHazardLoss()
-
+        if loss is None:
+            loss = models.loss.NLLLogistiHazardLoss()
+        super().__init__(net, loss, optimizer, device)
 
     @property
     def duration_index(self):
@@ -81,24 +79,6 @@ class LogisticHazard(models.base._SurvModelBase):
 
     def predict_hazard(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False,
                        num_workers=0):
-        """Predict the hazard function for `input`.
-
-        Arguments:
-            input {tuple, np.ndarra, or torch.tensor} -- Input to net.
-        
-        Keyword Arguments:
-            batch_size {int} -- Batch size (default: {8224})
-            numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
-                (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
-            grads {bool} -- If gradients should be computed (default: {False})
-            to_cpu {bool} -- For larger data sets we need to move the results to cpu
-                (default: {False})
-            num_workers {int} -- Number of workers in created dataloader (default: {0})
-        
-        Returns:
-            [np.ndarray or tensor] -- Predicted hazards
-        """
         hazard = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers).sigmoid()
         return array_or_tensor(hazard, numpy, input)
 

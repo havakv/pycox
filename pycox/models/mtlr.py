@@ -2,7 +2,7 @@
 from pycox import models
 from pycox.models import utils
 
-class MTLR(models.pmf._PMFBase):
+class MTLR(models.pmf.PMFBase):
     """
     The (Neural) Multi-Task Logistic Regression, MTLR [1] and N-MTLR [2].
     A discrete-time survival model that minimize the likelihood for right-censored data.
@@ -39,11 +39,10 @@ class MTLR(models.pmf._PMFBase):
         with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
         https://arxiv.org/pdf/1910.06724.pdf
     """
-    def __init__(self, net, optimizer=None, device=None, duration_index=None):
-        super().__init__(net, self.make_loss(), optimizer, device, duration_index)
-
-    def make_loss(self):
-        return models.loss.NLLMTLRLoss()
+    def __init__(self, net, optimizer=None, device=None, duration_index=None, loss=None):
+        if loss is None:
+            loss = models.loss.NLLMTLRLoss()
+        super().__init__(net, loss, optimizer, device, duration_index)
 
     def predict_pmf(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         preds = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)

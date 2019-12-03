@@ -72,7 +72,7 @@ class CoxCCDataset(torch.utils.data.Dataset):
         x_case = self.input.iloc[fails.index]
         control_idx = sample_alive_from_dates(fails.values, self.at_risk_dict, self.n_control)
         x_control = tt.TupleTree(self.input.iloc[idx] for idx in control_idx.transpose())
-        return tt.tuplefy(x_case, x_control).to_tensor(), None
+        return tt.tuplefy(x_case, x_control).to_tensor()
 
     def __len__(self):
         return len(self.durations)
@@ -87,10 +87,10 @@ class CoxTimeDataset(CoxCCDataset):
         if not hasattr(index, '__iter__'):
             index = [index]
         durations = self.durations_tensor.iloc[index]
-        (case, control), _ = super().__getitem__(index)
+        case, control = super().__getitem__(index)
         case = case + durations
         control = control.apply_nrec(lambda x: x + durations)
-        return tt.tuplefy(case, control), None
+        return tt.tuplefy(case, control)
 
 @numba.njit
 def _pair_rank_mat(mat, idx_durations, events, dtype='float32'):
