@@ -18,4 +18,4 @@ def test_cox_time_runs(numpy):
     model = CoxTime(net)
     fit_model(data, model)
     model.compute_baseline_hazards()
-    assert_survs(data[0], model)
+    assert_survs(data[0], model, with_dl=False)

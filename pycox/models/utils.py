@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -17,14 +18,8 @@ def pad_col(input, val=0, where='end'):
     raise ValueError(f"Need `where` to be 'start' or 'end', got {where}")
 
 def array_or_tensor(tensor, numpy, input):
-    """Returs a tensor if numpy is False or input is tensor.
-    Else it returns numpy array.
-    """
-    if numpy is False:
-        return tensor
-    if (numpy is True) or (tt.tuplefy(input).type() is np.ndarray):
-        tensor = tensor.cpu().numpy()
-    return tensor
+    warnings.warn('Use `torchtuples.utils.array_or_tensor` instead', DeprecationWarning)
+    return tt.utils.array_or_tensor(tensor, numpy, input)
 
 def make_subgrid(grid, sub=1):
     """When calling `predict_surv` with sub != 1 this can help with

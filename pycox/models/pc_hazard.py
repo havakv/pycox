@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 import torchtuples as tt
 from pycox import models
-from pycox.models.utils import array_or_tensor, pad_col, make_subgrid
+from pycox.models.utils import pad_col, make_subgrid
 from pycox.preprocessing import label_transforms
 
 class PCHazard(models.base.SurvBase):
@@ -49,7 +49,7 @@ class PCHazard(models.base.SurvBase):
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         hazard = self.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
         surv = hazard.cumsum(1).mul(-1).exp()
-        return array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
     def predict_hazard(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         """Predict the hazard function for `input`.
@@ -73,7 +73,7 @@ class PCHazard(models.base.SurvBase):
         n = preds.shape[0]
         hazard = F.softplus(preds).view(-1, 1).repeat(1, self.sub).view(n, -1).div(self.sub)
         hazard = pad_col(hazard, where='start')
-        return array_or_tensor(hazard, numpy, input)
+        return tt.utils.array_or_tensor(hazard, numpy, input)
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
         self._check_out_features()

@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 import torchtuples as tt
 from pycox import models
-from pycox.models.utils import array_or_tensor, pad_col, make_subgrid
+from pycox.models.utils import pad_col, make_subgrid
 from pycox.preprocessing import label_transforms
 from pycox.models.interpolation import InterpolateLogisticHazard
 
@@ -74,13 +74,13 @@ class LogisticHazard(models.base.SurvBase):
                      num_workers=0, epsilon=1e-7):
         hazard = self.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
         surv = (1 - hazard).add(epsilon).log().cumsum(1).exp()
-        return array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
 
     def predict_hazard(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False,
                        num_workers=0):
         hazard = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers).sigmoid()
-        return array_or_tensor(hazard, numpy, input)
+        return tt.utils.array_or_tensor(hazard, numpy, input)
 
     def interpolate(self, sub=10, scheme='const_pdf', duration_index=None):
         """Use interpolation for predictions.

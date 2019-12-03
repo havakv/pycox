@@ -117,6 +117,8 @@ class CoxTime(models.cox_cc._CoxCCBase):
                 t = torch.from_numpy(t)
             return np.exp(self.predict((input, t), batch_size, True, eval_, num_workers=num_workers)).flatten()
 
+        if tt.utils.is_dl(input):
+            raise NotImplementedError(f"Prediction with a dataloader as input is not supported ")
         input = tt.tuplefy(input)
         max_duration = np.inf if max_duration is None else max_duration
         baseline_hazards_ = baseline_hazards_.loc[lambda x: x.index <= max_duration]

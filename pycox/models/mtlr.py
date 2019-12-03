@@ -1,5 +1,6 @@
 
 from pycox import models
+import torchtuples as tt
 from pycox.models import utils
 
 class MTLR(models.pmf.PMFBase):
@@ -48,4 +49,4 @@ class MTLR(models.pmf.PMFBase):
         preds = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
         preds = utils.cumsum_reverse(preds, dim=1)
         pmf = utils.pad_col(preds).softmax(1)[:, :-1]
-        return utils.array_or_tensor(pmf, numpy, input)
+        return tt.utils.array_or_tensor(pmf, numpy, input)

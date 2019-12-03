@@ -5,7 +5,6 @@ import pandas as pd
 import torch
 import torchtuples as tt
 from pycox import models
-from pycox.models.utils import array_or_tensor
 
 def search_sorted_idx(array, values):
     '''For sorted array, get index of values.
@@ -178,7 +177,7 @@ class _CoxBase(models.base.SurvBase):
         surv = self.predict_surv_df(input, max_duration, batch_size, verbose, baseline_hazards_,
                                     eval_, num_workers)
         surv = torch.from_numpy(surv.values.transpose())
-        return array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
     def save_net(self, path, **kwargs):
         """Save self.net and baseline hazards to file.
