@@ -309,6 +309,34 @@ def rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, sigma, reduction=
         return sum([lo.sum() for lo in loss])
     return _reduction(loss, reduction)
 
+def bce_surv_loss(phi, idx_duration, events, reduction='mean'):
+    """Loss function for a set of binary classifiers. Each output node (element in `phi`)
+    is the logit of a survival prediction at the time corresponding to that index.
+    See [ref] for explanation of the method.
+    
+    Arguments:
+        phi {[type]} -- [description]
+        idx_duration {[type]} -- [description]
+        event {[type]} -- [description]
+
+        phi {torch.tensor} -- Estimates in (-inf, inf), where survival = sigmoid(phi).
+        idx_durations {torch.tensor} -- Event times represented as indices.
+        events {torch.tensor} -- Indicator of event (1.) or censoring (0.).
+            Same length as 'idx_durations'.
+    
+    Keyword Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+    
+    Returns:
+        torch.tensor -- The loss
+    """
+    y = torch.arange(phi.shape[1], dtype=idx_duration.dtype, device=idx_duration.device)
+    y = (y.view(1, -1) < idx_duration.view(-1, 1)).float() # mask with ones until idx_duration
+    c = y + (torch.ones_like(y) - y) * events.view(-1, 1)  # mask with ones until censoring.
+    return F.binary_cross_entropy_with_logits(phi, y, c, reduction=reduction)
 
 def cox_cc_loss(g_case, g_control, shrink=0., clamp=(-3e+38, 80.)):
     """Torch loss function for the Cox case-control models.
@@ -524,7 +552,7 @@ class DeepHitLoss(_DeepHitLoss):
     Alpha is  weighting between likelihood and rank loss (so not like in paper):
 
     loss = alpha * nll + (1 - alpha) rank_loss(sigma)
-    
+
     Arguments:
         alpha {float} -- Weighting between likelihood and rank loss.
         sigma {float} -- Part of rank loss (see DeepHit paper)
@@ -539,6 +567,23 @@ class DeepHitLoss(_DeepHitLoss):
         nll =  nll_pmf_cr(phi, idx_durations, events, self.reduction)
         rank_loss = rank_loss_deephit_cr(phi, idx_durations, events, rank_mat, self.sigma, self.reduction)
         return self.alpha * nll + (1. - self.alpha) * rank_loss
+
+
+class BCESurvLoss(_Loss):
+    """Loss function of the BCESurv method.
+    See `loss.bce_surv_loss` for details.
+
+    Arguments:
+        reduction {string} -- How to reduce the loss.
+            'none': No reduction.
+            'mean': Mean of tensor.
+            'sum: sum.
+
+    Returns:
+        torch.tensor -- The negative log-likelihood.
+    """
+    def forward(self, phi, idx_durations, events):
+        return bce_surv_loss(phi, idx_durations, events, self.reduction)
 
 
 class CoxCCLoss(torch.nn.Module):

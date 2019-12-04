@@ -10,7 +10,7 @@ with open('README.md', 'r') as readme_file:
     readme = readme_file.read()
 
 requirements = [
-    'torchtuples>=0.1.2',
+    'torchtuples>=0.2.0',
     'feather-format>=0.4.0',
     'h5py>=2.9.0',
     'numba>=0.44',
