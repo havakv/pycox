@@ -256,6 +256,52 @@ class SimConstAcc(_SimCombine):
         self.sims = [self.sim_const, self.sim_acc]
 
 
+class SimThresholdWrap:
+    """Wraps a sim object and performs censoring when the survival function drops
+    below the threshold.
+    """
+    def __init__(self, sim, threshold):
+        self.sim = sim
+        assert (threshold > 0) and (threshold < 1)
+        self.threshold = threshold
+        self.times = self.sim.times
+
+    def simulate(self, n, surv_df=False):
+        res = self.sim.simulate(n, surv_df=True)
+        res = self.threshold_res(res, surv_df)
+        return res
+
+    def threshold_res(self, res, surv_df=False):
+        res = res.copy()
+        surv = res['surv_df']
+        idx = np.argmax((surv < self.threshold).values, axis=0) - 1
+        durations = surv.index.values[idx]
+        events = np.ones_like(durations)
+        events[idx == 0] = 0
+        durations[idx == 0] = self.sim.times.max()
+        res['durations'] = durations
+        res['events'] = events
+        if surv_df:
+            res['surv_df'] = self._get_surv(surv)
+        return res
+
+    def _get_surv(self, sub_surv):
+        return (sub_surv >= self.threshold).astype(sub_surv.values.dtype)
+
+    def logit_haz(self, times, *weights):
+        logit_haz = self.sim.logit_haz(times, *weights)
+        sub_surv = self.sim.surv_df(logit_haz)
+        surv = self._get_surv(sub_surv)
+        surv[surv == 1] = -np.inf
+        surv[surv == 0] = np.inf
+        return surv.values[1:, :].transpose()
+
+    def simulate_from_weights(self, weights, surv_df=False):
+        res = self.sim.simulate_from_weights(weights, True)
+        res = self.threshold_res(res, surv_df)
+        return res
+
+
 class _SimStudyBase:
     sim_surv = NotImplemented
     sim_censor = NotImplemented
