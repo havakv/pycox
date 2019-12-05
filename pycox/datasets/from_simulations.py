@@ -51,6 +51,8 @@ class _RRNLNPH(_SimDataset):
             event indicator {1: event, 0: censoring}.
         duration_true:
             the uncensored event times.
+        event_true:
+            if `duration_true` is an event.
         censoring_true:
             the censoring times.
 
@@ -79,11 +81,13 @@ class _RRNLNPH(_SimDataset):
 
 
 class _SAC3(_SimDataset):
-    """Dataset from simulation study in [paper link].
-    The dataset is created with `pycox.simulations.SimStudySACConstCensor` (see
-    `sac3._simulate_data`).
+    """Dataset from simulation study in "Continuous and Discrete-Time Survival Prediction
+    with Neural Networks" [1].
 
-    The full details are given in  Appendix A.1 in [paper link] for details.
+    The dataset is created with `pycox.simulations.SimStudySACConstCensor`
+    (see `sac3._simulate_data`).
+
+    The full details are given in  Appendix A.1 in [1].
 
     Variables:
         x0, ..., x44:
@@ -94,6 +98,8 @@ class _SAC3(_SimDataset):
             event indicator {1: event, 0: censoring}.
         duration_true:
             the uncensored event times (only censored at max-time 100.)
+        event_true:
+            if `duration_true` is an event.
         censoring_true:
             the censoring times.
 
@@ -104,6 +110,10 @@ class _SAC3(_SimDataset):
         >>> data = sim.simulate(n)
         >>> df = sim.dict2df(data, True, False)
 
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     name = 'sac3'
     _checksum = 'd5ec4153ba47e152383f3a1838cfaf2856ea2ad2dd198fe02c414c822524da20'
@@ -113,4 +123,42 @@ class _SAC3(_SimDataset):
         sim = simulations.SimStudySACCensorConst()
         data = sim.simulate(100000)
         df = sim.dict2df(data, True, False)
+        df.to_feather(self.path)
+
+
+class _SACAdmin5(_SimDataset):
+    """Dataset from simulation study in [1].
+    The survival function is the same as in sac3, but the censoring is administrative 
+    and determined by five covariates.
+
+    Variables:
+        x0, ..., x22:
+            numerical covariates.
+        duration: (duration)
+            the right-censored event-times.
+        event: (event)
+            event indicator {1: event, 0: censoring}.
+        duration_true:
+            the uncensored event times (only censored at max-time 100.)
+        event_true:
+            if `duration_true` is an event or right-censored at time 100.
+        censoring_true:
+            the censoring times.
+
+    To generate more data:
+        >>> from pycox.simulations import SimStudySACAdmin5
+        >>> n = 10000
+        >>> sim = SimStudySACAdmin5()
+        >>> data = sim.simulate(n)
+        >>> df = sim.dict2df(data, True, True)
+    """
+    name = 'sac_admin5'
+    _checksum = 'e7704afeb016210ba6d406c578831c990e3783938686d9eb4dfa2e32479d0f1c'
+
+    def _simulate_data(self):
+        np.random.seed(1234)
+        sim = simulations.SimStudySACAdmin5()
+        # data = sim.simulate(25000)
+        data = sim.simulate(50000)
+        df = sim.dict2df(data, True, True)
         df.to_feather(self.path)

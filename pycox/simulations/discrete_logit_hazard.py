@@ -373,6 +373,29 @@ class SimStudySACCensorConst(_SimStudyBase):
         self.sim_surv = SimSinAccConst(covs_per_weight, alpha_range, sin_pref)
         self.sim_censor = SimConstHazIndependentOfWeights()
 
+class SimStudySACAdmin5(_SimStudyBase):
+    """Simulation study from [1].
+    It combines three sources to the logit-hazard: A sin function, an increasing function
+    and a constant function.
+    The administrative censoring times are 
+
+    See paper for details https://arxiv.org/pdf/1910.06724.pdf.
+    
+    Keyword Arguments:
+        covs_per_weight {int} -- Number of covariates per weight (gamma in paper)
+             (default: {5})
+        alpha_range {[type]} -- Controls how the mixing between the three logit-hazards.
+            High alpha is equivalent to picking one of them, while low is equivalent to
+            a more homogeneous mixing. (default: {5.})
+        sin_pref {float} -- Preference for the SimSin in the mixing. (default: {0.6})
+
+    References:
+    """
+    def __init__(self):
+        self.sim_surv = SimSinAccConst(2)
+        sim_censor = SimConstHaz(5)
+        self.sim_censor = SimThresholdWrap(sim_censor, 0.2)
+
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
