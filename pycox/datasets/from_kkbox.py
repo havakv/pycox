@@ -495,7 +495,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         payment_method_id:
             The payment method.
     """
-    name='kkbox_admin'
+    name='kkbox'
     def __init__(self):
         self._path_dir = _PATH_DATA / self.name
         self.path_survival = self._path_dir / 'survival_data.feather'
