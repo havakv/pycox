@@ -123,6 +123,14 @@ The following methods are available in the `pycox.methods` module.
         <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/mtlr.ipynb">notebook</a>
         </td>
     </tr>
+    <tr>
+        <td>BCESurv</td>
+        <td>
+        A method representing a set of binary classifiers that remove individuals as they are censored <a href="#references">[15]</a>. The loss is the binary cross entropy of the survival estimates at a set of discrete times, with targets that are indicators of surviving each time.
+        </td>
+        <td>
+        </td>
+    </tr>
 </table>
 
 ## Evaluation Criteria
@@ -164,6 +172,19 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
         The integrated IPCW (negative) binomial log-likelihood. Numerical integration of the `nbll` <a href="#references">[5]</a><a href="#references">[1]</a>.
         </td>
     </tr>
+    <tr>
+        <td>brier_score_admin integrated_brier_score_admin</td>
+        <td>
+        The administrative Brier score <a href="#references">[15]</a>. Works well for data with administrative censoring, meaning all censoring times are observed.
+        </td>
+    </tr>
+    <tr>
+        <td>nbll_admin integrated_nbll_admin</td>
+        <td>
+        The administrative (negative) binomial log-likelihood <a href="#references">[15]</a>. Works well for data with administrative censoring, meaning all censoring times are observed.
+        </td>
+        </td>
+    </tr>
 </table>
 
 ## Datasets
@@ -202,11 +223,24 @@ df = datasets.metabric.read_df()
         <td><a href="https://github.com/jaredleekatzman/DeepSurv/tree/master/experiments/data">source</a>
     </tr>
     <tr>
+        <td>kkbox</td>
+        <td>2,814,735</td>
+        <td>
+        A survival dataset created from the WSDM - KKBox's Churn Prediction Challenge 2017 with administrative censoring.
+        See <a href="#references">[1]</a> and <a href="#references">[15]</a> for details.
+        Compared to kkbox_v1, this data set has more covariates and censoring times.
+        Note: You need 
+        <a href="https://github.com/Kaggle/kaggle-api#api-credentials">Kaggle credentials</a> to access the dataset.
+        </td>
+        <td><a href="https://www.kaggle.com/c/kkbox-churn-prediction-challenge/data">source</a>
+    </tr>
+    <tr>
         <td>kkbox_v1</td>
         <td>2,646,746</td>
         <td>
         A survival dataset created from the WSDM - KKBox's Churn Prediction Challenge 2017. 
         See <a href="#references">[1]</a> for details.
+        This is not the preferred version of this data set. Use kkbox instead.
         Note: You need 
         <a href="https://github.com/Kaggle/kaggle-api#api-credentials">Kaggle credentials</a> to access the dataset.
         </td>
@@ -330,3 +364,5 @@ pip install .
 
 \[14\] Marco Fornili, Federico Ambrogi, Patrizia Boracchi, and Elia Biganzoli. Piecewise exponential artificial neural networks (PEANN) for modeling hazard function with right censored data. *Computational Intelligence Methods for Bioinformatics and Biostatistics*, pages 125–136, 2014.
 \[[paper](https://link.springer.com/chapter/10.1007%2F978-3-319-09042-9_9)\]
+
+\[15\] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems and Solutions. NEED PAPER LINK AND ARXIV REF
