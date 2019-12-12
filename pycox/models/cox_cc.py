@@ -94,7 +94,7 @@ class _CoxCCBase(models.cox._CoxBase):
         input, target = self._sorted_input_target(*data)
         durations, events = target
         dataset = self.make_dataset(input, durations, events, n_control)
-        dataloader = tt.data.DataLoaderSlice(dataset, batch_size=batch_size,
+        dataloader = tt.data.DataLoaderBatch(dataset, batch_size=batch_size,
                                              shuffle=shuffle, num_workers=num_workers)
         return dataloader
 
