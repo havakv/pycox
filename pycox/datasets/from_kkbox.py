@@ -63,6 +63,8 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             Indicator if the individual has not previously churned.
     """
     name = 'kkbox_v1'
+    _checksum = '705ca57c7efd2d916f0da2dd6e3a399b3b279773271d595c2f591fcf7bb7cae6'
+
     def __init__(self):
         self._path_dir = _PATH_DATA / self.name
         self.path_train = self._path_dir / 'train.feather'
@@ -496,6 +498,8 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
             The payment method.
     """
     name='kkbox'
+    _checksum = 'cc69aee5f48e401e1bdf47a13dca891190257da62a12aa263f75d907b8c24240'
+
     def __init__(self):
         self._path_dir = _PATH_DATA / self.name
         self.path_survival = self._path_dir / 'survival_data.feather'

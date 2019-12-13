@@ -70,7 +70,7 @@ class _RRNLNPH(_SimDataset):
         http://jmlr.org/papers/v20/18-424.html
     """
     name = 'rr_nl_nph'
-    _checksum = '68659bbb7d0320387fdc5584e647e288469eed86bfa75dac3369e36b237814ab'
+    _checksum = '4952a8712403f7222d1bec58e36cdbfcd46aa31ddf87c5fb2c455565fc3f7068'
 
     def _simulate_data(self):
         np.random.seed(1234)
@@ -116,7 +116,7 @@ class _SAC3(_SimDataset):
         https://arxiv.org/pdf/1910.06724.pdf
     """
     name = 'sac3'
-    _checksum = 'd5ec4153ba47e152383f3a1838cfaf2856ea2ad2dd198fe02c414c822524da20'
+    _checksum = '2941d46baf0fbae949933565dc88663adbf1d8f5a58f989baf915d6586641fea'
 
     def _simulate_data(self):
         np.random.seed(1234)
@@ -153,12 +153,11 @@ class _SACAdmin5(_SimDataset):
         >>> df = sim.dict2df(data, True, True)
     """
     name = 'sac_admin5'
-    _checksum = 'e7704afeb016210ba6d406c578831c990e3783938686d9eb4dfa2e32479d0f1c'
+    _checksum = '9882bc8651315bcd80cba20b5f11040d71e4a84865898d7c2ca7b82ccba56683'
 
     def _simulate_data(self):
         np.random.seed(1234)
         sim = simulations.SimStudySACAdmin5()
-        # data = sim.simulate(25000)
         data = sim.simulate(50000)
         df = sim.dict2df(data, True, True)
         df.to_feather(self.path)
