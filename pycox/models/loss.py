@@ -41,6 +41,8 @@ def nll_logistic_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
         raise ValueError(f"Network output `phi` is too small for `idx_durations`."+
                          f" Need at least `phi.shape[1] = {idx_durations.max().item()+1}`,"+
                          f" but got `phi.shape[1] = {phi.shape[1]}`")
+    if events.dtype is torch.bool:
+        events = events.float()
     events = events.view(-1, 1)
     idx_durations = idx_durations.view(-1, 1)
     y_bce = torch.zeros_like(phi).scatter(1, idx_durations, events)
@@ -74,6 +76,8 @@ def nll_pmf(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction: str =
         raise ValueError(f"Network output `phi` is too small for `idx_durations`."+
                          f" Need at least `phi.shape[1] = {idx_durations.max().item()+1}`,"+
                          f" but got `phi.shape[1] = {phi.shape[1]}`")
+    if events.dtype is torch.bool:
+        events = events.float()
     events = events.view(-1)
     idx_durations = idx_durations.view(-1, 1)
     phi = utils.pad_col(phi)
@@ -147,6 +151,8 @@ def nll_pc_hazard_loss(phi: Tensor, idx_durations: Tensor, events: Tensor, inter
         with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
         https://arxiv.org/pdf/1910.06724.pdf
     """
+    if events.dtype is torch.bool:
+        events = events.float()
     idx_durations = idx_durations.view(-1, 1)
     events = events.view(-1)
     interval_frac = interval_frac.view(-1)
@@ -237,7 +243,7 @@ def rank_loss_deephit_single(phi: Tensor, idx_durations: Tensor, events: Tensor,
         http://medianetlab.ee.ucla.edu/papers/AAAI_2018_DeepHit
     """
     idx_durations = idx_durations.view(-1, 1)
-    events = events.float().view(-1)
+    # events = events.float().view(-1)
     pmf = utils.pad_col(phi).softmax(1)
     y = torch.zeros_like(pmf).scatter(1, idx_durations, 1.) # one-hot
     rank_loss = _rank_loss_deephit(pmf, y, rank_mat, sigma, reduction)
@@ -326,8 +332,7 @@ def rank_loss_deephit_cr(phi: Tensor, idx_durations: Tensor, events: Tensor, ran
         return sum([lo.sum() for lo in loss])
     return _reduction(loss, reduction)
 
-def bce_surv_loss(phi: Tensor, idx_durations: Tensor, events: Tensor,
-                  reduction: str = 'mean') -> Tensor:
+def bce_surv_loss(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction: str = 'mean') -> Tensor:
     """Loss function for a set of binary classifiers. Each output node (element in `phi`)
     is the logit of a survival prediction at the time corresponding to that index.
     See [ref] for explanation of the method.
@@ -351,6 +356,8 @@ def bce_surv_loss(phi: Tensor, idx_durations: Tensor, events: Tensor,
         raise ValueError(f"Network output `phi` is too small for `idx_durations`."+
                          f" Need at least `phi.shape[1] = {idx_durations.max().item()+1}`,"+
                          f" but got `phi.shape[1] = {phi.shape[1]}`")
+    if events.dtype is torch.bool:
+        events = events.float()
     y = torch.arange(phi.shape[1], dtype=idx_durations.dtype, device=idx_durations.device)
     y = (y.view(1, -1) < idx_durations.view(-1, 1)).float() # mask with ones until idx_duration
     c = y + (torch.ones_like(y) - y) * events.view(-1, 1)  # mask with ones until censoring.
