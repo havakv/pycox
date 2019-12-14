@@ -146,9 +146,9 @@ class _SACAdmin5(_SimDataset):
             the censoring times.
 
     To generate more data:
-        >>> from pycox.simulations import SimStudySACAdmin5
+        >>> from pycox.simulations import SimStudySACAdmin
         >>> n = 10000
-        >>> sim = SimStudySACAdmin5()
+        >>> sim = SimStudySACAdmin()
         >>> data = sim.simulate(n)
         >>> df = sim.dict2df(data, True, True)
     """
@@ -157,7 +157,7 @@ class _SACAdmin5(_SimDataset):
 
     def _simulate_data(self):
         np.random.seed(1234)
-        sim = simulations.SimStudySACAdmin5()
+        sim = simulations.SimStudySACAdmin()
         data = sim.simulate(50000)
         df = sim.dict2df(data, True, True)
         df.to_feather(self.path)

@@ -373,27 +373,28 @@ class SimStudySACCensorConst(_SimStudyBase):
         self.sim_surv = SimSinAccConst(covs_per_weight, alpha_range, sin_pref)
         self.sim_censor = SimConstHazIndependentOfWeights()
 
-class SimStudySACAdmin5(_SimStudyBase):
-    """Simulation study from [1].
-    It combines three sources to the logit-hazard: A sin function, an increasing function
-    and a constant function.
-    The administrative censoring times are 
 
-    See paper for details https://arxiv.org/pdf/1910.06724.pdf.
-    
+class SimStudySACAdmin(_SimStudyBase):
+    """Simulation studies from [1].
+    It combines three sources to the logit-hazard: a sin function, an increasing function
+    and a constant function.
+    The administrative censoring times are defined by thresholding the survival curves of
+    either `SimConstHaz(5)` (a simple function with constant covariate censoring) or
+    `SimSinAccConst(2)` (a more complicated function).
+
     Keyword Arguments:
-        covs_per_weight {int} -- Number of covariates per weight (gamma in paper)
-             (default: {5})
-        alpha_range {[type]} -- Controls how the mixing between the three logit-hazards.
-            High alpha is equivalent to picking one of them, while low is equivalent to
-            a more homogeneous mixing. (default: {5.})
-        sin_pref {float} -- Preference for the SimSin in the mixing. (default: {0.6})
+        simple_censor {bool} -- If we should use the simple censoring distribution based on
+            `SimConstHaz(5)` (True) or the more complicated `SimSinAccConst(2)` (False).
+            (default: {True})
 
     References:
     """
-    def __init__(self):
+    def __init__(self, simple_censor: bool = True) -> None:
         self.sim_surv = SimSinAccConst(2)
-        sim_censor = SimConstHaz(5)
+        if simple_censor is True:
+            sim_censor = SimConstHaz(5)
+        else:
+            sim_censor = SimSinAccConst(2)
         self.sim_censor = SimThresholdWrap(sim_censor, 0.2)
 
 
