@@ -335,7 +335,7 @@ def rank_loss_deephit_cr(phi: Tensor, idx_durations: Tensor, events: Tensor, ran
 def bce_surv_loss(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction: str = 'mean') -> Tensor:
     """Loss function for a set of binary classifiers. Each output node (element in `phi`)
     is the logit of a survival prediction at the time corresponding to that index.
-    See [ref] for explanation of the method.
+    See [1] for explanation of the method.
     
     Arguments:
         phi {torch.tensor} -- Estimates in (-inf, inf), where survival = sigmoid(phi).
@@ -348,9 +348,10 @@ def bce_surv_loss(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction:
             'none': No reduction.
             'mean': Mean of tensor.
             'sum: sum.
-    
-    Returns:
-        torch.tensor -- The loss
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions.
     """
     if phi.shape[1] <= idx_durations.max():
         raise ValueError(f"Network output `phi` is too small for `idx_durations`."+

@@ -151,6 +151,10 @@ class _SACAdmin5(_SimDataset):
         >>> sim = SimStudySACAdmin()
         >>> data = sim.simulate(n)
         >>> df = sim.dict2df(data, True, True)
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions.
     """
     name = 'sac_admin5'
     _checksum = '9882bc8651315bcd80cba20b5f11040d71e4a84865898d7c2ca7b82ccba56683'

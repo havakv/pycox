@@ -388,6 +388,8 @@ class SimStudySACAdmin(_SimStudyBase):
             (default: {True})
 
     References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring:
+            Problems and Solutions.
     """
     def __init__(self, simple_censor: bool = True) -> None:
         self.sim_surv = SimSinAccConst(2)

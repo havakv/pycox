@@ -7,8 +7,8 @@ from pycox.datasets._dataset_loader import _DatasetLoader, _PATH_DATA
 class _DatasetKKBoxChurn(_DatasetLoader):
     """KKBox churn data set obtained from Kaggle (WSDM - KKBox's Churn Prediction Challenge 2017).
     https://www.kaggle.com/c/kkbox-churn-prediction-challenge/data
-    This is the version of the data set presented by Kvamme et al. (2019), but the preferred version
-    is the `kkbox` which included administrative censoring labels and and extra categorical variable.
+    This is the version of the data set presented by Kvamme et al. (2019) [1], but the preferred version
+    is the `kkbox` version which included administrative censoring labels and and extra categorical variable.
 
     Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api), 
     with credentials (https://github.com/Kaggle/kaggle-api).
@@ -61,6 +61,11 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             Indicator that we don't know when the customer first subscribed.
         no_prev_churns:
             Indicator if the individual has not previously churned.
+
+    References:
+        [1] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel. Time-to-event prediction with neural networks
+            and Cox regression. Journal of Machine Learning Research, 20(129):1–30, 2019.
+            http://jmlr.org/papers/v20/18-424.html
     """
     name = 'kkbox_v1'
     _checksum = '705ca57c7efd2d916f0da2dd6e3a399b3b279773271d595c2f591fcf7bb7cae6'
@@ -437,11 +442,11 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
     """KKBox churn data set obtained from Kaggle (WSDM - KKBox's Churn Prediction Challenge 2017).
     https://www.kaggle.com/c/kkbox-churn-prediction-challenge/data
-    This is an updated version of `kkbox_v1`, as it contains administrative censoring times and
-    the categorical variable `payment_method_id`.
+    This is the data set used in [1] and is an updated verion of `kkbox_v1` in [2], as it contains
+    administrative censoring times and the categorical variable `payment_method_id`.
     All customers are administratively censored at the date 2017-01-29.
 
-    This is the version of the data set presented by Kvamme and Borgan (2019).
+    This is the version of the data set presented by Kvamme and Borgan (2019) [1].
 
     Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api), 
     with credentials (https://github.com/Kaggle/kaggle-api).
@@ -496,6 +501,14 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
             Indicator if the individual has not previously churned.
         payment_method_id:
             The payment method.
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions.
+
+        [2] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel. Time-to-event prediction with neural networks
+            and Cox regression. Journal of Machine Learning Research, 20(129):1–30, 2019.
+            http://jmlr.org/papers/v20/18-424.html
     """
     name='kkbox'
     _checksum = 'cc69aee5f48e401e1bdf47a13dca891190257da62a12aa263f75d907b8c24240'

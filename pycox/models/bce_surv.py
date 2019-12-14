@@ -32,6 +32,8 @@ class BCESurv(models.base.SurvBase):
         loss {func} -- An alternative loss function (default: {None})
 
     References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions.
     """
     label_transform = label_transforms.LabTransDiscreteTime
 
