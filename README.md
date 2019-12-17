@@ -30,7 +30,11 @@ In addition, some useful preprocessing tools are available in the `pycox.preproc
 
 ## Get Started
 
-To get started you first need to [install the package](#installation).
+To get started you first need to install [PyTorch](https://pytorch.org/get-started/locally/).
+You can then install **pycox** with 
+```sh
+pip install pycox
+```
 
 We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
 The notebook use the `LogisticHazard` method for illustration, but most of the principles generalize to the other methods.

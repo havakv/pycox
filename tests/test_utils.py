@@ -1,6 +1,5 @@
 import pytest
 import numpy as np
-from lifelines import KaplanMeierFitter
 from pycox import utils
 
 def test_kaplan_meier():
@@ -13,6 +12,7 @@ def test_kaplan_meier():
 @pytest.mark.parametrize('n', [10, 85, 259])
 @pytest.mark.parametrize('p_cens', [0, 0.3, 0.8])
 def test_kaplan_meier_vs_lifelines(n, p_cens):
+    from lifelines import KaplanMeierFitter
     np.random.seed(0)
     durations = np.random.uniform(0, 100, n)
     events = np.random.binomial(1, 1 - p_cens, n).astype('float')
