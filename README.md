@@ -33,7 +33,7 @@ In addition, some useful preprocessing tools are available in the `pycox.preproc
 To get started you first need to install [PyTorch](https://pytorch.org/get-started/locally/).
 You can then install **pycox** with 
 ```sh
-pip install git+git://github.com/havakv/pycox.git
+pip install pycox
 ```
 
 We recommend to start with [01_introduction.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
@@ -340,7 +340,11 @@ df = datasets.metabric.read_df()
 The package only works for python 3.6+.
 
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
-You can then run the following command to install the package (consider adding `--force-reinstall`):
+You can then install the package with
+```sh
+pip install pyox
+```
+For the bleeding edge version, you can instead install directly from github (consider adding `--force-reinstall`):
 ```sh
 pip install git+git://github.com/havakv/pycox.git
 ```
