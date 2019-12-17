@@ -95,7 +95,7 @@ class _SurvModelBase(tt.Model):
     Essentially same as torchtuples.Model, 
     """
     def __init__(self, net, loss=None, optimizer=None, device=None):
-        warning.warn('Will be removed shortly', DeprecationWarning)
+        warnings.warn('Will be removed shortly', DeprecationWarning)
         super().__init__(net, loss, optimizer, device)
 
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True,
