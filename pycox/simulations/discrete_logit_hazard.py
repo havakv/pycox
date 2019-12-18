@@ -199,6 +199,30 @@ class SimUniform(SimBase):
     def covs2weights(self, covs):
         return covs
 
+class SimUniformAdmin(SimBase):
+    """Draw event times uniformly in `self.times`.
+    The event times are determined by the weights, making this administrative.
+    """
+    num_weights = 1
+    def __init__(self, covs_per_weight=5, s_end=0.2, seed=None, betas=None):
+        self.s_end = s_end
+        super().__init__(covs_per_weight, betas)
+
+    def logit_haz(self, times, w):
+        """w is Unif[-1, 1]"""
+        assert (self.num_weights == 1) and (w.shape[1] == 1), "We don't allow more than 1 weight here"
+        m = len(times)
+        idx = w.flatten()
+        idx = (idx + 1) / 2 / (1 - self.s_end) * (m+1)
+        idx = np.floor(idx).clip(0, m)
+        idx = idx.astype('int')
+        lh = np.zeros((len(idx), m+1))
+        lh[np.arange(len(idx)), idx] = 1
+        lh = lh.cumsum(1)
+        lh[lh == 0] = -np.inf
+        lh[lh == 1] = np.inf
+        return lh[:, :m]
+
 
 class _SimCombine(SimBase):
     sims = NotImplemented
@@ -349,6 +373,55 @@ class SimStudyIndepSurvAndCens(_SimStudyBase):
         self.sim_censor = sim_censor
 
 
+class SimStudySingleSurv(SimStudyIndepSurvAndCens):
+    """All individuals have identical survival function, but can have individual censoring
+    distributions.
+
+    Use `sim_surv` to draw a survival function (`self.sim0`) and then use that for all individuals.
+
+    Example:
+    sim_surv = SimConstHaz(1)
+    sim_censor SimUniformAdmin(1, 0.2)
+    sim = SimStudySingleSurv(sim_surv, sim_censor, sim0=sim_surv.simulate(1))
+    """
+    def __init__(self, sim_surv, sim_censor, sim0=None):
+        if sim0 is None:
+            sim0 = sim_surv.simulate(1)
+        self.sim0 = sim0
+        super().__init__(sim_surv, sim_censor)
+
+    def simulate(self, n, surv_df=False, censor_df=False, binary_surv=False):
+        if binary_surv:
+            if not (surv_df and censor_df):
+                raise ValueError("To produce binary_surv, you need to also set surv_df and censor_df to True")
+        surv = self.sim0
+        weights = [surv['weights'][0].repeat(n, 0)]
+        surv = self.sim_surv.simulate_from_weights(weights, surv_df)
+        censor = self.sim_censor.simulate(n, censor_df)
+        res = self._combine_surv_and_censor(surv, censor)
+        if binary_surv:
+            res['binary_surv_df'] = self.binary_surv(res)
+        return res
+
+    @staticmethod
+    def dict2df(data, add_true=True, add_censor_covs=True):
+        """Make a pd.DataFrame from the dict obtained when simulating.
+
+        Arguments:
+            data {dict} -- Dict from simulation.
+
+        Keyword Arguments:
+            add_true {bool} -- If we should include the true duration and censoring times
+                (default: {True})
+            add_censor_covs {bool} -- If we should include the censor covariates as covariates.
+                (default: {True})
+
+        Returns:
+            pd.DataFrame -- A DataFrame
+        """
+        return base.dict2df(data, add_true, add_censor_covs)
+
+
 class SimStudySACCensorConst(_SimStudyBase):
     """Simulation study from [1].
     It combines three sources to the logit-hazard: A sin function, an increasing function
@@ -398,6 +471,43 @@ class SimStudySACAdmin(_SimStudyBase):
         else:
             sim_censor = SimSinAccConst(2)
         self.sim_censor = SimThresholdWrap(sim_censor, 0.2)
+
+    @staticmethod
+    def dict2df(data, add_true=True, add_censor_covs=True):
+        """Make a pd.DataFrame from the dict obtained when simulating.
+
+        Arguments:
+            data {dict} -- Dict from simulation.
+
+        Keyword Arguments:
+            add_true {bool} -- If we should include the true duration and censoring times
+                (default: {True})
+            add_censor_covs {bool} -- If we should include the censor covariates as covariates.
+                (default: {True})
+
+        Returns:
+            pd.DataFrame -- A DataFrame
+        """
+        return base.dict2df(data, add_true, add_censor_covs)
+
+
+class SimStudySingleSurvUniformAdmin(SimStudySingleSurv):
+    """Simulation study from [1], where all individuals have the same survival function,
+    but administrative censoring times draw uniformly over the time interval.
+
+    Keyword Arguments:
+        simple_censor {bool} -- If we should use the simple censoring distribution based on
+            `SimConstHaz(5)` (True) or the more complicated `SimSinAccConst(2)` (False).
+            (default: {True})
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring:
+            Problems and Solutions.
+    """
+    def __init__(self):
+        sim_surv = SimConstHaz(1)
+        sim_censor = SimUniformAdmin(1, 0.2)
+        super().__init__(sim_surv, sim_censor)
 
 
 def sigmoid(x):
