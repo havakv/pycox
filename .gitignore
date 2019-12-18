@@ -108,3 +108,6 @@ ENV/
 
 # torch files
 *.torch
+
+# data files
+/pycox/datasets/data/
