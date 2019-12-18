@@ -118,6 +118,9 @@ class EvalSurv:
                 'Censored observations need same `durations` and `censor_durations`'
             assert (self.durations[self.events == 1] <= val[self.events == 1]).all(),\
                 '`durations` cannot be larger than `censor_durations`'
+            if (self.durations == val).all():
+                warnings.warn("`censor_durations` are equal to `durations`." +
+                              " `censor_durations` are likely wrong!")
             self._censor_durations = val
         else:
             self._censor_durations = val
