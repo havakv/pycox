@@ -319,6 +319,37 @@ class CoxPH(_CoxPHBase):
     """
     def __init__(self, net, optimizer=None, device=None, loss=None):
         if loss is None:
+            loss = models.loss.CoxPHLoss()
+        super().__init__(net, loss, optimizer, device)
+
+
+class CoxPHSorted(_CoxPHBase):
+    """Cox proportional hazards model parameterized with a neural net.
+    This is essentially the DeepSurv method [1].
+
+    The loss function is not quite the partial log-likelihood, but close.    
+    The difference is that for tied events, we use a random order instead of 
+    including all individuals that had an event at that point in time.
+
+    Arguments:
+        net {torch.nn.Module} -- A pytorch net.
+    
+    Keyword Arguments:
+        optimizer {torch or torchtuples optimizer} -- Optimizer (default: {None})
+        device {str, int, torch.device} -- Device to compute on. (default: {None})
+            Preferably pass a torch.device object.
+            If 'None': use default gpu if available, else use cpu.
+            If 'int': used that gpu: torch.device('cuda:<device>').
+            If 'string': string is passed to torch.device('string').
+
+    [1] Jared L. Katzman, Uri Shaham, Alexander Cloninger, Jonathan Bates, Tingting Jiang, and Yuval Kluger.
+        Deepsurv: personalized treatment recommender system using a Cox proportional hazards deep neural network.
+        BMC Medical Research Methodology, 18(1), 2018.
+        https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1
+    """
+    def __init__(self, net, optimizer=None, device=None, loss=None):
+        warnings.warn('Use `CoxPH` instead. This will be removed', DeprecationWarning)
+        if loss is None:
             loss = models.loss.CoxPHLossSorted()
         super().__init__(net, loss, optimizer, device)
 
