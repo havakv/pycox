@@ -1,6 +1,6 @@
 
 <h1 align="center">
-    <font size="7">pycox</font>
+    <img src="https://github.com/havakv/pycox/blob/master/figures/logo.svg" alt="pycox" width="200">
 </h1>
 
 <p align="center">
@@ -9,6 +9,8 @@
 
 <p align="center">
      <a href="https://github.com/havakv/pycox/actions"><img alt="GitHub Actions status" src="https://github.com/havakv/pycox/workflows/Python%20package/badge.svg"></a>
+     <a href="https://pypi.org/project/pycox/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pycox.svg"></a>
+     <a href="https://pypi.org/project/pycox/"><img alt="Hei" src="https://img.shields.io/pypi/pyversions/pycox.svg"></a>
     <a href="https://github.com/havakv/pycox/blob/master/LICENSE" title="License"><img src="https://img.shields.io/badge/License-BSD%202--Clause-orange.svg"></a>
 </p>
 
@@ -342,7 +344,7 @@ The package only works for python 3.6+.
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
 You can then install the package with
 ```sh
-pip install pyox
+pip install pycox
 ```
 For the bleeding edge version, you can instead install directly from github (consider adding `--force-reinstall`):
 ```sh
