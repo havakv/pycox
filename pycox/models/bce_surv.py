@@ -33,7 +33,8 @@ class BCESurv(models.base.SurvBase):
 
     References:
         [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-            and Solutions.
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
     """
     label_transform = label_transforms.LabTransDiscreteTime
 

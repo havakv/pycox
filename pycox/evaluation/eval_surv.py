@@ -203,7 +203,8 @@ class EvalSurv:
 
         References:
             [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-                and Solutions.
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_surv is None:
             raise ValueError("""Need to add censor_surv to compute Brier score. Use 'add_censor_est'
@@ -227,7 +228,8 @@ class EvalSurv:
 
         References:
             [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-                and Solutions.
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_surv is None:
             raise ValueError("""Need to add censor_surv to compute the score. Use 'add_censor_est'
@@ -285,7 +287,8 @@ class EvalSurv:
 
         References:
             [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-                and Solutions.
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_durations is None:
             raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
@@ -303,7 +306,8 @@ class EvalSurv:
 
         References:
             [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-                and Solutions.
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_durations is None:
             raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
@@ -321,7 +325,8 @@ class EvalSurv:
 
         References:
             [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-                and Solutions.
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_durations is None:
             raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
@@ -339,7 +344,8 @@ class EvalSurv:
 
         References:
             [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-                and Solutions.
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_durations is None:
             raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")

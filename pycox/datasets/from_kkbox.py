@@ -504,7 +504,8 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
 
     References:
         [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-            and Solutions.
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
 
         [2] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel. Time-to-event prediction with neural networks
             and Cox regression. Journal of Machine Learning Research, 20(129):1–30, 2019.

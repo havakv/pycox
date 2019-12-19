@@ -351,7 +351,8 @@ def bce_surv_loss(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction:
 
     References:
         [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-            and Solutions.
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
     """
     if phi.shape[1] <= idx_durations.max():
         raise ValueError(f"Network output `phi` is too small for `idx_durations`."+

@@ -399,4 +399,5 @@ pip install .
 \[14\] Marco Fornili, Federico Ambrogi, Patrizia Boracchi, and Elia Biganzoli. Piecewise exponential artificial neural networks (PEANN) for modeling hazard function with right censored data. *Computational Intelligence Methods for Bioinformatics and Biostatistics*, pages 125–136, 2014.
 \[[paper](https://link.springer.com/chapter/10.1007%2F978-3-319-09042-9_9)\]
 
-\[15\] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems and Solutions. NEED PAPER LINK AND ARXIV REF
+\[15\] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems and Solutions. *arXiv preprint arXiv:1912.08581*, 2019.
+\[[paper](https://arxiv.org/pdf/1912.08581.pdf)\]

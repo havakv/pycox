@@ -154,7 +154,8 @@ class _SACAdmin5(_SimDataset):
 
     References:
         [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
-            and Solutions.
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
     """
     name = 'sac_admin5'
     _checksum = '9882bc8651315bcd80cba20b5f11040d71e4a84865898d7c2ca7b82ccba56683'
