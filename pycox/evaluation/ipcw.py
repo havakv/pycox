@@ -78,7 +78,7 @@ def _binomial_log_likelihood(ts, tt, s, g_ts, g_tt, d, eps=1e-7):
 brier_score = _inverse_censoring_weighted_metric(_brier_score)
 binomial_log_likelihood = _inverse_censoring_weighted_metric(_binomial_log_likelihood)
 
-def _itegrated_inverce_censoring_weighed_metric(func):
+def _integrated_inverce_censoring_weighed_metric(func):
     def metric(time_grid, durations, events, surv, censor_surv, index_surv, index_censor,
                max_weight=np.inf, steps_surv='post', steps_censor='post'):
         scores = func(time_grid, durations, events, surv, censor_surv, index_surv, index_censor,
@@ -87,5 +87,5 @@ def _itegrated_inverce_censoring_weighed_metric(func):
         return integral / (time_grid[-1] - time_grid[0])
     return metric
 
-integrated_brier_score = _itegrated_inverce_censoring_weighed_metric(brier_score)
-integrated_binomial_log_likelihood = _itegrated_inverce_censoring_weighed_metric(binomial_log_likelihood)
+integrated_brier_score = _integrated_inverce_censoring_weighed_metric(brier_score)
+integrated_binomial_log_likelihood = _integrated_inverce_censoring_weighed_metric(binomial_log_likelihood)

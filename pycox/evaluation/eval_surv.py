@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from pycox.evaluation.concordance import concordance_td
-from pycox.evaluation import ipcw
+from pycox.evaluation import ipcw, admin
 from pycox import utils
 
 
@@ -21,15 +21,17 @@ class EvalSurv:
             this will be used. 
             If 'km', we will fit a Kaplan-Meier to the dataset.
             (default: {None})
+        censor_durations {np.array}: -- Administrative censoring times. (default: {None})
         steps {str} -- For durations between values of `surv.index` choose the higher index 'pre'
             or lower index 'post'. For a visualization see `help(EvalSurv.steps)`. (default: {'post'})
     """
-    def __init__(self, surv, durations, events, censor_surv=None, steps='post'):
-        assert (type(durations) == type(events) == np.ndarray)
+    def __init__(self, surv, durations, events, censor_surv=None, censor_durations=None, steps='post'):
+        assert (type(durations) == type(events) == np.ndarray), 'Need `durations` and `events` to be arrays'
         self.surv = surv
         self.durations = durations
         self.events = events
         self.censor_surv = censor_surv
+        self.censor_durations = censor_durations
         self.steps = steps
         assert pd.Series(self.index_surv).is_monotonic
 
@@ -105,6 +107,25 @@ class EvalSurv:
         return self.add_censor_est(surv, steps)
 
     @property
+    def censor_durations(self):
+        """Administrative censoring times."""
+        return self._censor_durations
+    
+    @censor_durations.setter
+    def censor_durations(self, val):
+        if val is not None:
+            assert (self.durations[self.events == 0] == val[self.events == 0]).all(),\
+                'Censored observations need same `durations` and `censor_durations`'
+            assert (self.durations[self.events == 1] <= val[self.events == 1]).all(),\
+                '`durations` cannot be larger than `censor_durations`'
+            if (self.durations == val).all():
+                warnings.warn("`censor_durations` are equal to `durations`." +
+                              " `censor_durations` are likely wrong!")
+            self._censor_durations = val
+        else:
+            self._censor_durations = val
+
+    @property
     def _constructor(self):
         return EvalSurv
 
@@ -171,6 +192,7 @@ class EvalSurv:
 
     def brier_score(self, time_grid, max_weight=np.inf):
         """Brier score weighted by the inverse censoring distribution.
+        See Section 3.1.2 or [1] for details of the wighting scheme.
         
         Arguments:
             time_grid {np.array} -- Durations where the brier score should be calculated.
@@ -178,6 +200,11 @@ class EvalSurv:
         Keyword Arguments:
             max_weight {float} -- Max weight value (max number of individuals an individual
                 can represent (default {np.inf}).
+
+        References:
+            [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_surv is None:
             raise ValueError("""Need to add censor_surv to compute Brier score. Use 'add_censor_est'
@@ -190,6 +217,7 @@ class EvalSurv:
 
     def nbll(self, time_grid, max_weight=np.inf):
         """Negative binomial log-likelihood weighted by the inverse censoring distribution.
+        See Section 3.1.2 or [1] for details of the wighting scheme.
         
         Arguments:
             time_grid {np.array} -- Durations where the brier score should be calculated.
@@ -197,6 +225,11 @@ class EvalSurv:
         Keyword Arguments:
             max_weight {float} -- Max weight value (max number of individuals an individual
                 can represent (default {np.inf}).
+
+        References:
+            [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
         """
         if self.censor_surv is None:
             raise ValueError("""Need to add censor_surv to compute the score. Use 'add_censor_est'
@@ -242,4 +275,81 @@ class EvalSurv:
                                                        self.censor_surv.surv.values, self.index_surv,
                                                        self.censor_surv.index_surv, max_weight, self.steps,
                                                        self.censor_surv.steps)
+        return -ibll
+
+    def brier_score_admin(self, time_grid):
+        """The Administrative Brier score proposed by [1].
+        Removes individuals as they are administratively censored, event if they have experienced an
+        event. 
+        
+        Arguments:
+            time_grid {np.array} -- Durations where the brier score should be calculated.
+
+        References:
+            [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
+        """
+        if self.censor_durations is None:
+            raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
+        bs = admin.brier_score(time_grid, self.durations, self.censor_durations, self.events,
+                               self.surv.values, self.index_surv, True, self.steps)
+        return pd.Series(bs, index=time_grid).rename('brier_score')
+
+    def integrated_brier_score_admin(self, time_grid):
+        """The Integrated administrative Brier score proposed by [1].
+        Removes individuals as they are administratively censored, event if they have experienced an
+        event. 
+        
+        Arguments:
+            time_grid {np.array} -- Durations where the brier score should be calculated.
+
+        References:
+            [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
+        """
+        if self.censor_durations is None:
+            raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
+        ibs = admin.integrated_brier_score(time_grid, self.durations, self.censor_durations, self.events,
+                                           self.surv.values, self.index_surv, self.steps)
+        return ibs
+
+    def nbll_admin(self, time_grid):
+        """The negative administrative binomial log-likelihood proposed by [1].
+        Removes individuals as they are administratively censored, event if they have experienced an
+        event. 
+        
+        Arguments:
+            time_grid {np.array} -- Durations where the brier score should be calculated.
+
+        References:
+            [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
+        """
+        if self.censor_durations is None:
+            raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
+        bll = admin.binomial_log_likelihood(time_grid, self.durations, self.censor_durations, self.events,
+                                           self.surv.values, self.index_surv, True, self.steps)
+        return pd.Series(-bll, index=time_grid).rename('nbll')
+
+    def integrated_nbll_admin(self, time_grid):
+        """The Integrated negative administrative binomial log-likelihood score proposed by [1].
+        Removes individuals as they are administratively censored, event if they have experienced an
+        event. 
+        
+        Arguments:
+            time_grid {np.array} -- Durations where the brier score should be calculated.
+
+        References:
+            [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+                and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+                https://arxiv.org/pdf/1912.08581.pdf
+        """
+        if self.censor_durations is None:
+            raise ValueError("Need to provide `censor_durations` (censoring durations) to use this method")
+        ibll = admin.integrated_binomial_log_likelihood(time_grid, self.durations, self.censor_durations,
+                                                        self.events, self.surv.values, self.index_surv,
+                                                        self.steps)
         return -ibll

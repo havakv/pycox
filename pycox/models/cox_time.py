@@ -36,9 +36,9 @@ class CoxTime(models.cox_cc._CoxCCBase):
     make_dataset = models.data.CoxTimeDataset
     label_transform = LabTransCoxTime
 
-    def __init__(self, net, optimizer=None, device=None, shrink=0., labtrans=None):
+    def __init__(self, net, optimizer=None, device=None, shrink=0., labtrans=None, loss=None):
         self.labtrans = labtrans
-        super().__init__(net, optimizer, device, shrink)
+        super().__init__(net, optimizer, device, shrink, loss)
 
     def make_dataloader_predict(self, input, batch_size, shuffle=False, num_workers=0):
         input, durations = input
@@ -117,6 +117,8 @@ class CoxTime(models.cox_cc._CoxCCBase):
                 t = torch.from_numpy(t)
             return np.exp(self.predict((input, t), batch_size, True, eval_, num_workers=num_workers)).flatten()
 
+        if tt.utils.is_dl(input):
+            raise NotImplementedError(f"Prediction with a dataloader as input is not supported ")
         input = tt.tuplefy(input)
         max_duration = np.inf if max_duration is None else max_duration
         baseline_hazards_ = baseline_hazards_.loc[lambda x: x.index <= max_duration]

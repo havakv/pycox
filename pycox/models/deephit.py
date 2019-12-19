@@ -4,9 +4,9 @@ import torch
 import torchtuples as tt
 
 from pycox import models
-from pycox.models.utils import array_or_tensor, pad_col
+from pycox.models.utils import pad_col
 
-class DeepHitSingle(models.pmf._PMFBase):
+class DeepHitSingle(models.pmf.PMFBase):
     """The DeepHit methods by [1] but only for single event (not competing risks).
 
     Note that `alpha` is here defined differently than in [1], as `alpha` is  weighting between
@@ -36,12 +36,10 @@ class DeepHitSingle(models.pmf._PMFBase):
         with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
         https://arxiv.org/pdf/1910.06724.pdf
     """
-    def __init__(self, net, optimizer=None, device=None, duration_index=None, alpha=0.2, sigma=0.1):
-        loss = self.make_loss(alpha, sigma)
+    def __init__(self, net, optimizer=None, device=None, duration_index=None, alpha=0.2, sigma=0.1, loss=None):
+        if loss is None:
+            loss = models.loss.DeepHitSingleLoss(alpha, sigma)
         super().__init__(net, loss, optimizer, device, duration_index)
-
-    def make_loss(self, alpha, sigma):
-        return models.loss.DeepHitSingleLoss(alpha, sigma)
 
     def make_dataloader(self, data, batch_size, shuffle, num_workers=0):
         dataloader = super().make_dataloader(data, batch_size, shuffle, num_workers,
@@ -84,13 +82,11 @@ class DeepHit(tt.Model):
         with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
         https://arxiv.org/pdf/1910.06724.pdf
     """
-    def __init__(self, net, optimizer=None, device=None, alpha=0.2, sigma=0.1, duration_index=None):
+    def __init__(self, net, optimizer=None, device=None, alpha=0.2, sigma=0.1, duration_index=None, loss=None):
         self.duration_index = duration_index
-        loss = self.make_loss(alpha, sigma)
+        if loss is None:
+            loss = models.loss.DeepHitLoss(alpha, sigma)
         super().__init__(net, loss, optimizer, device)
-
-    def make_loss(self, alpha, sigma):
-        return models.loss.DeepHitLoss(alpha, sigma)
 
     @property
     def duration_index(self):
@@ -157,7 +153,7 @@ class DeepHit(tt.Model):
         """
         cif = self.predict_cif(input, batch_size, False, eval_, to_cpu, num_workers)
         surv = 1. - cif.sum(0)
-        return array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
     def predict_cif(self, input, batch_size=8224, numpy=None, eval_=True,
                      to_cpu=False, num_workers=0):
@@ -180,7 +176,7 @@ class DeepHit(tt.Model):
         """
         pmf = self.predict_pmf(input, batch_size, False, eval_, to_cpu, num_workers)
         cif = pmf.cumsum(1)
-        return array_or_tensor(cif, numpy, input)
+        return tt.utils.array_or_tensor(cif, numpy, input)
 
     def predict_pmf(self, input, batch_size=8224, numpy=None, eval_=True,
                      to_cpu=False, num_workers=0):
@@ -205,4 +201,4 @@ class DeepHit(tt.Model):
         preds = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
         pmf = pad_col(preds.view(preds.size(0), -1)).softmax(1)[:, :-1]
         pmf = pmf.view(preds.shape).transpose(0, 1).transpose(1, 2)
-        return array_or_tensor(pmf, numpy, input)
+        return tt.utils.array_or_tensor(pmf, numpy, input)

@@ -51,6 +51,8 @@ class _RRNLNPH(_SimDataset):
             event indicator {1: event, 0: censoring}.
         duration_true:
             the uncensored event times.
+        event_true:
+            if `duration_true` is an event.
         censoring_true:
             the censoring times.
 
@@ -68,7 +70,7 @@ class _RRNLNPH(_SimDataset):
         http://jmlr.org/papers/v20/18-424.html
     """
     name = 'rr_nl_nph'
-    _checksum = '68659bbb7d0320387fdc5584e647e288469eed86bfa75dac3369e36b237814ab'
+    _checksum = '4952a8712403f7222d1bec58e36cdbfcd46aa31ddf87c5fb2c455565fc3f7068'
 
     def _simulate_data(self):
         np.random.seed(1234)
@@ -79,11 +81,13 @@ class _RRNLNPH(_SimDataset):
 
 
 class _SAC3(_SimDataset):
-    """Dataset from simulation study in [paper link].
-    The dataset is created with `pycox.simulations.SimStudySACConstCensor` (see
-    `sac3._simulate_data`).
+    """Dataset from simulation study in "Continuous and Discrete-Time Survival Prediction
+    with Neural Networks" [1].
 
-    The full details are given in  Appendix A.1 in [paper link] for details.
+    The dataset is created with `pycox.simulations.SimStudySACConstCensor`
+    (see `sac3._simulate_data`).
+
+    The full details are given in  Appendix A.1 in [1].
 
     Variables:
         x0, ..., x44:
@@ -94,6 +98,8 @@ class _SAC3(_SimDataset):
             event indicator {1: event, 0: censoring}.
         duration_true:
             the uncensored event times (only censored at max-time 100.)
+        event_true:
+            if `duration_true` is an event.
         censoring_true:
             the censoring times.
 
@@ -104,13 +110,59 @@ class _SAC3(_SimDataset):
         >>> data = sim.simulate(n)
         >>> df = sim.dict2df(data, True, False)
 
+    References:
+    [1] Håvard Kvamme and Ørnulf Borgan. Continuous and Discrete-Time Survival Prediction
+        with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
+        https://arxiv.org/pdf/1910.06724.pdf
     """
     name = 'sac3'
-    _checksum = 'd5ec4153ba47e152383f3a1838cfaf2856ea2ad2dd198fe02c414c822524da20'
+    _checksum = '2941d46baf0fbae949933565dc88663adbf1d8f5a58f989baf915d6586641fea'
 
     def _simulate_data(self):
         np.random.seed(1234)
         sim = simulations.SimStudySACCensorConst()
         data = sim.simulate(100000)
         df = sim.dict2df(data, True, False)
+        df.to_feather(self.path)
+
+
+class _SACAdmin5(_SimDataset):
+    """Dataset from simulation study in [1].
+    The survival function is the same as in sac3, but the censoring is administrative 
+    and determined by five covariates.
+
+    Variables:
+        x0, ..., x22:
+            numerical covariates.
+        duration: (duration)
+            the right-censored event-times.
+        event: (event)
+            event indicator {1: event, 0: censoring}.
+        duration_true:
+            the uncensored event times (only censored at max-time 100.)
+        event_true:
+            if `duration_true` is an event or right-censored at time 100.
+        censoring_true:
+            the censoring times.
+
+    To generate more data:
+        >>> from pycox.simulations import SimStudySACAdmin
+        >>> n = 10000
+        >>> sim = SimStudySACAdmin()
+        >>> data = sim.simulate(n)
+        >>> df = sim.dict2df(data, True, True)
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
+    """
+    name = 'sac_admin5'
+    _checksum = '9882bc8651315bcd80cba20b5f11040d71e4a84865898d7c2ca7b82ccba56683'
+
+    def _simulate_data(self):
+        np.random.seed(1234)
+        sim = simulations.SimStudySACAdmin()
+        data = sim.simulate(50000)
+        df = sim.dict2df(data, True, True)
         df.to_feather(self.path)

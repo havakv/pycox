@@ -1,11 +1,12 @@
 import pandas as pd
+import torchtuples as tt
 from pycox import models
-from pycox.models.utils import array_or_tensor, pad_col
+from pycox.models.utils import pad_col
 from pycox.preprocessing import label_transforms
 from pycox.models.interpolation import InterpolatePMF
 
 
-class _PMFBase(models.base._SurvModelBase):
+class PMFBase(models.base.SurvBase):
     """Base class for PMF methods.
     """
     label_transform = label_transforms.LabTransDiscreteTime
@@ -33,31 +34,13 @@ class _PMFBase(models.base._SurvModelBase):
                      num_workers=0):
         pmf = self.predict_pmf(input, batch_size, False, eval_, to_cpu, num_workers)
         surv = 1 - pmf.cumsum(1)
-        return array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
     def predict_pmf(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False,
                     num_workers=0):
-        """Predict the probability mass function (PMF) for `input`.
-
-        Arguments:
-            input {tuple, np.ndarray, or torch.tensor} -- Input to net.
-        
-        Keyword Arguments:
-            batch_size {int} -- Batch size (default: {8224})
-            numpy {bool} -- 'False' gives tensor, 'True' gives numpy, and None give same as input
-                (default: {None})
-            eval_ {bool} -- If 'True', use 'eval' mode on net. (default: {True})
-            grads {bool} -- If gradients should be computed (default: {False})
-            to_cpu {bool} -- For larger data sets we need to move the results to cpu
-                (default: {False})
-            num_workers {int} -- Number of workers in created dataloader (default: {0})
-        
-        Returns:
-            [np.ndarray or tensor] -- Predictions
-        """
         preds = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
         pmf = pad_col(preds).softmax(1)[:, :-1]
-        return array_or_tensor(pmf, numpy, input)
+        return tt.utils.array_or_tensor(pmf, numpy, input)
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
         surv = self.predict_surv(input, batch_size, True, eval_, True, num_workers)
@@ -84,7 +67,7 @@ class _PMFBase(models.base._SurvModelBase):
         return InterpolatePMF(self, scheme, duration_index, sub)
 
 
-class PMF(_PMFBase):
+class PMF(PMFBase):
     """
     The PMF is a discrete-time survival model that parametrize the probability mass function (PMF)
     and optimizer the survival likelihood. It is the foundation of methods such as DeepHit and MTLR.
@@ -110,9 +93,8 @@ class PMF(_PMFBase):
         with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
         https://arxiv.org/pdf/1910.06724.pdf
     """
-    def __init__(self, net, optimizer=None, device=None, duration_index=None):
-        super().__init__(net, self.make_loss(), optimizer, device, duration_index)
-
-    def make_loss(self):
-        return models.loss.NLLPMFLoss()
+    def __init__(self, net, optimizer=None, device=None, duration_index=None, loss=None):
+        if loss is None:
+            loss = models.loss.NLLPMFLoss()
+        super().__init__(net, loss, optimizer, device, duration_index)
 

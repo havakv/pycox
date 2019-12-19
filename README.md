@@ -1,6 +1,6 @@
 
 <h1 align="center">
-    <font size="7">pycox</font>
+    <img src="https://github.com/havakv/pycox/blob/master/figures/logo.svg" alt="pycox" width="200">
 </h1>
 
 <p align="center">
@@ -9,6 +9,8 @@
 
 <p align="center">
      <a href="https://github.com/havakv/pycox/actions"><img alt="GitHub Actions status" src="https://github.com/havakv/pycox/workflows/Python%20package/badge.svg"></a>
+     <a href="https://pypi.org/project/pycox/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pycox.svg"></a>
+     <a href="https://pypi.org/project/pycox/"><img alt="Hei" src="https://img.shields.io/pypi/pyversions/pycox.svg"></a>
     <a href="https://github.com/havakv/pycox/blob/master/LICENSE" title="License"><img src="https://img.shields.io/badge/License-BSD%202--Clause-orange.svg"></a>
 </p>
 
@@ -28,7 +30,7 @@
 The package contains implementations of various [survival models](#methods), some useful [evaluation metrics](#evaluation-criteria), and a collection of [event-time datasets](#datasets).
 In addition, some useful preprocessing tools are available in the `pycox.preprocessing` module.
 
-## Get Started
+# Get Started
 
 To get started you first need to install [PyTorch](https://pytorch.org/get-started/locally/).
 You can then install **pycox** with 
@@ -36,17 +38,27 @@ You can then install **pycox** with
 pip install pycox
 ```
 
-We then recommend to start with [THIS INTRODUCTION NOTEBOOK](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
+We recommend to start with [01_introduction.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
 The notebook use the `LogisticHazard` method for illustration, but most of the principles generalize to the other methods.
 
-Alternatively, there are many examples listed in the [examples folder](https://nbviewer.jupyter.org/github/havakv/pycox/tree/master/examples).
+Alternatively, there are many examples listed in the [examples folder](https://nbviewer.jupyter.org/github/havakv/pycox/tree/master/examples), or you can follow the tutorial based on the `LogisticHazard`:
+
+- [01_introduction.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb): General usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.
+
+- [02_introduction.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/02_introduction.ipynb): Quantile based discretization scheme, nested tuples with `tt.tuplefy`, entity embedding of categorical variables, and cyclical learning rates.
+
+- [03_network_architectures.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/03_network_architectures.ipynb):
+  Extending the framework with custom networks and custom loss functions. The example combines an autoencoder with a survival network, and considers a loss that combines the autoencoder loss with the loss of the `LogisticHazard`.
+
+- [04_mnist_dataloaders_cnn.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/04_mnist_dataloaders_cnn.ipynb):
+  Using dataloaders and convolutional networks for the MNIST data set. We repeat the [simulations](https://peerj.com/articles/6257/#p-41) of [\[8\]](#references) where each digit defines the scale parameter of an exponential distribution.
 
 
-## Methods
+# Methods
 
 The following methods are available in the `pycox.methods` module.
 
-### Continuous-Time Models:
+## Continuous-Time Models:
 <table>
     <tr>
         <th>Method</th>
@@ -85,7 +97,7 @@ The following methods are available in the `pycox.methods` module.
     </tr>
 </table>
 
-### Discrete-Time Models:
+## Discrete-Time Models:
 <table>
     <tr>
         <th>Method</th>
@@ -127,9 +139,17 @@ The following methods are available in the `pycox.methods` module.
         <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/mtlr.ipynb">notebook</a>
         </td>
     </tr>
+    <tr>
+        <td>BCESurv</td>
+        <td>
+        A method representing a set of binary classifiers that remove individuals as they are censored <a href="#references">[15]</a>. The loss is the binary cross entropy of the survival estimates at a set of discrete times, with targets that are indicators of surviving each time.
+        </td>
+        <td>
+        </td>
+    </tr>
 </table>
 
-## Evaluation Criteria
+# Evaluation Criteria
 
 The following evaluation metrics are available with `pycox.evalutation.EvalSurv`.
 
@@ -147,13 +167,15 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
     <tr>
         <td>brier_score</td>
         <td>
-        The IPCW Brier score (inverse probability of censoring weighted Brier score) <a href="#references">[5]</a><a href="#references">[6]</a>.
+        The IPCW Brier score (inverse probability of censoring weighted Brier score) <a href="#references">[5]</a><a href="#references">[6]</a><a href="#references">[15]</a>.
+        See Section 3.1.2 of <a href="#references">[15]</a> for details.
         </td>
     </tr>
     <tr>
         <td>nbll</td>
         <td>
         The IPCW (negative) binomial log-likelihood <a href="#references">[5]</a><a href="#references">[1]</a>. I.e., this is minus the binomial log-likelihood and should not be confused with the negative binomial distribution.
+        The weighting is performed as in Section 3.1.2 of <a href="#references">[15]</a> for details.
         </td>
     </tr>
     <tr>
@@ -168,9 +190,24 @@ The following evaluation metrics are available with `pycox.evalutation.EvalSurv`
         The integrated IPCW (negative) binomial log-likelihood. Numerical integration of the `nbll` <a href="#references">[5]</a><a href="#references">[1]</a>.
         </td>
     </tr>
+    <tr>
+        <td>brier_score_admin integrated_brier_score_admin</td>
+        <td>
+        The administrative Brier score <a href="#references">[15]</a>. Works well for data with administrative censoring, meaning all censoring times are observed.
+        See this <a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/administrative_brier_score.ipynb">example notebook</a>.
+        </td>
+    </tr>
+    <tr>
+        <td>nbll_admin integrated_nbll_admin</td>
+        <td>
+        The administrative (negative) binomial log-likelihood <a href="#references">[15]</a>. Works well for data with administrative censoring, meaning all censoring times are observed.
+        See this <a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/administrative_brier_score.ipynb">example notebook</a>.
+        </td>
+        </td>
+    </tr>
 </table>
 
-## Datasets
+# Datasets
 
 A collection of datasets are available through the `pycox.datasets` module.
 For example, the following code will download the `metabric` dataset and load it in the form of a pandas dataframe
@@ -179,7 +216,7 @@ from pycox import datasets
 df = datasets.metabric.read_df()
 ```
 
-### Real Datasets:
+## Real Datasets:
 <table>
     <tr>
         <th>Dataset</th>
@@ -206,11 +243,24 @@ df = datasets.metabric.read_df()
         <td><a href="https://github.com/jaredleekatzman/DeepSurv/tree/master/experiments/data">source</a>
     </tr>
     <tr>
+        <td>kkbox</td>
+        <td>2,814,735</td>
+        <td>
+        A survival dataset created from the WSDM - KKBox's Churn Prediction Challenge 2017 with administrative censoring.
+        See <a href="#references">[1]</a> and <a href="#references">[15]</a> for details.
+        Compared to kkbox_v1, this data set has more covariates and censoring times.
+        Note: You need 
+        <a href="https://github.com/Kaggle/kaggle-api#api-credentials">Kaggle credentials</a> to access the dataset.
+        </td>
+        <td><a href="https://www.kaggle.com/c/kkbox-churn-prediction-challenge/data">source</a>
+    </tr>
+    <tr>
         <td>kkbox_v1</td>
         <td>2,646,746</td>
         <td>
         A survival dataset created from the WSDM - KKBox's Churn Prediction Challenge 2017. 
         See <a href="#references">[1]</a> for details.
+        This is not the preferred version of this data set. Use kkbox instead.
         Note: You need 
         <a href="https://github.com/Kaggle/kaggle-api#api-credentials">Kaggle credentials</a> to access the dataset.
         </td>
@@ -244,7 +294,7 @@ df = datasets.metabric.read_df()
     </tr>
 </table>
 
-### Simulated Datasets:
+## Simulated Datasets:
 
 <table>
     <tr>
@@ -272,22 +322,36 @@ df = datasets.metabric.read_df()
         </td>
         <td><a href="https://github.com/havakv/pycox/tree/master/pycox/simulations/discrete_logit_hazard.py">SimStudySACCensorConst</a>
     </tr>
+    <tr>
+        <td>sac_admin5</td>
+        <td>50,000</td>
+        <td>
+        Dataset from simulation study in <a href="#references">[15]</a>.
+        This is a discrete time dataset with 1000 possible event-times.
+        Very similar to `sac3`, but with fewer survival covariates and administrative censoring determined by 5 covariates.
+        </td>
+        <td><a href="https://github.com/havakv/pycox/tree/master/pycox/simulations/discrete_logit_hazard.py">SimStudySACAdmin</a>
+    </tr>
 </table>
 
 
-## Installation
+# Installation
 
 **Note:** *This package is still in its early stages of development, so please don't hesitate to report any problems you may experience.* 
 
 The package only works for python 3.6+.
 
 Before installing **pycox**, please install [PyTorch](https://pytorch.org/get-started/locally/) (version >= 1.1).
-You can then run the following command to install the package (consider adding `--force-reinstall`):
+You can then install the package with
+```sh
+pip install pycox
+```
+For the bleeding edge version, you can instead install directly from github (consider adding `--force-reinstall`):
 ```sh
 pip install git+git://github.com/havakv/pycox.git
 ```
 
-### Install from Source
+## Install from Source
 
 Installation from source depends on [PyTorch](https://pytorch.org/get-started/locally/), so make sure a it is installed.
 Next, clone and install with
@@ -297,7 +361,7 @@ cd pycox
 pip install .
 ```
 
-## References
+# References
 
   \[1\] Håvard Kvamme, Ørnulf Borgan, and Ida Scheel. Time-to-event prediction with neural networks and Cox regression. *Journal of Machine Learning Research*, 20(129):1–30, 2019. \[[paper](http://jmlr.org/papers/v20/18-424.html)\]
 
@@ -334,3 +398,6 @@ pip install .
 
 \[14\] Marco Fornili, Federico Ambrogi, Patrizia Boracchi, and Elia Biganzoli. Piecewise exponential artificial neural networks (PEANN) for modeling hazard function with right censored data. *Computational Intelligence Methods for Bioinformatics and Biostatistics*, pages 125–136, 2014.
 \[[paper](https://link.springer.com/chapter/10.1007%2F978-3-319-09042-9_9)\]
+
+\[15\] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems and Solutions. *arXiv preprint arXiv:1912.08581*, 2019.
+\[[paper](https://arxiv.org/pdf/1912.08581.pdf)\]

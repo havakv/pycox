@@ -6,11 +6,10 @@ from pycox import models
 class _CoxCCBase(models.cox._CoxBase):
     make_dataset = NotImplementedError
 
-    def __init__(self, net, optimizer=None, device=None, shrink=0.):
-        super().__init__(net, self.make_loss(shrink), optimizer, device)
-
-    def make_loss(self, shrink):
-        return models.loss.CoxCCLoss(shrink)
+    def __init__(self, net, optimizer=None, device=None, shrink=0., loss=None):
+        if loss is None:
+            loss = models.loss.CoxCCLoss(shrink)
+        super().__init__(net, loss, optimizer, device)
 
     def fit(self, input, target, batch_size=256, epochs=1, callbacks=None, verbose=True,
             num_workers=0, shuffle=True, metrics=None, val_data=None, val_batch_size=8224,
@@ -42,10 +41,9 @@ class _CoxCCBase(models.cox._CoxBase):
                            num_workers, shuffle, metrics, val_data, val_batch_size,
                            n_control=n_control, **kwargs)
 
-    def compute_metrics(self, input, target, metrics):
+    def compute_metrics(self, input, metrics):
         if (self.loss is None) and (self.loss in metrics.values()):
             raise RuntimeError(f"Need to specify a loss (self.loss). It's currently None")
-        assert target is None, 'Need target to be none, input=(case, control)'
         input = self._to_device(input)
         batch_size = input.lens().flatten().get_if_all_equal()
         if batch_size is None:
@@ -96,7 +94,7 @@ class _CoxCCBase(models.cox._CoxBase):
         input, target = self._sorted_input_target(*data)
         durations, events = target
         dataset = self.make_dataset(input, durations, events, n_control)
-        dataloader = tt.data.DataLoaderSlice(dataset, batch_size=batch_size,
+        dataloader = tt.data.DataLoaderBatch(dataset, batch_size=batch_size,
                                              shuffle=shuffle, num_workers=num_workers)
         return dataloader
 

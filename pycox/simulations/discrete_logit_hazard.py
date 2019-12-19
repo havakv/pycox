@@ -199,6 +199,30 @@ class SimUniform(SimBase):
     def covs2weights(self, covs):
         return covs
 
+class SimUniformAdmin(SimBase):
+    """Draw event times uniformly in `self.times`.
+    The event times are determined by the weights, making this administrative.
+    """
+    num_weights = 1
+    def __init__(self, covs_per_weight=5, s_end=0.2, seed=None, betas=None):
+        self.s_end = s_end
+        super().__init__(covs_per_weight, betas)
+
+    def logit_haz(self, times, w):
+        """w is Unif[-1, 1]"""
+        assert (self.num_weights == 1) and (w.shape[1] == 1), "We don't allow more than 1 weight here"
+        m = len(times)
+        idx = w.flatten()
+        idx = (idx + 1) / 2 / (1 - self.s_end) * (m+1)
+        idx = np.floor(idx).clip(0, m)
+        idx = idx.astype('int')
+        lh = np.zeros((len(idx), m+1))
+        lh[np.arange(len(idx)), idx] = 1
+        lh = lh.cumsum(1)
+        lh[lh == 0] = -np.inf
+        lh[lh == 1] = np.inf
+        return lh[:, :m]
+
 
 class _SimCombine(SimBase):
     sims = NotImplemented
@@ -256,6 +280,52 @@ class SimConstAcc(_SimCombine):
         self.sims = [self.sim_const, self.sim_acc]
 
 
+class SimThresholdWrap:
+    """Wraps a sim object and performs censoring when the survival function drops
+    below the threshold.
+    """
+    def __init__(self, sim, threshold):
+        self.sim = sim
+        assert (threshold > 0) and (threshold < 1)
+        self.threshold = threshold
+        self.times = self.sim.times
+
+    def simulate(self, n, surv_df=False):
+        res = self.sim.simulate(n, surv_df=True)
+        res = self.threshold_res(res, surv_df)
+        return res
+
+    def threshold_res(self, res, surv_df=False):
+        res = res.copy()
+        surv = res['surv_df']
+        idx = np.argmax((surv < self.threshold).values, axis=0) - 1
+        durations = surv.index.values[idx]
+        events = np.ones_like(durations)
+        events[idx == 0] = 0
+        durations[idx == 0] = self.sim.times.max()
+        res['durations'] = durations
+        res['events'] = events
+        if surv_df:
+            res['surv_df'] = self._get_surv(surv)
+        return res
+
+    def _get_surv(self, sub_surv):
+        return (sub_surv >= self.threshold).astype(sub_surv.values.dtype)
+
+    def logit_haz(self, times, *weights):
+        logit_haz = self.sim.logit_haz(times, *weights)
+        sub_surv = self.sim.surv_df(logit_haz)
+        surv = self._get_surv(sub_surv)
+        surv[surv == 1] = -np.inf
+        surv[surv == 0] = np.inf
+        return surv.values[1:, :].transpose()
+
+    def simulate_from_weights(self, weights, surv_df=False):
+        res = self.sim.simulate_from_weights(weights, True)
+        res = self.threshold_res(res, surv_df)
+        return res
+
+
 class _SimStudyBase:
     sim_surv = NotImplemented
     sim_censor = NotImplemented
@@ -303,6 +373,55 @@ class SimStudyIndepSurvAndCens(_SimStudyBase):
         self.sim_censor = sim_censor
 
 
+class SimStudySingleSurv(SimStudyIndepSurvAndCens):
+    """All individuals have identical survival function, but can have individual censoring
+    distributions.
+
+    Use `sim_surv` to draw a survival function (`self.sim0`) and then use that for all individuals.
+
+    Example:
+    sim_surv = SimConstHaz(1)
+    sim_censor SimUniformAdmin(1, 0.2)
+    sim = SimStudySingleSurv(sim_surv, sim_censor, sim0=sim_surv.simulate(1))
+    """
+    def __init__(self, sim_surv, sim_censor, sim0=None):
+        if sim0 is None:
+            sim0 = sim_surv.simulate(1)
+        self.sim0 = sim0
+        super().__init__(sim_surv, sim_censor)
+
+    def simulate(self, n, surv_df=False, censor_df=False, binary_surv=False):
+        if binary_surv:
+            if not (surv_df and censor_df):
+                raise ValueError("To produce binary_surv, you need to also set surv_df and censor_df to True")
+        surv = self.sim0
+        weights = [surv['weights'][0].repeat(n, 0)]
+        surv = self.sim_surv.simulate_from_weights(weights, surv_df)
+        censor = self.sim_censor.simulate(n, censor_df)
+        res = self._combine_surv_and_censor(surv, censor)
+        if binary_surv:
+            res['binary_surv_df'] = self.binary_surv(res)
+        return res
+
+    @staticmethod
+    def dict2df(data, add_true=True, add_censor_covs=True):
+        """Make a pd.DataFrame from the dict obtained when simulating.
+
+        Arguments:
+            data {dict} -- Dict from simulation.
+
+        Keyword Arguments:
+            add_true {bool} -- If we should include the true duration and censoring times
+                (default: {True})
+            add_censor_covs {bool} -- If we should include the censor covariates as covariates.
+                (default: {True})
+
+        Returns:
+            pd.DataFrame -- A DataFrame
+        """
+        return base.dict2df(data, add_true, add_censor_covs)
+
+
 class SimStudySACCensorConst(_SimStudyBase):
     """Simulation study from [1].
     It combines three sources to the logit-hazard: A sin function, an increasing function
@@ -326,6 +445,71 @@ class SimStudySACCensorConst(_SimStudyBase):
     def __init__(self, covs_per_weight=5, alpha_range=5., sin_pref=0.6):
         self.sim_surv = SimSinAccConst(covs_per_weight, alpha_range, sin_pref)
         self.sim_censor = SimConstHazIndependentOfWeights()
+
+
+class SimStudySACAdmin(_SimStudyBase):
+    """Simulation studies from [1].
+    It combines three sources to the logit-hazard: a sin function, an increasing function
+    and a constant function.
+    The administrative censoring times are defined by thresholding the survival curves of
+    either `SimConstHaz(5)` (a simple function with constant covariate censoring) or
+    `SimSinAccConst(2)` (a more complicated function).
+
+    Keyword Arguments:
+        simple_censor {bool} -- If we should use the simple censoring distribution based on
+            `SimConstHaz(5)` (True) or the more complicated `SimSinAccConst(2)` (False).
+            (default: {True})
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
+    """
+    def __init__(self, simple_censor: bool = True) -> None:
+        self.sim_surv = SimSinAccConst(2)
+        if simple_censor is True:
+            sim_censor = SimConstHaz(5)
+        else:
+            sim_censor = SimSinAccConst(2)
+        self.sim_censor = SimThresholdWrap(sim_censor, 0.2)
+
+    @staticmethod
+    def dict2df(data, add_true=True, add_censor_covs=True):
+        """Make a pd.DataFrame from the dict obtained when simulating.
+
+        Arguments:
+            data {dict} -- Dict from simulation.
+
+        Keyword Arguments:
+            add_true {bool} -- If we should include the true duration and censoring times
+                (default: {True})
+            add_censor_covs {bool} -- If we should include the censor covariates as covariates.
+                (default: {True})
+
+        Returns:
+            pd.DataFrame -- A DataFrame
+        """
+        return base.dict2df(data, add_true, add_censor_covs)
+
+
+class SimStudySingleSurvUniformAdmin(SimStudySingleSurv):
+    """Simulation study from [1], where all individuals have the same survival function,
+    but administrative censoring times draw uniformly over the time interval.
+
+    Keyword Arguments:
+        simple_censor {bool} -- If we should use the simple censoring distribution based on
+            `SimConstHaz(5)` (True) or the more complicated `SimSinAccConst(2)` (False).
+            (default: {True})
+
+    References:
+        [1] Håvard Kvamme and Ørnulf Borgan. The Brier Score under Administrative Censoring: Problems
+            and Solutions. arXiv preprint arXiv:1912.08581, 2019.
+            https://arxiv.org/pdf/1912.08581.pdf
+    """
+    def __init__(self):
+        sim_surv = SimConstHaz(1)
+        sim_censor = SimUniformAdmin(1, 0.2)
+        super().__init__(sim_surv, sim_censor)
 
 
 def sigmoid(x):

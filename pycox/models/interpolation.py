@@ -1,5 +1,6 @@
 import pandas as pd
 import torch
+import torchtuples as tt
 from pycox.models import utils
 
 
@@ -92,7 +93,7 @@ class InterpolateDiscrete:
         surv = torch.zeros(n, int((m-1)*self.sub + 1))
         surv[:, :-1] = diff * rho + s_prev
         surv[:, -1] = s[:, -1]
-        return utils.array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, to_cpu=False, num_workers=0):
         """Predict the survival function for `input` and return as a pandas DataFrame.
@@ -125,12 +126,12 @@ class InterpolatePMF(InterpolateDiscrete):
         pmf_cdi = pmf[:, 1:].contiguous().view(-1, 1).repeat(1, self.sub).div(self.sub).view(n, -1)
         pmf_cdi = utils.pad_col(pmf_cdi, where='start')
         pmf_cdi[:, 0] = pmf[:, 0]
-        return utils.array_or_tensor(pmf_cdi, numpy, input)
+        return tt.utils.array_or_tensor(pmf_cdi, numpy, input)
 
     def _surv_const_pdf(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         pmf = self.predict_pmf(input, batch_size, False, eval_, to_cpu, num_workers)
         surv = 1 - pmf.cumsum(1)
-        return utils.array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
 
 class InterpolateLogisticHazard(InterpolateDiscrete):
@@ -169,10 +170,10 @@ class InterpolateLogisticHazard(InterpolateDiscrete):
         haz = haz.view(-1, 1).repeat(1, self.sub).view(n, -1).div(self.sub)
         haz = utils.pad_col(haz, where='start')
         haz[:, 0] = haz_orig[:, 0]
-        return utils.array_or_tensor(haz, numpy, input)
+        return tt.utils.array_or_tensor(haz, numpy, input)
 
     def _surv_const_haz(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         haz = self._hazard_const_haz(input, batch_size, False, eval_, to_cpu, num_workers)
         surv_0 = 1 - haz[:, :1]
         surv = utils.pad_col(haz[:, 1:], where='start').cumsum(1).mul(-1).exp().mul(surv_0)
-        return utils.array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)

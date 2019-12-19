@@ -4,10 +4,10 @@ import torch
 import torch.nn.functional as F
 import torchtuples as tt
 from pycox import models
-from pycox.models.utils import array_or_tensor, pad_col, make_subgrid
+from pycox.models.utils import pad_col, make_subgrid
 from pycox.preprocessing import label_transforms
 
-class PCHazard(models.base._SurvModelBase):
+class PCHazard(models.base.SurvBase):
     """The PC-Hazard (piecewise constant hazard) method from [1].
     The Piecewise Constant Hazard (PC-Hazard) model from [1] which assumes that the continuous-time
     hazard function is constant in a set of predefined intervals. It is similar to the Piecewise
@@ -27,15 +27,14 @@ class PCHazard(models.base._SurvModelBase):
     """
     label_transform = label_transforms.LabTransPCHazard
 
-    def __init__(self, net, optimizer=None, device=None, duration_index=None, sub=1):
+    def __init__(self, net, optimizer=None, device=None, duration_index=None, sub=1, loss=None):
         self.duration_index = duration_index
         self.sub = sub
-        super().__init__(net, self.make_loss(), optimizer, device)
+        if loss is None:
+            loss = models.loss.NLLPCHazardLoss()
+        super().__init__(net, loss, optimizer, device)
         if self.duration_index is not None:
             self._check_out_features()
-
-    def make_loss(self):
-        return models.loss.NLLPCHazardLoss()
 
     @property
     def sub(self):
@@ -50,7 +49,7 @@ class PCHazard(models.base._SurvModelBase):
     def predict_surv(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         hazard = self.predict_hazard(input, batch_size, False, eval_, to_cpu, num_workers)
         surv = hazard.cumsum(1).mul(-1).exp()
-        return array_or_tensor(surv, numpy, input)
+        return tt.utils.array_or_tensor(surv, numpy, input)
 
     def predict_hazard(self, input, batch_size=8224, numpy=None, eval_=True, to_cpu=False, num_workers=0):
         """Predict the hazard function for `input`.
@@ -74,7 +73,7 @@ class PCHazard(models.base._SurvModelBase):
         n = preds.shape[0]
         hazard = F.softplus(preds).view(-1, 1).repeat(1, self.sub).view(n, -1).div(self.sub)
         hazard = pad_col(hazard, where='start')
-        return array_or_tensor(hazard, numpy, input)
+        return tt.utils.array_or_tensor(hazard, numpy, input)
 
     def predict_surv_df(self, input, batch_size=8224, eval_=True, num_workers=0):
         self._check_out_features()

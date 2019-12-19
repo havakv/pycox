@@ -24,6 +24,7 @@ def dict2df(data, add_true=True, add_censor_covs=False):
                   event=data['events'].astype('float32')))
     if add_true:
         df = df.assign(duration_true=data['durations_true'].astype('float32'),
+                       event_true=data['events_true'].astype('float32'),
                        censoring_true=data['censor_durations'].astype('float32'))
     return df
 

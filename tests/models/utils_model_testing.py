@@ -22,7 +22,7 @@ def fit_model(data, model):
     model.fit(*data, epochs=1, verbose=False, val_data=data)
     return model
 
-def assert_survs(input, model):
+def assert_survs(input, model, with_dl=True):
     preds = model.predict_surv(input)
     assert type(preds) is type(input)
     assert preds.shape[0] == input.shape[0]
@@ -36,3 +36,8 @@ def assert_survs(input, model):
     np_preds = model.predict_surv(np_input)
     torch_preds = model.predict_surv(torch_input)
     assert (np_preds == torch_preds.numpy()).all()
+    if with_dl:
+        dl_input = tt.tuplefy(input).make_dataloader(512, False)
+        dl_preds = model.predict_surv(dl_input)
+        assert type(np_preds) is type(dl_preds), f"got {type(np_preds)}, and, {type(dl_preds)}"
+        assert (np_preds == dl_preds).all()
