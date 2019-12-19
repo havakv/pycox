@@ -144,7 +144,7 @@ The following methods are available in the `pycox.methods` module.
         <td>
         A method representing a set of binary classifiers that remove individuals as they are censored <a href="#references">[15]</a>. The loss is the binary cross entropy of the survival estimates at a set of discrete times, with targets that are indicators of surviving each time.
         </td>
-        <td>
+        <td><a href="https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/administrative_brier_score.ipynb">bs_example</a>
         </td>
     </tr>
 </table>
