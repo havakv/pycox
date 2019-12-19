@@ -26,7 +26,6 @@ def test_brier_score_no_censor():
     bs = admin.brier_score(time_grid, durations, durations_c, events, surv_05, index_surv)
     assert np.isnan(bs).all()
 
-
 def test_brier_score_censor():
     n = 4
     durations = np.ones(n) * 50
@@ -41,7 +40,6 @@ def test_brier_score_censor():
     time_grid = np.array([5., 25., 40., 60., 100.])
     bs = admin.brier_score(time_grid, durations, durations_c, events, surv, index_surv)
     assert (bs == np.array([0.25, 0.25, 0., 1., 1.])).all()
-
 
 def test_brier_score_evalsurv():
     n = 4
@@ -59,3 +57,27 @@ def test_brier_score_evalsurv():
     ev = EvalSurv(surv, durations, events, censor_durations=durations_c)
     bs = ev.brier_score_admin(time_grid)
     assert (bs.values == np.array([0.25, 0.25, 0., 1., 1.])).all()
+
+
+def test_binoial_log_likelihood_no_censor():
+    n = 4
+    durations = np.ones(n) * 50
+    durations_c = np.ones_like(durations) * 100
+    events = durations <= durations_c
+    m = 5
+    index_surv = np.array([0, 25., 50., 75., 100.])
+
+    surv_ones = np.ones((m, n))
+    time_grid = np.array([5., 40., 60., 100.])
+    bll = admin.binomial_log_likelihood(time_grid, durations, durations_c, events, surv_ones, index_surv)
+    eps = 1e-7
+    assert abs(bll - np.log([1-eps, 1-eps, eps, eps])).max() < 1e-7
+    surv_zeros = surv_ones * 0
+    bll = admin.binomial_log_likelihood(time_grid, durations, durations_c, events, surv_zeros, index_surv)
+    assert abs(bll - np.log([eps, eps, 1-eps, 1-eps])).max() < 1e-7
+    surv_05 = surv_ones * 0.5
+    bll = admin.binomial_log_likelihood(time_grid, durations, durations_c, events, surv_05, index_surv)
+    assert abs(bll - np.log([0.5, 0.5, 1-0.5, 1-0.5])).max() < 1e-7
+    time_grid = np.array([110.])
+    bll = admin.binomial_log_likelihood(time_grid, durations, durations_c, events, surv_05, index_surv)
+    assert np.isnan(bll).all()
