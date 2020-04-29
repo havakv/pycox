@@ -5,7 +5,7 @@ from pycox.utils import idx_at_times
 
 
 def administrative_scores(func):
-    if type(func) is not numba.targets.registry.CPUDispatcher:
+    if not func.__class__.__module__.startswith('numba'):
         raise ValueError("Need to provide numba compiled function")
     def metric(time_grid, durations, durations_c, events, surv, index_surv, reduce=True, steps_surv='post'):
         if not hasattr(time_grid, '__iter__'):

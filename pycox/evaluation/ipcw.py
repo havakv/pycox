@@ -32,8 +32,8 @@ def _inv_cens_scores(func, time_grid, durations, events, surv, censor_surv, idx_
                                idx_ts_censor_i, idx_tt_censor, scores_i, weights_i, n_indiv, max_weight)
 
 def _inverse_censoring_weighted_metric(func):
-    if type(func) is not numba.targets.registry.CPUDispatcher:
-        raise ValueError("Need to provide nuba combiled function")
+    if not func.__class__.__module__.startswith('numba'):
+        raise ValueError("Need to provide numba compiled function")
     def metric(time_grid, durations, events, surv, censor_surv, index_surv, index_censor, max_weight=np.inf,
                reduce=True, steps_surv='post', steps_censor='post'):
         if not hasattr(time_grid, '__iter__'):
