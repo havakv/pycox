@@ -35,7 +35,7 @@ def assert_survs(input, model, with_dl=True):
     torch_input = tt.tuplefy(input).to_tensor()[0]
     np_preds = model.predict_surv(np_input)
     torch_preds = model.predict_surv(torch_input)
-    assert (np_preds == torch_preds.numpy()).all()
+    assert (np_preds == torch_preds.cpu().numpy()).all()
     if with_dl:
         dl_input = tt.tuplefy(input).make_dataloader(512, False)
         dl_preds = model.predict_surv(dl_input)
