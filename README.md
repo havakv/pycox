@@ -216,6 +216,8 @@ from pycox import datasets
 df = datasets.metabric.read_df()
 ```
 
+The `datasets` module will store datasets under the installation directory by default. You can specify a different directory by setting the `PYCOX_DATA_DIR` environment variable.
+
 ## Real Datasets:
 <table>
     <tr>

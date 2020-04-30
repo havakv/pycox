@@ -1,10 +1,15 @@
 from pathlib import Path
 import pandas as pd
 import pycox
+import os
 
-_PATH_ROOT = Path(pycox.__file__).parent
+_DATA_OVERRIDE = os.environ.get('PYCOX_DATA_DIR', None)
+if _DATA_OVERRIDE:
+    _PATH_ROOT = Path(_DATA_OVERRIDE)
+else:
+    _PATH_ROOT = Path(pycox.__file__).parent
 _PATH_DATA = _PATH_ROOT / 'datasets' / 'data'
-_PATH_DATA.mkdir(exist_ok=True)
+_PATH_DATA.mkdir(parents=True, exist_ok=True)
 
 class _DatasetLoader:
     """Abstract class for loading data sets.
