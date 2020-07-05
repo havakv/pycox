@@ -1,3 +1,4 @@
+import warnings
 import pandas as pd
 import numpy as np
 import numba
@@ -52,6 +53,9 @@ def kaplan_meier(durations, events, start_duration=0):
     """
     n = len(durations)
     assert n == len(events)
+    if start_duration > durations.min():
+        warnings.warn(f"start_duration {start_duration} is larger than minimum duration {durations.min()}. "
+            "If intentional, consider changing start_duration when calling kaplan_meier.")
     order = np.argsort(durations)
     durations = durations[order]
     events = events[order]
@@ -72,7 +76,7 @@ def kaplan_meier(durations, events, start_duration=0):
         surv[i:] = 0.
     else:
         surv = np.exp(np.log(1 - di / ni).cumsum())
-    if start_duration != surv_idx.min():
+    if start_duration < surv_idx.min():
         tmp = np.ones(len(surv)+ 1, dtype=surv.dtype)
         tmp[1:] = surv
         surv = tmp
