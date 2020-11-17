@@ -5,9 +5,10 @@ import pandas as pd
 import torch
 import torchtuples as tt
 from pycox import models
-from pycox.models import discrete_time
+from pycox.models.loss import NLLLogistiHazardLoss
+from pycox.models.discrete_time import output2hazard, output2surv
 from pycox.models.interpolation import InterpolateLogisticHazard
-from pycox.preprocessing import label_transforms
+from pycox.preprocessing.label_transforms import LabTransDiscreteTime
 from torch import Tensor
 
 
@@ -47,7 +48,7 @@ class LogisticHazard(models.base.SurvBase):
         https://peerj.com/articles/6257/
     """
 
-    label_transform = label_transforms.LabTransDiscreteTime
+    label_transform = LabTransDiscreteTime
 
     def __init__(
         self,
@@ -59,7 +60,7 @@ class LogisticHazard(models.base.SurvBase):
     ) -> None:
         self.duration_index = duration_index
         if loss is None:
-            loss = models.loss.NLLLogistiHazardLoss()
+            loss = NLLLogistiHazardLoss()
         super().__init__(net, loss, optimizer, device)
 
     @property
@@ -99,7 +100,7 @@ class LogisticHazard(models.base.SurvBase):
         epsilon: float = 1e-7,
     ) -> Union[Tensor, np.ndarray]:
         output = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
-        surv = discrete_time.output2surv(output, epsilon)
+        surv = output2surv(output, epsilon)
         return tt.utils.array_or_tensor(surv, numpy, input)
 
     def predict_hazard(
@@ -112,7 +113,7 @@ class LogisticHazard(models.base.SurvBase):
         num_workers: int = 0,
     ) -> Union[Tensor, np.ndarray]:
         output = self.predict(input, batch_size, False, eval_, False, to_cpu, num_workers)
-        hazard = discrete_time.output2hazard(output)
+        hazard = output2hazard(output)
         return tt.utils.array_or_tensor(hazard, numpy, input)
 
     def interpolate(self, sub=10, scheme="const_pdf", duration_index=None):
