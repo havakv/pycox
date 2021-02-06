@@ -183,12 +183,10 @@ def compute_cumulative_baseline_hazards(
     return baseline_hazards.cumsum(0), unique_durations
 
 
-def output2cumulative_hazards(
-    output: Tensor, cumulative_baseline_hazards: Tensor
-) -> Tuple[Tensor, Tensor]:
+def output2cumulative_hazards(output: Tensor, cumulative_baseline_hazards: Tensor) -> Tensor:
     return output.exp().reshape(-1, 1).mm(cumulative_baseline_hazards.reshape(1, -1))
 
 
-def output2surv(output: Tensor, cumulative_baseline_hazards: Tensor) -> Tuple[Tensor, Tensor]:
+def output2surv(output: Tensor, cumulative_baseline_hazards: Tensor) -> Tensor:
     cumulative_hazards = output2cumulative_hazards(output, cumulative_baseline_hazards)
     return torch.exp(-cumulative_hazards)
