@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from pycox.datasets import metabric
 from pycox.evaluation import EvalSurv
-from pycox.models import cox
+from pycox.models import coxph
 
 # For preprocessing
 from sklearn.preprocessing import StandardScaler
@@ -73,39 +73,16 @@ def get_target(df : pd.DataFrame) -> np.ndarray:
 
 	return duration, event
 
-def compute_baseline_hazards(input,target):
-	if (input is None) and (target is None):
-		raise ValueError("Need to give a 'input' and 'target' to this function.")
-	input, target
-
-	print(target.size())
-	durations, events = target
-	df = pd.DataFrame({duration_col: durations, event_col: events}) 
-
-	if sample is not None:
-		if sample >= 1:
-			df = df.sample(n=sample)
-		else:
-			df = df.sample(frac=sample)
-
-	input = tt.tuplefy(input).to_numpy().iloc[df.index.values]
-	base_haz = self._compute_baseline_hazards(input, df, max_duration, batch_size,
-											  eval_=eval_, num_workers=num_workers)
-	if set_hazards:
-		self.compute_baseline_cumulative_hazards(set_hazards=True, baseline_hazards_=base_haz)
-	return base_haz
-
 def main() -> None:
 	# Get the metabrick dataset split in a train and test set
-	np.random.seed(1234)
-	torch.manual_seed(123)
+	#np.random.seed(1234)
+	#torch.manual_seed(123)
 	df_train, df_val, df_test = get_metabrick_train_val_test()
 
 	# Preprocess features
 	x_train, x_val, x_test = preprocess_features(df_train, df_val, df_test)
-
 	y_train = torch.from_numpy(np.concatenate(get_target(df_train), axis=1))
-
+	y_test = torch.from_numpy(np.concatenate(get_target(df_test), axis=1))
 
 	y_val = torch.from_numpy(np.array(get_target(df_val)))
 	
@@ -137,7 +114,7 @@ def main() -> None:
 
 	# Set optimizer and loss function (optimization criterion)
 	optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
-	loss_func = cox.CoxPHLoss()
+	loss_func = coxph.CoxPHLoss()
 	for epoch in range(epochs):
 		running_loss = 0.0
 		for i, data in enumerate(train_dataloader):
@@ -152,16 +129,40 @@ def main() -> None:
 
 	# Predict survival for the test set
 	# Set net in evaluation mode and turn off gradients
+
+
 	net.eval()
 	with torch.set_grad_enabled(False):
 		output = net(x_test)
 		#Network trains but can't seem to calculate baseline hazards etc
-		surv = compute_baseline_hazards(input=x_train, target=np.concatenate(get_target(df_train))
-	surv_df = pd.DataFrame(surv.numpy().transpose(), labtrans.cuts)
+		#print(output[1],y_test[1])
+		print(y_test.size())
+		
 
-	# Pring the test set concordance index
-	ev = EvalSurv(surv_df, df_test.duration.values, df_test.event.values)
+		#baseline_haz = coxph.compute_baseline_hazards(output=output, durations=y_test[:,0], events=y_test[:,1])
+		#baseline_haz = torch.from_numpy(np.asarray(baseline_haz))
+		# print(baseline_haz.size())
+		# print(durations.size())
+		#print(np.asarray(baseline_haz))
+
+		#Cumulative Hazards Calculation
+
+		cum_haz = coxph.compute_cumulative_baseline_hazards(output, durations=y_test[:,0], events=y_test[:,1])
+		#print(cum_haz[0])
+	
+	surv = coxph.output2surv(output, cum_haz[0])
+	# The dataframe needs to be transposed to format: {rows}: duration, {cols}: each individual
+	
+	surv_df = pd.DataFrame(surv.transpose(1,0).numpy())
+	
+	print(surv_df)
+	
+	# # Pring the test set concordance index
+	ev = EvalSurv(surv_df, df_test.duration.values, df_test.event.values, censor_surv='km')
+	time_grid = np.linspace(df_test.duration.values.min(), df_test.duration.values.max(), 100)
+
 	print(f"Concordance: {ev.concordance_td()}")
+	print(f"Brier Score: {ev.integrated_brier_score(time_grid)}")
 
 
 if __name__ == "__main__":
