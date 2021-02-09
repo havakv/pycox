@@ -90,12 +90,6 @@ def main() -> None:
 	durations_test, events_test = get_target(df_test)
 	val = x_val, y_val
 
-	# num_durations = 10
-	# labtrans = logistic_hazard.LabTransDiscreteTime(num_durations)
-	# y_train = labtrans.fit_transform(df_train.duration.values, df_train.event.values)
-	# y_train_duration = torch.from_numpy(y_train[0])
-	# y_train_event = torch.from_numpy(y_train[1])
-
 	# Make an MLP nerual network
 	in_features = x_train.shape[1]
 	out_features = 1
@@ -134,30 +128,15 @@ def main() -> None:
 	net.eval()
 	with torch.set_grad_enabled(False):
 		output = net(x_test)
-		#Network trains but can't seem to calculate baseline hazards etc
-		#print(output[1],y_test[1])
-		print(y_test.size())
-		
-
-		#baseline_haz = coxph.compute_baseline_hazards(output=output, durations=y_test[:,0], events=y_test[:,1])
-		#baseline_haz = torch.from_numpy(np.asarray(baseline_haz))
-		# print(baseline_haz.size())
-		# print(durations.size())
-		#print(np.asarray(baseline_haz))
-
 		#Cumulative Hazards Calculation
-
 		cum_haz = coxph.compute_cumulative_baseline_hazards(output, durations=y_test[:,0], events=y_test[:,1])
-		#print(cum_haz[0])
 	
 	surv = coxph.output2surv(output, cum_haz[0])
 	# The dataframe needs to be transposed to format: {rows}: duration, {cols}: each individual
-	
 	surv_df = pd.DataFrame(surv.transpose(1,0).numpy())
-	
 	print(surv_df)
 	
-	# # Pring the test set concordance index
+	# print the test set concordance index
 	ev = EvalSurv(surv_df, df_test.duration.values, df_test.event.values, censor_surv='km')
 	time_grid = np.linspace(df_test.duration.values.min(), df_test.duration.values.max(), 100)
 

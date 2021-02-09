@@ -212,6 +212,7 @@ def main():
 
 	# Predict survival on testing dataset
 	output = model(dat.x_test)
+	print(dat.y_test[:,0].size())
 	cum_haz = coxph.compute_cumulative_baseline_hazards(output, durations=dat.y_test[:,0], events=dat.y_test[:,1])
 	surv = coxph.output2surv(output, cum_haz[0])
 
@@ -220,6 +221,9 @@ def main():
 	print(surv_df)
 	
 	# Calculate the test set concordance index
+	print(dat.df_test.event.values.shape)
+	print(type(dat.df_test.event.to_numpy()[0]))
+
 	ev = EvalSurv(surv_df, dat.df_test.duration.values, dat.df_test.event.values, censor_surv='km')
 	time_grid = np.linspace(dat.df_test.duration.values.min(), dat.df_test.duration.values.max(), 100)
 
