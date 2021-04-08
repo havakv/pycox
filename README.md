@@ -25,7 +25,7 @@
 </p>
 
 
-**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org), built on the [torchtuples](https://github.com/havakv/torchtuples) package for training PyTorch models.
+**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org), built on the [torchtuples](https://github.com/havakv/torchtuples) package for training PyTorch models. An R version of this package is available at [survivalmodels](https://github.com/RaphaelS1/survivalmodels).
 
 The package contains implementations of various [survival models](#methods), some useful [evaluation metrics](#evaluation-criteria), and a collection of [event-time datasets](#datasets).
 In addition, some useful preprocessing tools are available in the `pycox.preprocessing` module.
