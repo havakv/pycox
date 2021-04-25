@@ -2,12 +2,12 @@ import pandas as pd
 from pycox.datasets._dataset_loader import _DatasetLoader
 
 def download_from_rdatasets(package, name):
-    datasets = (pd.read_csv("http://vincentarelbundock.github.com/Rdatasets/datasets.csv")
+    datasets = (pd.read_csv("https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/master/datasets.csv")
                 .loc[lambda x: x['Package'] == package].set_index('Item'))
     if not name in datasets.index:
         raise ValueError(f"Dataset {name} not found.")
     info = datasets.loc[name]
-    url = info.CSV 
+    url = info.CSV
     return pd.read_csv(url), info
 
 
@@ -55,7 +55,7 @@ class _Flchain(_DatasetRdatasetsSurvival):
         chapter:
             for those who died, a grouping of their primary cause of death by chapter headings
             of the International Code of Diseases ICD-9.
-    
+
     """
     name = 'flchain'
     col_duration = 'futime'
@@ -67,7 +67,7 @@ class _Flchain(_DatasetRdatasetsSurvival):
 
         If 'processed' is False, return the raw data set.
         See the code for processing.
-        
+
         Keyword Arguments:
             processed {bool} -- If 'False' get raw data, else get processed (see '??flchain.read_df').
                 (default: {True})
@@ -131,7 +131,7 @@ class _Nwtco(_DatasetRdatasetsSurvival):
 
         If 'processed' is False, return the raw data set.
         See the code for processing.
-        
+
         Keyword Arguments:
             processed {bool} -- If 'False' get raw data, else get processed (see '??nwtco.read_df').
                 (default: {True})
