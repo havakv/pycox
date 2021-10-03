@@ -6,7 +6,7 @@ import torch
 import torchtuples as tt
 from pycox import models
 from pycox.models.loss import NLLLogistiHazardLoss
-from pycox.models.discrete_time import output2hazard, output2surv
+from pycox.models.discrete_time import output2hazard, hazard2surv
 from pycox.models.interpolation import InterpolateLogisticHazard
 from pycox.preprocessing.label_transforms import LabTransDiscreteTime
 from torch import Tensor
@@ -79,12 +79,7 @@ class LogisticHazard(models.base.SurvBase):
         self._duration_index = val
 
     def predict_surv_df(
-        self,
-        input: Any,
-        batch_size: int = 8224,
-        eval_: bool = True,
-        num_workers: int = 0,
-        epsilon: float = 1e-7,
+        self, input: Any, batch_size: int = 8224, eval_: bool = True, num_workers: int = 0, epsilon: float = 1e-7,
     ) -> pd.DataFrame:
         surv = self.predict_surv(input, batch_size, True, eval_, True, num_workers, epsilon)
         return pd.DataFrame(surv.transpose(), self.duration_index)
@@ -136,3 +131,12 @@ class LogisticHazard(models.base.SurvBase):
         if duration_index is None:
             duration_index = self.duration_index
         return InterpolateLogisticHazard(self, scheme, duration_index, sub)
+
+
+def output2surv(output: Tensor, epsilon: float = 1e-7) -> Tensor:
+    """Transform a network output tensor to discrete survival estimates.
+
+    Ref: LogisticHazard
+    """
+    hazards = output2hazard(output)
+    return hazard2surv(hazards, epsilon)
