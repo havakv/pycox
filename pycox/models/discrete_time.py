@@ -1,5 +1,7 @@
 from torch import Tensor
 
+import pycox.models.utils as utils
+
 
 def hazard2surv(hazard: Tensor, epsilon: float = 1e-7) -> Tensor:
     """Transform discrete hazards to discrete survival estimates.
@@ -15,3 +17,19 @@ def output2hazard(output: Tensor) -> Tensor:
     Ref: LogisticHazard
     """
     return output.sigmoid()
+
+
+def pmf2surv(pmf: Tensor) -> Tensor:
+    """Transform discrete PMF to discrete survival estimates.
+
+    Ref: PMF
+    """
+    return 1.0 - pmf.cumsum(1)
+
+
+def output2pmf(output: Tensor) -> Tensor:
+    """Transform a network output tensor to discrete PMF.
+
+    Ref: PMF
+    """
+    return utils.pad_col(output).softmax(1)[:, :-1]
