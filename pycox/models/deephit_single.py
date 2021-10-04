@@ -6,7 +6,7 @@ import torch
 import torchtuples as tt
 from torchtuples.data import DataLoaderBatch
 
-import pycox.models as models
+from pycox import models
 from pycox.models.data import pair_rank_mat, DeepHitDataset
 from pycox.models.loss import DeepHitSingleLoss
 from pycox.models.pmf import output2pmf, output2surv, pmf2surv

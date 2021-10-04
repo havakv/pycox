@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 import torchtuples as tt
 
-import pycox.models as models
+from pycox import models
 from pycox.models import utils
 from pycox.models.discrete_time import pmf2surv
 from pycox.models.loss import NLLMTLRLoss

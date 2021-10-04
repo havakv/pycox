@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 import torchtuples as tt
 
-import pycox.models as models
+from pycox import models
 from pycox.models.discrete_time import output2pmf, pmf2surv
 from pycox.models.interpolation import InterpolatePMF
 from pycox.models.loss import NLLPMFLoss

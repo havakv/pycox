@@ -1,6 +1,6 @@
 from torch import Tensor
 
-import pycox.models.utils as utils
+from pycox.models import utils
 
 
 def hazard2surv(hazard: Tensor, epsilon: float = 1e-7) -> Tensor:
