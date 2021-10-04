@@ -1,8 +1,13 @@
 import warnings
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from pycox.preprocessing.discretization import (make_cuts, IdxDiscUnknownC, _values_if_series,
-    DiscretizeUnknownC, Duration2Idx)
+from pycox.preprocessing.discretization import (
+    make_cuts,
+    IdxDiscUnknownC,
+    _values_if_series,
+    DiscretizeUnknownC,
+    Duration2Idx,
+)
 
 
 class LabTransCoxTime:
@@ -15,7 +20,7 @@ class LabTransCoxTime:
         model = CoxTime(net, labrans=labtrans)
     which gives the correct time scale of survival predictions
         surv = model.predict_surv_df(x)
-    
+
     Keyword Arguments:
         log_duration {bool} -- Log-transform durations, i.e. 'log(1+x)'. (default: {False})
         with_mean {bool} -- Center the duration before scaling.
@@ -23,9 +28,10 @@ class LabTransCoxTime:
         with_std {bool} -- Scale duration to unit variance.
             Passed to `sklearn.preprocessing.StandardScaler` (default: {True})
     """
+
     def __init__(self, log_duration=False, with_mean=True, with_std=True):
         self.log_duration = log_duration
-        self.duration_scaler = StandardScaler(True, with_mean, with_std)
+        self.duration_scaler = StandardScaler(copy=True, with_mean=with_mean, with_std=with_std)
 
     @property
     def map_scaled_to_orig(self):
@@ -35,8 +41,8 @@ class LabTransCoxTime:
             surv = model.predict_surv_df(x_test)
             surv.index = labtrans.map_scaled_to_orig(surv.index)
         """
-        if not hasattr(self, '_inverse_duration_map'):
-            raise ValueError('Need to fit the models before you can call this method')
+        if not hasattr(self, "_inverse_duration_map"):
+            raise ValueError("Need to fit the models before you can call this method")
         return self._inverse_duration_map
 
     def fit(self, durations, events):
@@ -45,8 +51,8 @@ class LabTransCoxTime:
 
     def fit_transform(self, durations, events):
         train_durations = durations
-        durations = durations.astype('float32')
-        events = events.astype('float32')
+        durations = durations.astype("float32")
+        events = events.astype("float32")
         if self.log_duration:
             durations = np.log1p(durations)
         durations = self.duration_scaler.fit_transform(durations.reshape(-1, 1)).flatten()
@@ -55,8 +61,8 @@ class LabTransCoxTime:
         return durations, events
 
     def transform(self, durations, events):
-        durations = durations.astype('float32')
-        events = events.astype('float32')
+        durations = durations.astype("float32")
+        events = events.astype("float32")
         if self.log_duration:
             durations = np.log1p(durations)
         durations = self.duration_scaler.transform(durations.reshape(-1, 1)).flatten()
@@ -66,7 +72,7 @@ class LabTransCoxTime:
     def out_features(self):
         """Returns the number of output features that should be used in the torch model.
         This always returns 1, and is just included for api design purposes.
-        
+
         Returns:
             [int] -- Number of output features.
         """
@@ -84,21 +90,22 @@ class LabTransDiscreteTime:
 
     Arguments:
         cuts {int, array} -- Defining cut points, either the number of cuts, or the actual cut points.
-    
+
     Keyword Arguments:
         scheme {str} -- Scheme used for discretization. Either 'equidistant' or 'quantiles'
             (default: {'equidistant})
         min_ {float} -- Starting duration (default: {0.})
         dtype {str, dtype} -- dtype of discretization.
     """
-    def __init__(self, cuts, scheme='equidistant', min_=0., dtype=None):
+
+    def __init__(self, cuts, scheme="equidistant", min_=0.0, dtype=None):
         self._cuts = cuts
         self._scheme = scheme
         self._min = min_
         self._dtype_init = dtype
         self._predefined_cuts = False
         self.cuts = None
-        if hasattr(cuts, '__iter__'):
+        if hasattr(cuts, "__iter__"):
             if type(cuts) is list:
                 cuts = np.array(cuts)
             self.cuts = cuts
@@ -117,7 +124,7 @@ class LabTransDiscreteTime:
             if isinstance(durations[0], np.floating):
                 self._dtype = durations.dtype
             else:
-                self._dtype = np.dtype('float64')
+                self._dtype = np.dtype("float64")
         durations = durations.astype(self._dtype)
         self.cuts = make_cuts(self._cuts, self._scheme, durations, events, self._min, self._dtype)
         self.idu = IdxDiscUnknownC(self.cuts)
@@ -133,12 +140,12 @@ class LabTransDiscreteTime:
         durations = durations.astype(self._dtype)
         events = _values_if_series(events)
         idx_durations, events = self.idu.transform(durations, events)
-        return idx_durations.astype('int64'), events.astype('float32')
+        return idx_durations.astype("int64"), events.astype("float32")
 
     @property
     def out_features(self):
         """Returns the number of output features that should be used in the torch model.
-        
+
         Returns:
             [int] -- Number of output features.
         """
@@ -155,7 +162,7 @@ class LabTransPCHazard:
 
     Arguments:
         cuts {int, array} -- Defining cut points, either the number of cuts, or the actual cut points.
-    
+
     Keyword Arguments:
         scheme {str} -- Scheme used for discretization. Either 'equidistant' or 'quantiles'
             (default: {'equidistant})
@@ -167,14 +174,15 @@ class LabTransPCHazard:
         with Neural Networks. arXiv preprint arXiv:1910.06724, 2019.
         https://arxiv.org/pdf/1910.06724.pdf
     """
-    def __init__(self, cuts, scheme='equidistant', min_=0., dtype=None):
+
+    def __init__(self, cuts, scheme="equidistant", min_=0.0, dtype=None):
         self._cuts = cuts
         self._scheme = scheme
         self._min = min_
         self._dtype_init = dtype
         self._predefined_cuts = False
         self.cuts = None
-        if hasattr(cuts, '__iter__'):
+        if hasattr(cuts, "__iter__"):
             if type(cuts) is list:
                 cuts = np.array(cuts)
             self.cuts = cuts
@@ -195,10 +203,10 @@ class LabTransPCHazard:
             if isinstance(durations[0], np.floating):
                 self._dtype = durations.dtype
             else:
-                self._dtype = np.dtype('float64')
+                self._dtype = np.dtype("float64")
         durations = durations.astype(self._dtype)
         self.cuts = make_cuts(self._cuts, self._scheme, durations, events, self._min, self._dtype)
-        self.duc = DiscretizeUnknownC(self.cuts, right_censor=True, censor_side='right')
+        self.duc = DiscretizeUnknownC(self.cuts, right_censor=True, censor_side="right")
         self.di = Duration2Idx(self.cuts)
         return self
 
@@ -213,19 +221,21 @@ class LabTransPCHazard:
         dur_disc, events = self.duc.transform(durations, events)
         idx_durations = self.di.transform(dur_disc)
         cut_diff = np.diff(self.cuts)
-        assert (cut_diff > 0).all(), 'Cuts are not unique.'
-        t_frac = 1. - (dur_disc - durations) / cut_diff[idx_durations-1]
+        assert (cut_diff > 0).all(), "Cuts are not unique."
+        t_frac = 1.0 - (dur_disc - durations) / cut_diff[idx_durations - 1]
         if idx_durations.min() == 0:
-            warnings.warn("""Got event/censoring at start time. Should be removed! It is set s.t. it has no contribution to loss.""")
+            warnings.warn(
+                """Got event/censoring at start time. Should be removed! It is set s.t. it has no contribution to loss."""
+            )
             t_frac[idx_durations == 0] = 0
             events[idx_durations == 0] = 0
         idx_durations = idx_durations - 1
-        return idx_durations.astype('int64'), events.astype('float32'), t_frac.astype('float32')
+        return idx_durations.astype("int64"), events.astype("float32"), t_frac.astype("float32")
 
     @property
     def out_features(self):
         """Returns the number of output features that should be used in the torch model.
-        
+
         Returns:
             [int] -- Number of output features.
         """

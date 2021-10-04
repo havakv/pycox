@@ -3,8 +3,8 @@
 """Top-level package for pycox."""
 
 __author__ = """Haavard Kvamme"""
-__email__ = 'haavard.kvamme@gmail.com'
-__version__ = '0.2.2'
+__email__ = "haavard.kvamme@gmail.com"
+__version__ = "0.2.2"
 
 import pycox.datasets
 import pycox.evaluation
