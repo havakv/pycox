@@ -10,7 +10,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
     This is the version of the data set presented by Kvamme et al. (2019) [1], but the preferred version
     is the `kkbox` version which included administrative censoring labels and and extra categorical variable.
 
-    Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api), 
+    Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api),
     with credentials (https://github.com/Kaggle/kaggle-api).
 
     The data set contains churn information from KKBox, an Asian music streaming service. Churn is
@@ -46,7 +46,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         is_cancel:
             If the customer has canceled the subscription. Subscription cancellation does not imply the
             user has churned. A user may cancel service subscription due to change of service plans or
-            other reasons. 
+            other reasons.
         city:
             City of customer.
         gender:
@@ -87,7 +87,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
         The survival data set contains no covariates, but can be useful for extending
         the dataset with more covariates from Kaggle.
-    
+
         Keyword Arguments:
             subset {str} -- Which subset to use ('train', 'val', 'test').
                 Can also set 'survival' which will give df with survival information without
@@ -106,13 +106,13 @@ class _DatasetKKBoxChurn(_DatasetLoader):
             return pd.read_feather(path)
         else:
             raise ValueError(f"Need 'subset' to be 'train', 'val', or 'test'. Got {subset}")
-        
+
         if not path.exists():
             print(f"""
             The KKBox dataset not locally available.
-            If you want to download, call 'kkbox_v1.download_kkbox()', but note that 
+            If you want to download, call 'kkbox_v1.download_kkbox()', but note that
             this might take around 10 min!
-            NOTE: You need Kaggle credentials! Follow instructions at 
+            NOTE: You need Kaggle credentials! Follow instructions at
             https://github.com/Kaggle/kaggle-api#api-credentials
             """)
             return None
@@ -130,9 +130,9 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
 
     def download_kkbox(self):
-        """Download KKBox data set. 
+        """Download KKBox data set.
         This is likely to take around 10 min!!!
-        NOTE: You need Kaggle credentials! Follow instructions at 
+        NOTE: You need Kaggle credentials! Follow instructions at
         https://github.com/Kaggle/kaggle-api#api-credentials
         """
         self._download()
@@ -149,7 +149,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         self._make_train_test_split()
         print('Cleaning up...')
         self._clean_up()
-        print("Done! You can now call `df = kkbox_v1.read_df()`.")
+        print("Done! You can now call `df = kkbox.read_df()`.")
 
     def _setup_download_dir(self):
         if self._path_dir.exists():
@@ -159,6 +159,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
     def _7z_from_kaggle(self):
         import subprocess
+        import py7zr
         try:
             import kaggle
         except OSError as e:
@@ -175,8 +176,9 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                                                  path=self._path_dir, force=True)
         for file in files:
             print(f"Extracting '{file}'...")
-            subprocess.check_output(['7z',  'x', str(self._path_dir / (file + '.csv.7z')),
-                                     f"-o{self._path_dir}"])
+            archive = py7zr.SevenZipFile(self._path_dir / f"{file}.csv.7z", mode="r")
+            archive.extractall(path=self._path_dir)
+            archive.close()
             print(f"Finished extracting '{file}'.")
 
     def _csv_to_feather_with_types(self):
@@ -214,12 +216,12 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         def days_without_membership(df):
             diff = (df['next_trans_date'] - df['membership_expire_date']).dt.total_seconds()
             return diff / (60 * 60 * 24)
-        
+
         trans = (trans
                  .sort_values(['msno', 'transaction_date'])
                  .assign(next_trans_date=(lambda x: x.groupby('msno')['transaction_date'].shift(-1)))
                  .assign(churn30=lambda x: days_without_membership(x) > 30))
-        
+
         # Remove entries with membership_expire_date < transaction_date
         trans = trans.loc[lambda x: x['transaction_date'] <= x['membership_expire_date']]
         assert (trans.loc[lambda x: x['churn30']==True].groupby(['msno', 'transaction_date'])['msno'].count().max() == 1)
@@ -229,10 +231,10 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  .assign(max_trans_date=lambda x: x.groupby('msno')['transaction_date'].transform('max'))
                  .assign(final_churn=(lambda x:
                                      (x['max_trans_date'] <= last_churn_date) &
-                                     (x['transaction_date'] == x['max_trans_date']) & 
+                                     (x['transaction_date'] == x['max_trans_date']) &
                                      (x['membership_expire_date'] <= last_churn_date)
                                      )))
-        
+
         # Churn: From training set
         trans = (trans
                  .merge(train, how='left', on='msno')
@@ -240,14 +242,14 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  .drop('is_churn', axis=1)
                  .assign(train_churn=lambda x: (x['max_trans_date'] == x['transaction_date']) & x['train_churn'])
                  .assign(churn=lambda x: x['train_churn'] | x['churn30'] | x['final_churn']))
-        
+
         # Split individuals on churn
         trans = (trans
                  .join(trans
                        .sort_values(['msno', 'transaction_date'])
                        .groupby('msno')[['churn30', 'membership_expire_date']].shift(1)
                        .rename(columns={'churn30': 'new_start', 'membership_expire_date': 'prev_mem_exp_date'})))
-        
+
         def number_of_new_starts(df):
             return (df
                     .assign(new_start=lambda x: x['new_start'].astype('float'))
@@ -255,7 +257,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                     .groupby('msno')
                     ['new_start'].cumsum().fillna(0.)
                     .astype('int'))
-        
+
         def days_between_subs(df):
             diff = (df['transaction_date'] - df['prev_mem_exp_date']).dt
             diff = diff.total_seconds() / (60 * 60 * 24)
@@ -266,22 +268,22 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         trans = (trans
                  .assign(n_prev_churns=lambda x: number_of_new_starts(x),
                          days_between_subs=lambda x: days_between_subs(x)))
-        
+
         # Set start times
         trans = (trans
                  .assign(start_date=trans.groupby(['msno', 'n_prev_churns'])['transaction_date'].transform('min'))
                  .assign(first_churn=lambda x: (x['n_prev_churns'] == 0) & (x['churn'] == True)))
-    
+
         # Get only last transactions (per chrun)
         indivs = (trans
                   .assign(censored=lambda x: x.groupby('msno')['churn'].transform('sum') == 0)
-                  .assign(last_censored=(lambda x: 
+                  .assign(last_censored=(lambda x:
                                           (x['censored'] == True) &
                                           (x['transaction_date'] == x['max_trans_date'])
                                           ))
                   .loc[lambda x: x['last_censored'] | x['churn']]
                   .merge(members[['msno', 'registration_init_time']], how='left', on='msno'))
-        
+
         def time_diff_days(df, last, first):
             return (df[last] - df[first]).dt.total_seconds() / (60 * 60 * 24)
 
@@ -290,7 +292,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                           days_since_reg_init=lambda x: time_diff_days(x, 'start_date', 'registration_init_time')))
 
         # When multiple transactions on last day, remove all but the last
-        indivs = indivs.loc[lambda x: x['transaction_date'] != x['next_trans_date']] 
+        indivs = indivs.loc[lambda x: x['transaction_date'] != x['next_trans_date']]
         assert indivs.shape == indivs.drop_duplicates(['msno', 'transaction_date']).shape
         assert (indivs['churn'] != indivs['censored']).all()
 
@@ -300,8 +302,8 @@ class _DatasetKKBoxChurn(_DatasetLoader):
 
         indivs = (indivs
                   .assign(churn_type=lambda x: 1*x['churn30'] + 2*x['final_churn'] + 4*x['train_churn'])
-                  .assign(churn_type=lambda x: 
-                          np.array(['censoring', '30days', 'final', '30days_and_final', 'train', 'train_and_30', 
+                  .assign(churn_type=lambda x:
+                          np.array(['censoring', '30days', 'final', '30days_and_final', 'train', 'train_and_30',
                                       'train_and_final', 'train_30_and_final'])[x['churn_type']])
                   .drop(dropcols, axis=1))
 
@@ -326,7 +328,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         individs = pd.read_feather(self.path_survival)
         members = pd.read_feather(self._path_dir / 'members.feather')
         trans = (individs
-                 .merge(pd.read_feather(self._path_dir / 'transactions.feather'), 
+                 .merge(pd.read_feather(self._path_dir / 'transactions.feather'),
                          how='left', left_on=['msno', 'start_date'], right_on=['msno', 'transaction_date'])
                  .drop('transaction_date', axis=1) # same as start_date
                  .drop_duplicates(['msno', 'start_date'], keep='last') # keep last transaction on start_date (by idx)
@@ -338,7 +340,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                 # Not important what the date is, though it is reasonalbe to use the last.
             age_diff = (fixed_date - df['start_date']).dt.total_seconds() / (60*60*24*365)
             return np.round(df['bd'] - age_diff)
-    
+
         trans = (trans
                  .merge(members.drop(['registration_init_time'], axis=1), how='left', on='msno')
                  .assign(age_at_start=lambda x: get_age_at_start(x))
@@ -346,11 +348,11 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  .assign(strange_age=lambda x: (x['age_at_start'] <= 0) | (x['age_at_start'] >= 100),
                          age_at_start=lambda x: x['age_at_start'].clip(lower=0, upper=100)))
 
-        # days_between_subs 
+        # days_between_subs
         # There are None for (not new start), so we can just set them to zero, and we don't need to include another variable (as it allready exists).
         trans = trans.assign(days_between_subs=lambda x: x['days_between_subs'].fillna(0.))
 
-        # days_since_reg_init 
+        # days_since_reg_init
         # We remove negative entries, set Nans to -1, and add a categorical value for missing.
         pd.testing.assert_frame_equal(trans.loc[lambda x: x['days_since_reg_init'].isnull()],
                                     trans.loc[lambda x: x['age_at_start'].isnull()])
@@ -361,7 +363,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  .assign(nan_days_since_reg_init=lambda x: x['days_since_reg_init'].isnull())
                  .assign(days_since_reg_init=lambda x: x['days_since_reg_init'].fillna(-1)))
 
-        # age_at_start 
+        # age_at_start
         # This is Nan when days_since_reg_init is nan. This is because registration_init_time is nan when bd is nan.
         # We have removed negative entries, so we set Nans to -1, but don't add dummy because its equal to days_since_reg_init dummy.
         trans = trans.assign(age_at_start=lambda x: x['age_at_start'].fillna(-1.))
@@ -373,9 +375,9 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                  .drop('first_churn', axis=1)
                  .assign(no_prev_churns=lambda x: x['n_prev_churns'] == 0))
 
-        # Drop variables that are not useful 
+        # Drop variables that are not useful
         trans = (trans
-                 .drop(['start_date', 'registration_init_time', 'churn_type', 
+                 .drop(['start_date', 'registration_init_time', 'churn_type',
                          'membership_expire_date', 'new_start'],
                      axis=1))
 
@@ -386,7 +388,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         # ### Log transform variables
         # log_cols = ['actual_amount_paid', 'days_between_subs', 'days_since_reg_init', 'payment_plan_days',
         #             'plan_list_price']
-        
+
         # log_min_p = lambda x: np.log(x - x.min() + 1)
         # trans_log = trans.assign(**{col: log_min_p(trans[col]) for col in self.log_cols})
         # assert trans_log[self.log_cols].pipe(np.isfinite).all().all()
@@ -396,7 +398,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
         float_cols =  ['n_prev_churns', 'days_between_subs', 'days_since_reg_init', 'payment_plan_days',
                     'plan_list_price', 'age_at_start', 'actual_amount_paid', 'is_auto_renew',
                     'is_cancel', 'strange_age', 'nan_days_since_reg_init', 'no_prev_churns', 'duration', 'event']
-        trans_log = trans_log.assign(**{col: trans_log[col].astype('float32') for col in float_cols}) 
+        trans_log = trans_log.assign(**{col: trans_log[col].astype('float32') for col in float_cols})
         # cov_file = join(data_dir, 'covariates.feather')
         trans_log.reset_index(drop=True).to_feather(self._path_dir / 'covariates.feather')
 
@@ -433,7 +435,7 @@ class _DatasetKKBoxChurn(_DatasetLoader):
                 file.unlink()
             except IsADirectoryError:
                 warnings.warn(f"Encountered directory in {self._path_dir}")
-    
+
     def delete_local_copy(self):
         for path in [self.path_train, self.path_test, self.path_val, self.path_survival]:
             path.unlink()
@@ -448,7 +450,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
 
     This is the version of the data set presented by Kvamme and Borgan (2019) [1].
 
-    Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api), 
+    Requires installation of the Kaggle API (https://github.com/Kaggle/kaggle-api),
     with credentials (https://github.com/Kaggle/kaggle-api).
 
     The data set contains churn information from KKBox, an Asian music streaming service. Churn is
@@ -484,7 +486,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         is_cancel:
             If the customer has canceled the subscription. Subscription cancellation does not imply the
             user has churned. A user may cancel service subscription due to change of service plans or
-            other reasons. 
+            other reasons.
         city:
             City of customer.
         gender:
@@ -529,7 +531,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
 
         The survival data set contains no covariates, but can be useful for extending
         the dataset with more covariates from Kaggle.
-    
+
         Keyword Arguments:
             log_trans {bool} -- If covariates in 'kkbox.log_cols' (from Kvamme paper) should be
                 transformed with 'z = log(x - min(x) + 1)'. (default: {True})
@@ -547,9 +549,9 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         if not path.exists():
             print(f"""
             The KKBox dataset not locally available.
-            If you want to download, call 'kkbox.download_kkbox()', but note that 
+            If you want to download, call 'kkbox.download_kkbox()', but note that
             this might take around 10 min!
-            NOTE: You need Kaggle credentials! Follow instructions at 
+            NOTE: You need Kaggle credentials! Follow instructions at
             https://github.com/Kaggle/kaggle-api#api-credentials
             """)
             return None
@@ -570,7 +572,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         df = df.rename(columns=dict(duration_lcd='duration', churn_lcd='event',
                                     duration_censor_lcd='censor_duration'))
         return df
-    
+
     def _make_train_test_split(self, seed=1234):
         pass
 
@@ -611,7 +613,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
                 .assign(max_trans_date=lambda x: x.groupby('msno')['transaction_date'].transform('max'))
                 .assign(final_churn=(lambda x:
                                     (x['max_trans_date'] <= LAST_CHURN_DATE) &
-                                    (x['transaction_date'] == x['max_trans_date']) & 
+                                    (x['transaction_date'] == x['max_trans_date']) &
                                     (x['membership_expire_date'] <= LAST_CHURN_DATE)
                                     )))
         # Churn: From training set
@@ -668,8 +670,8 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         # Add administrative censoring durations.
         # We add to types:
         # - Censoring based on the fixed data `LAST_CHURN_DATE` (lcd).
-        # - Censoring based on member ship expiration, where churned 
-        #   are censored at `last_churn_date`. 
+        # - Censoring based on member ship expiration, where churned
+        #   are censored at `last_churn_date`.
         indivs = (indivs
                 .assign(duration_censor=lambda x: x['duration'],
                         last_churn_date=pd.to_datetime(LAST_CHURN_DATE),
@@ -695,7 +697,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         assert (tmp['duration_lcd'] == tmp['duration_censor_lcd']).all(), 'Need all censor durations to be equal'
 
         # When multiple transactions on last day, remove all but the last
-        indivs = indivs.loc[lambda x: x['transaction_date'] != x['next_trans_date']] 
+        indivs = indivs.loc[lambda x: x['transaction_date'] != x['next_trans_date']]
         assert indivs.shape == indivs.drop_duplicates(['msno', 'transaction_date']).shape
         assert (indivs['churn'] != indivs['censored']).all()
 
@@ -706,8 +708,8 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
 
         indivs = (indivs
                 .assign(churn_type=lambda x: 1*x['churn30'] + 2*x['final_churn'] + 4*x['train_churn'])
-                .assign(churn_type=lambda x: 
-                        np.array(['censoring', '30days', 'final', '30days_and_final', 'train', 'train_and_30', 
+                .assign(churn_type=lambda x:
+                        np.array(['censoring', '30days', 'final', '30days_and_final', 'train', 'train_and_30',
                                     'train_and_final', 'train_30_and_final'])[x['churn_type']])
                 .drop(dropcols, axis=1))
 
@@ -730,7 +732,7 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
         members = pd.read_feather(self._path_dir / 'members.feather')
 
         trans = (individs
-                .merge(pd.read_feather(self._path_dir / 'transactions.feather'), 
+                .merge(pd.read_feather(self._path_dir / 'transactions.feather'),
                         how='left', left_on=['msno', 'start_date'], right_on=['msno', 'transaction_date'])
                 .drop(['transaction_date'], axis=1) # same as start_date
                 .drop_duplicates(['msno', 'start_date'], keep='last') # keep last transaction on start_date (by idx)
@@ -749,10 +751,10 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
                 .drop(['bd'], axis=1)
                 .assign(strange_age=lambda x: (x['age_at_start'] <= 0) | (x['age_at_start'] >= 100),
                         age_at_start=lambda x: x['age_at_start'].clip(lower=0, upper=100)))
-        # days_between_subs 
+        # days_between_subs
         # There are None for (not new start), so we can just set them to zero, and we don't need to include another variable (as it allready exists).
         trans = trans.assign(days_between_subs=lambda x: x['days_between_subs'].fillna(0.))
-        # days_since_reg_init 
+        # days_since_reg_init
         # We remove negative entries, set Nans to -1, and add a categorical value for missing.
         pd.testing.assert_frame_equal(trans.loc[lambda x: x['days_since_reg_init'].isnull()],
                                     trans.loc[lambda x: x['age_at_start'].isnull()])
@@ -762,25 +764,25 @@ class _DatasetKKBoxAdmin(_DatasetKKBoxChurn):
                 .loc[lambda x: (x['days_since_reg_init'] >= 0) | x['days_since_reg_init'].isnull()]
                 .assign(nan_days_since_reg_init=lambda x: x['days_since_reg_init'].isnull())
                 .assign(days_since_reg_init=lambda x: x['days_since_reg_init'].fillna(-1)))
-        # age_at_start 
+        # age_at_start
         # This is Nan when days_since_reg_init is nan. This is because registration_init_time is nan when bd is nan.
         # We have removed negative entries, so we set Nans to -1, but don't add dummy because its equal to days_since_reg_init dummy.
         trans = trans.assign(age_at_start=lambda x: x['age_at_start'].fillna(-1.))
-        # We use n_prev_churns == 0 as an indicator that there are no previous churn 
+        # We use n_prev_churns == 0 as an indicator that there are no previous churn
         trans = (trans
                 .assign(no_prev_churns=lambda x: x['n_prev_churns'] == 0))
-        # Drop variables that are not useful 
+        # Drop variables that are not useful
         trans = (trans
-                .drop(['start_date', 'registration_init_time', 'churn_type', 
+                .drop(['start_date', 'registration_init_time', 'churn_type',
                         'membership_expire_date'],
                     axis=1))
 
         bool_cols = ['is_auto_renew', 'is_cancel']
         cat_cols = ['payment_method_id', 'city', 'gender', 'registered_via']
         int_cols = ['days_between_subs', 'days_since_reg_init', 'age_at_start']
-        trans = trans.assign(**{col: trans[col].astype('bool') for col in bool_cols}) 
-        trans = trans.assign(**{col: trans[col].cat.remove_unused_categories() for col in cat_cols}) 
-        trans = trans.assign(**{col: trans[col].round().astype('int') for col in int_cols}) 
+        trans = trans.assign(**{col: trans[col].astype('bool') for col in bool_cols})
+        trans = trans.assign(**{col: trans[col].cat.remove_unused_categories() for col in cat_cols})
+        trans = trans.assign(**{col: trans[col].round().astype('int') for col in int_cols})
 
         trans = trans.assign(index_survival=trans.index.values).reset_index(drop=True)
         last_cols = ['duration', 'churn', 'duration_censor', 'duration_lcd', 'churn_lcd', 'duration_censor_lcd']

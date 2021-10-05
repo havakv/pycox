@@ -77,7 +77,7 @@ def concordance_td(durations, events, surv, surv_idx, method='adj_antolini'):
     Arguments:
         durations {np.array[n]} -- Event times (or censoring times.)
         events {np.array[n]} -- Event indicators (0 is censoring).
-        surv {np.array[n_times, n]} -- Survival function (each row is a duraratoin, and each col
+        surv {np.array[n_times, n]} -- Survival function (each row is a duration, and each col
             is an individual).
         surv_idx {np.array[n_test]} -- Mapping of survival_func s.t. 'surv_idx[i]' gives index in
             'surv' corresponding to the event time of individual 'i'.

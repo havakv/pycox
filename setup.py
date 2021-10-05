@@ -28,6 +28,7 @@ requirements = [
     'numba>=0.44',
     'scikit-learn>=0.21.2',
     'requests>=2.22.0',
+    'py7zr>=0.11.3',
 ]
 
 setup(
