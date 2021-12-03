@@ -25,7 +25,7 @@ class LabTransCoxTime:
     """
     def __init__(self, log_duration=False, with_mean=True, with_std=True):
         self.log_duration = log_duration
-        self.duration_scaler = StandardScaler(True, with_mean, with_std)
+        self.duration_scaler = StandardScaler(copy=True, with_mean=with_mean, with_std=with_std)
 
     @property
     def map_scaled_to_orig(self):
