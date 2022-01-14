@@ -4,7 +4,7 @@
 
 __author__ = """Haavard Kvamme"""
 __email__ = 'haavard.kvamme@gmail.com'
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 
 import pycox.datasets
 import pycox.evaluation
