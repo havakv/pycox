@@ -10,6 +10,7 @@
 <p align="center">
      <a href="https://github.com/havakv/pycox/actions"><img alt="GitHub Actions status" src="https://github.com/havakv/pycox/workflows/Python%20package/badge.svg"></a>
      <a href="https://pypi.org/project/pycox/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pycox.svg"></a>
+     <a href="https://anaconda.org/conda-forge/pycox"><img alt="PyPI" src="https://img.shields.io/conda/vn/conda-forge/pycox"></a>
      <a href="https://pypi.org/project/pycox/"><img alt="Hei" src="https://img.shields.io/pypi/pyversions/pycox.svg"></a>
     <a href="https://github.com/havakv/pycox/blob/master/LICENSE" title="License"><img src="https://img.shields.io/badge/License-BSD%202--Clause-orange.svg"></a>
 </p>
@@ -25,7 +26,7 @@
 </p>
 
 
-**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org), built on the [torchtuples](https://github.com/havakv/torchtuples) package for training PyTorch models.
+**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org), built on the [torchtuples](https://github.com/havakv/torchtuples) package for training PyTorch models. An R version of this package is available at [survivalmodels](https://github.com/RaphaelS1/survivalmodels).
 
 The package contains implementations of various [survival models](#methods), some useful [evaluation metrics](#evaluation-criteria), and a collection of [event-time datasets](#datasets).
 In addition, some useful preprocessing tools are available in the `pycox.preprocessing` module.
@@ -33,9 +34,13 @@ In addition, some useful preprocessing tools are available in the `pycox.preproc
 # Get Started
 
 To get started you first need to install [PyTorch](https://pytorch.org/get-started/locally/).
-You can then install **pycox** with 
+You can then install **pycox** via pip: 
 ```sh
 pip install pycox
+```
+OR, via conda:
+```sh
+conda install -c conda-forge pycox
 ```
 
 We recommend to start with [01_introduction.ipynb](https://nbviewer.jupyter.org/github/havakv/pycox/blob/master/examples/01_introduction.ipynb), which explains the general usage of the package in terms of preprocessing, creation of neural networks, model training, and evaluation procedure.

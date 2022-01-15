@@ -189,12 +189,9 @@ class _CoxBase(models.base.SurvBase):
         Returns:
             None
         """
-        path_list = path.split('.')
-        extension = 'pt'
-        if len(path_list) > 1:
-            path = path_list[0]
-            extension = path_list[1]
-        extension = '.'+extension
+        path, extension = os.path.splitext(path)
+        if extension == "":
+            extension = '.pt'
         super().save_net(path+extension, **kwargs)
         if hasattr(self, 'baseline_hazards_'):
             self.baseline_hazards_.to_pickle(path+'_blh.pickle')
@@ -209,12 +206,9 @@ class _CoxBase(models.base.SurvBase):
         Returns:
             None
         """
-        path_list = path.split('.')
-        extension = 'pt'
-        if len(path_list) > 1:
-            path = path_list[0]
-            extension = path_list[1]
-        extension = '.'+extension
+        path, extension = os.path.splitext(path)
+        if extension == "":
+            extension = '.pt'
         super().load_net(path+extension, **kwargs)
         blh_path = path+'_blh.pickle'
         if os.path.isfile(blh_path):

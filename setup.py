@@ -28,11 +28,12 @@ requirements = [
     'numba>=0.44',
     'scikit-learn>=0.21.2',
     'requests>=2.22.0',
+    'py7zr>=0.11.3',
 ]
 
 setup(
     name='pycox',
-    version='0.2.2',
+    version='0.2.3',
     description="Survival analysis with PyTorch",
     long_description=long_description,
     long_description_content_type='text/markdown',
