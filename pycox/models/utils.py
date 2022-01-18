@@ -50,9 +50,10 @@ def log_softplus(input, threshold=-15.):
         torch.tensor -- return log(softplus(input)).
     """
     output = input.clone()
+    output = output.to(dtype=torch.float32)
     above = input >= threshold
     output[above] = F.softplus(input[above]).log()
-    return output
+    return output.to(input.dtype)
 
 def cumsum_reverse(input: torch.Tensor, dim: int = 1) -> torch.Tensor:
     if dim != 1:
