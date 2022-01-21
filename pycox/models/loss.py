@@ -18,7 +18,7 @@ def _reduction(loss: Tensor, reduction: str = 'mean') -> Tensor:
 def replace_gather(tensor: Tensor, dim: int, idx: Tensor) -> Tensor:
     tensor_shape = tensor.shape
     tensor_ = tensor.flatten()
-    idx_ = idx.flatten() + torch.arange(start=0, end=tensor_shape[0]*tensor_shape[1], step=tensor_shape[1], device = idx.get_device())
+    idx_ = idx.flatten() + torch.arange(start=0, end=tensor_shape[0]*tensor_shape[1], step=tensor_shape[1]).to(idx.get_device())
     return torch.index_select(tensor_,dim-1,idx_).view(tensor_shape[0],-1)
 
 def nll_logistic_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
