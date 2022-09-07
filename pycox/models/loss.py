@@ -86,7 +86,7 @@ def nll_pmf(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction: str =
     sum_ = cumsum[:, -1]
     part1 = phi.gather(1, idx_durations).view(-1).sub(gamma).mul(events)
     part2 = - sum_.relu().add(epsilon).log()
-    part3 = sum_.sub(cumsum.gather(1, idx_durations).view(-1)).relu().add(epsilon).log().mul(1. - events)
+    part3 = sum_.sub(cumsum.gather(1, idx_durations+1).view(-1)).relu().add(epsilon).log().mul(1. - events)
     # need relu() in part3 (and possibly part2) because cumsum on gpu has some bugs and we risk getting negative numbers.
     loss = - part1.add(part2).add(part3)
     return _reduction(loss, reduction)
