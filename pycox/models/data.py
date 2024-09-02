@@ -35,7 +35,7 @@ def make_at_risk_dict(durations):
     allidx = durations.index.values
     keys = durations.drop_duplicates(keep='first')
     at_risk_dict = dict()
-    for ix, t in keys.iteritems():
+    for ix, t in keys.items():
         at_risk_dict[t] = allidx[ix:]
     return at_risk_dict
 

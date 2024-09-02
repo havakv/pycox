@@ -94,7 +94,7 @@ class CoxTime(models.cox_cc._CoxCCBase):
                  [self.duration_col]
                  .loc[lambda x: x <= max_duration]
                  .drop_duplicates(keep='first'))
-        at_risk_sum = (pd.Series([compute_expg_at_risk(ix, t) for ix, t in times.iteritems()],
+        at_risk_sum = (pd.Series([compute_expg_at_risk(ix, t) for ix, t in times.items()],
                                  index=times.values)
                        .rename('at_risk_sum'))
         events = (df

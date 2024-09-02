@@ -33,7 +33,7 @@ class EvalSurv:
         self.censor_surv = censor_surv
         self.censor_durations = censor_durations
         self.steps = steps
-        assert pd.Series(self.index_surv).is_monotonic
+        assert pd.Series(self.index_surv).is_monotonic_increasing
 
     @property
     def censor_surv(self):
