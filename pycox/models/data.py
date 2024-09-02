@@ -15,7 +15,6 @@ def sample_alive_from_dates(dates, at_risk_dict, n_control=1):
     lengths = np.array([at_risk_dict[x].shape[0] for x in dates])  # Can be moved outside
     idx = (np.random.uniform(size=(n_control, dates.size)) * lengths).astype('int')
     samp = np.empty((dates.size, n_control), dtype=int)
-    samp.fill(np.nan)
 
     for it, time in enumerate(dates):
         samp[it, :] = at_risk_dict[time][idx[:, it]]
