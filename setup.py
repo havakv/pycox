@@ -33,7 +33,7 @@ requirements = [
 
 setup(
     name='pycox',
-    version='0.2.3',
+    version='0.3.0',
     description="Survival analysis with PyTorch",
     long_description=long_description,
     long_description_content_type='text/markdown',
