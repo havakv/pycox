@@ -33,7 +33,7 @@ requirements = [
 
 setup(
     name='pycox',
-    version='0.2.3',
+    version='0.3.0',
     description="Survival analysis with PyTorch",
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -51,9 +51,6 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.6',
     ],
-    python_requires='>=3.6'
+    python_requires='>=3.8'
 )
