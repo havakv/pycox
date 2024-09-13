@@ -152,7 +152,7 @@ class Duration2Idx(_OnlyTransform):
         return np.vectorize(duration_idx_map(durations).get)
     
     def transform(self, duration, y=None):
-        if duration.dtype is not self.durations.dtype:
+        if duration.dtype != self.durations.dtype:
             raise ValueError('Need `time` to have same type as `self.durations`.')
         idx = self.duration_to_idx(duration)
         if np.isnan(idx).any():
