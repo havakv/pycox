@@ -15,6 +15,12 @@ def _reduction(loss: Tensor, reduction: str = 'mean') -> Tensor:
         return loss.sum()
     raise ValueError(f"`reduction` = {reduction} is not valid. Use 'none', 'mean' or 'sum'.")
 
+def replace_gather(tensor: Tensor, dim: int, idx: Tensor) -> Tensor:
+    tensor_shape = tensor.shape
+    tensor_ = tensor.flatten()
+    idx_ = idx.flatten() + torch.arange(start=0, end=tensor_shape[0]*tensor_shape[1], step=tensor_shape[1]).to(idx.get_device())
+    return torch.index_select(tensor_,dim-1,idx_).view(tensor_shape[0],-1)
+
 def nll_logistic_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
                         reduction: str = 'mean') -> Tensor:
     """Negative log-likelihood of the discrete time hazard parametrized model LogisticHazard [1].
@@ -47,7 +53,7 @@ def nll_logistic_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
     idx_durations = idx_durations.view(-1, 1)
     y_bce = torch.zeros_like(phi).scatter(1, idx_durations, events)
     bce = F.binary_cross_entropy_with_logits(phi, y_bce, reduction='none')
-    loss = bce.cumsum(1).gather(1, idx_durations).view(-1)
+    loss = replace_gather(bce.cumsum(1), 1, idx_durations).view(-1)
     return _reduction(loss, reduction)
 
 def nll_pmf(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction: str = 'mean',
@@ -84,9 +90,9 @@ def nll_pmf(phi: Tensor, idx_durations: Tensor, events: Tensor, reduction: str =
     gamma = phi.max(1)[0]
     cumsum = phi.sub(gamma.view(-1, 1)).exp().cumsum(1)
     sum_ = cumsum[:, -1]
-    part1 = phi.gather(1, idx_durations).view(-1).sub(gamma).mul(events)
+    part1 = replace_gather(phi, 1, idx_durations).view(-1).sub(gamma).mul(events)
     part2 = - sum_.relu().add(epsilon).log()
-    part3 = sum_.sub(cumsum.gather(1, idx_durations).view(-1)).relu().add(epsilon).log().mul(1. - events)
+    part3 = sum_.sub(replace_gather(cumsum, 1, idx_durations).view(-1)).relu().add(epsilon).log().mul(1. - events)
     # need relu() in part3 (and possibly part2) because cumsum on gpu has some bugs and we risk getting negative numbers.
     loss = - part1.add(part2).add(part3)
     return _reduction(loss, reduction)
@@ -164,14 +170,13 @@ def nll_pc_hazard_loss(phi: Tensor, idx_durations: Tensor, events: Tensor, inter
     interval_frac = interval_frac[keep]
 
     # log_h_e = F.softplus(phi.gather(1, idx_durations).view(-1)).log().mul(events)
-    log_h_e = utils.log_softplus(phi.gather(1, idx_durations).view(-1)).mul(events)
-    haz = F.softplus(phi)
-    scaled_h_e = haz.gather(1, idx_durations).view(-1).mul(interval_frac)
+    log_h_e = utils.log_softplus(replace_gather(phi, 1, idx_durations).view(-1)).mul(events)
+    haz = torch.nn.functional.softplus(phi)
+    scaled_h_e = replace_gather(haz, 1, idx_durations).view(-1).mul(interval_frac)
     haz = utils.pad_col(haz, where='start')
-    sum_haz = haz.cumsum(1).gather(1, idx_durations).view(-1) 
+    sum_haz = replace_gather(haz.cumsum(1), 1, idx_durations).view(-1) 
     loss = - log_h_e.sub(scaled_h_e).sub(sum_haz)
     return _reduction(loss, reduction)
-
 
 def _rank_loss_deephit(pmf: Tensor, y: Tensor, rank_mat: Tensor, sigma: float,
                        reduction: str = 'mean') -> Tensor:
