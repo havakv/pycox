@@ -18,7 +18,7 @@ def _inv_cens_scores(func, time_grid, durations, events, surv, censor_surv, idx_
             g_ts = max(g_ts, min_g)
             g_tt = max(g_tt, min_g)
             score, w = func(ts, tt, s, g_ts, g_tt, d)
-            #w = min(w, max_weight)
+            # w = min(w, max_weight)
             scores[i] = score * w
             weights[i] = w
 
@@ -44,11 +44,14 @@ def _inverse_censoring_weighted_metric(func):
         n_indiv = len(durations)
         scores = np.zeros((n_times, n_indiv))
         weights = np.zeros((n_times, n_indiv))
-        idx_ts_surv = utils.idx_at_times(index_surv, time_grid, steps_surv, assert_sorted=True)
-        idx_ts_censor = utils.idx_at_times(index_censor, time_grid, steps_censor, assert_sorted=True)
-        idx_tt_censor = utils.idx_at_times(index_censor, durations, 'pre', assert_sorted=True)
+        idx_ts_surv = utils.idx_at_times(
+            index_surv, time_grid, steps_surv, assert_sorted=True)
+        idx_ts_censor = utils.idx_at_times(
+            index_censor, time_grid, steps_censor, assert_sorted=True)
+        idx_tt_censor = utils.idx_at_times(
+            index_censor, durations, 'pre', assert_sorted=True)
         if steps_censor == 'post':
-            idx_tt_censor  = (idx_tt_censor - 1).clip(0)
+            idx_tt_censor = (idx_tt_censor - 1).clip(0)
             #  This ensures that we get G(tt-)
         _inv_cens_scores(func, time_grid, durations, events, surv, censor_surv, idx_ts_surv, idx_ts_censor,
                          idx_tt_censor, scores, weights, n_times, n_indiv, max_weight)
@@ -83,7 +86,7 @@ def _integrated_inverce_censoring_weighed_metric(func):
                max_weight=np.inf, steps_surv='post', steps_censor='post'):
         scores = func(time_grid, durations, events, surv, censor_surv, index_surv, index_censor,
                       max_weight, True, steps_surv, steps_censor)
-        integral = scipy.integrate.simps(scores, time_grid)
+        integral = scipy.integrate.simpson(y=scores, x=time_grid)
         return integral / (time_grid[-1] - time_grid[0])
     return metric
 
