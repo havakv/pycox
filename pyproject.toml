@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycox"
+version = "0.3.1"
+description = "Survival analysis with PyTorch"
+readme = { content-type = "text/markdown", text = """
+**pycox** is a python package for survival analysis and time-to-event prediction with [PyTorch](https://pytorch.org/).
+It is built on the [torchtuples](https://github.com/havakv/torchtuples) package for training [PyTorch](https://pytorch.org/) models.
+
+Read the documentation at: https://github.com/havakv/pycox
+
+The package contains
+
+- survival models: (Logistic-Hazard, DeepHit, DeepSurv, Cox-Time, MTLR, etc.)
+- evaluation criteria (concordance, Brier score, Binomial log-likelihood, etc.)
+- event-time datasets (SUPPORT, METABRIC, KKBox, etc)
+- simulation studies
+- illustrative examples
+""" }
+authors = [{ name = "Haavard Kvamme", email = "haavard.kvamme@gmail.com" }]
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+dependencies = [
+    "torchtuples>=0.2.0",
+    "feather-format>=0.4.0",
+    "h5py>=2.9.0",
+    "numba>=0.44",
+    "scikit-learn>=0.21.2",
+    "requests>=2.22.0",
+    "py7zr>=0.11.3",
+    "torch>=2.5.1",
+]
+keywords = ["pycox"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+]
+
+[project.urls]
+Homepage = "https://github.com/havakv/pycox"
+
+
+[tool.bumpversion]
+current_version = "0.3.0"
+commit = true
+tag = false
+
+[[tool.bumpversion.file]]
+filename = "pyproject.toml"
+search = "version = \"{current_version}\""
+replace = "version = \"{new_version}\""
+
+[[tool.bumpversion.file]]
+filename = "pycox/__init__.py"
+search = "__version__ = '{current_version}'"
+replace = "__version__ = '{new_version}'"
+
+[dependency-groups]
+dev = [
+    "lifelines>=0.27.8",
+    "pytest>=8.3.5",
+    "ruff>=0.11.12",
+    "sklearn-pandas>=2.2.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["pycox*"]

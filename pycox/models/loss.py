@@ -405,7 +405,7 @@ def cox_cc_loss_single_ctrl(g_case: Tensor, g_control: Tensor, shrink: float = 0
     return loss
 
 def cox_ph_loss_sorted(log_h: Tensor, events: Tensor, eps: float = 1e-7) -> Tensor:
-    """Requires the input to be sorted by descending duration time.
+    r"""Requires the input to be sorted by descending duration time.
     See DatasetDurationSorted.
 
     We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
@@ -423,7 +423,7 @@ def cox_ph_loss_sorted(log_h: Tensor, events: Tensor, eps: float = 1e-7) -> Tens
     return - log_h.sub(log_cumsum_h).mul(events).sum().div(events.sum())
 
 def cox_ph_loss(log_h: Tensor, durations: Tensor, events: Tensor, eps: float = 1e-7) -> Tensor:
-    """Loss for CoxPH model. If data is sorted by descending duration, see `cox_ph_loss_sorted`.
+    r"""Loss for CoxPH model. If data is sorted by descending duration, see `cox_ph_loss_sorted`.
 
     We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
     where h = exp(log_h) are the hazards and R is the risk set, and d is event.
@@ -668,7 +668,7 @@ class CoxCCLoss(torch.nn.Module):
 
 
 class CoxPHLossSorted(torch.nn.Module):
-    """Loss for CoxPH.
+    r"""Loss for CoxPH.
     Requires the input to be sorted by descending duration time.
     See DatasetDurationSorted.
 
@@ -686,7 +686,7 @@ class CoxPHLossSorted(torch.nn.Module):
 
 
 class CoxPHLoss(torch.nn.Module):
-    """Loss for CoxPH model. If data is sorted by descending duration, see `cox_ph_loss_sorted`.
+    r"""Loss for CoxPH model. If data is sorted by descending duration, see `cox_ph_loss_sorted`.
 
     We calculate the negative log of $(\frac{h_i}{\sum_{j \in R_i} h_j})^d$,
     where h = exp(log_h) are the hazards and R is the risk set, and d is event.
