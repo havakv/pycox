@@ -83,7 +83,7 @@ def _integrated_inverce_censoring_weighed_metric(func):
                max_weight=np.inf, steps_surv='post', steps_censor='post'):
         scores = func(time_grid, durations, events, surv, censor_surv, index_surv, index_censor,
                       max_weight, True, steps_surv, steps_censor)
-        integral = scipy.integrate.simps(scores, time_grid)
+        integral = scipy.integrate.simpson(scores, time_grid)
         return integral / (time_grid[-1] - time_grid[0])
     return metric
 
