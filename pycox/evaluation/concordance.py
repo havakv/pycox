@@ -90,7 +90,9 @@ def concordance_td(durations, events, surv, surv_idx, method='adj_antolini'):
     """
     if np.isfortran(surv):
         surv = np.array(surv, order='C')
-    assert durations.shape[0] == surv.shape[1] == surv_idx.shape[0] == events.shape[0]
+    assert durations.shape[0] == surv.shape[1] == surv_idx.shape[0] == events.shape[0], (
+        "Need `durations`, `events`, `surv_idx` and the columns of `surv` to have the same "
+        f"length, got {durations.shape[0]}, {events.shape[0]}, {surv_idx.shape[0]} and {surv.shape[1]}.")
     assert type(durations) is type(events) is type(surv) is type(surv_idx) is np.ndarray
     if events.dtype in ('float', 'float32'):
         events = events.astype('int32')
